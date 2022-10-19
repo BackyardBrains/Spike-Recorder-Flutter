@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Getting Started</title>
+    <script type="worklet">
+      class AudioWorkletStream extends AudioWorkletProcessor {
+        constructor(options) {
+          super();
+          // WITHOUT WINDOWING but with reduce
+          // 10000 - 57 seconds late
+          // With REDUCE and 7000 windowing
+          // 10000 - 6/7 seconds late
+          // 5000 - 3 seconds late
+          // 4000 - almost instant delay 3 second
+          // 3000 - almost instant delay 1 second
+          // 2000 - almost instant delayed a bit
+          // 1000 - almost instant
+          this.timeScale = 10000; // 10ms
+          //this.timeScale = 2008; // 10ms
+          console.log(sampleRate);
+  
+          this.capacityMin = (sampleRate/(1000/this.timeScale));
+          this.capacityMax = sampleRate*10;
+          this.capacity = this.capacityMin;
+  
+          this.currentArr = [];
+          this.arrMax = [];
+  
+          this.idx = 0;
+          this.limiter=3;
+    
+  
+          let vm = this;
+          this.port.onmessage = e => {
+            if (e.data.settingChannel === undefined){
+              this.channel = e.data;
+            }else{
+              this.channel2 = e.data.settingChannel;
+              this.channel2.onmessage=function(setting){
+                vm.timeScale = setting.data;
+                if (vm.timeScale === 10){
+                  vm.capacityMin = (sampleRate * vm.timeScale / 1000);
+                  vm.limiter=3;
+                }else
+                if (vm.timeScale === 2008){
+                  vm.capacityMin = (sampleRate * 0.03);
+                  vm.limiter=4;
+                }else
+                if (vm.timeScale === 6004){
+                  vm.capacityMin = (sampleRate * 0.04);
+                  vm.limiter=5;
+                }else
+                if (vm.timeScale === 8002){
+                  vm.capacityMin = (sampleRate * 0.06);
+                  vm.limiter=6;
+                }else{
+                  vm.capacityMin = (sampleRate * 0.08);
+                  vm.limiter=8;
+                }
+                vm.capacityMin = Math.floor(sampleRate * vm.timeScale / 1000);
+  
+                vm.capacity = vm.capacityMin;
+                //vm.capacityMax = sampleRate * 0.5;
+                vm.capacityMax = sampleRate*10;
+  
+              }  
+            }
+            this.port.postMessage('stream');  
+          };
+  
+        }
+        process(inputs, outputs) {
+          this.idx++;
+          //console.log("inputs");
+          //console.log(inputs);
+          //console.log(inputs[0][0]);
+          //const channels = inputs[0][0].flat().reduce((f32, channel, index) => (f32.set(channel, !index ? index : 128), f32), new Float32Array(256));
+          //let data = Array.from(channels.slice(0,127));
+          const channels = inputs[0][0];
+          let data = Array.from(channels);
+          //let sum2 = data.reduce((p,c)=> p+c);
+          //if (sum2 == 0) return true;
+  
+          this.arrMax=this.arrMax.concat(data);
+  
+          if (this.arrMax.length>this.capacityMax){
+            this.arrMax = this.arrMax.slice(this.arrMax.length-this.capacityMax-1, this.arrMax.length);
+            this.currentArr = this.arrMax.slice(this.arrMax.length-this.capacity-1, this.arrMax.length);
+            ///console.log("2 : "+this.currentArr.length+" | "+this.capacity+" : "+this.capacityMax+" : "+this.arrMax.length);
+          }else{
+            if (this.arrMax.length>this.capacity){
+              this.currentArr = this.arrMax.slice(this.arrMax.length-this.capacity-1,this.arrMax.length);
+              ///console.log("2 : "+this.currentArr.length+" | "+this.capacity+" : "+this.capacityMax+" : "+this.arrMax.length);
+              //2 : 44101 | 88552 : 44100 : 44101
+            }else{
+              this.currentArr = this.arrMax.slice(0, this.arrMax.length);
+              ///console.log("3 : "+this.capacity+" : "+this.capacityMax+" : "+this.arrMax.length);
+            }
+          }
+          if (this.idx>=Math.ceil(this.limiter/2)){
+            //this.currentArr = this.currentArr.flat();
+            //this.currentArr = this.currentArr.filter((a,i)=>i%this.limiter===0);
+            //console.log("this.currentArr "+this.capacity);
+            //console.log(this.currentArr.length);
+            //need to process the currentArr first using wasm, so send to the webworker
+            //SharedArrayBuffer 
+            //this.channel.postMessage(this.currentArr);
+            
+            //let sum = this.currentArr.reduce((p,c)=> p+c);
+            //if (sum== 0) return true;
+              
+            let arrBuffer = (new Float32Array(this.currentArr)).buffer;
+            this.channel.postMessage(arrBuffer,[arrBuffer]);
+            this.idx=0;
+          }
+  
+          
+          return true;
+        }
+      };
+      registerProcessor(
+        'audio-worklet-stream',
+        AudioWorkletStream
+      );
+    </script>
+
+
+    <script>
+    // var Module = {
+    //   onRuntimeInitialized: function() {
+    //     console.log(Module);
+    //     var instance = new Module.FilterBase();
+    //     console.log(instance);
+    //     console.log(instance.setCoefficients);
+    //     // instance.incrementX();
+    //     // instance.x; // 11
+    //     // instance.x = 20; // 20
+    //     // console.log(Module.MyClass.getStringFromInstance(instance)); // "hello"
+    //     instance.delete();        
+    //   }
+    // };      
+    </script>
+    <!-- <script src="filterbase.js"></script> -->
+  </head>
+  <body style="background-color: black;">
+    <button id="my-start-button" style="z-index:10000;position:absolute;">asdasd
+    </button>
+    <button id="endButton" style="z-index:10000;position:absolute;right:0;">END
+    </button>
+
+    <!-- <script src="main.js"></script> -->
+    <script src="bundle.js"></script>
+
+  
+
+
+
+
+    <script>
+      // let wasmExports = null;  
+
+      // let wasmMemory = new WebAssembly.Memory({initial: 256, maximum: 256});
+
+      // let wasmTable = new WebAssembly.Table({
+      //     'initial': 1,
+      //     'maximum': 1,
+      //     'element': 'anyfunc'
+      // });
+
+      // let asmLibraryArg = { 
+      //     "__handle_stack_overflow": ()=>{},
+      //     "emscripten_resize_heap": ()=>{},
+      //     "__lock": ()=>{}, 
+      //     "__unlock": ()=>{},
+      //     "memory": wasmMemory, 
+      //     "table": wasmTable 
+      // };
+
+      // var info = {
+      //     'env': asmLibraryArg,
+      //     'wasi_snapshot_preview1': asmLibraryArg
+      //   };
+
+      // async function loadWasm(){
+      //     let response = await fetch('fib.wasm');
+      //     let bytes = await response.arrayBuffer();
+      //     let wasmObj = await WebAssembly.instantiate(bytes, info);
+      //     wasmExports = wasmObj.instance.exports;
+      //     setTimeout(() => {
+      //       console.log(wasmExports);
+      //       console.log(wasmExports.fib(10));
+      //     }, 3000);
+
+      // }
+
+      // loadWasm();     
+      // var Module = {
+      //   onRuntimeInitialized: function() {
+      //     console.log('lerp result: ' + Module.lerp(1, 2, 0.5));
+      //   }
+      // };
+    </script>   
+    
+    
+
+  </body>
+</html>

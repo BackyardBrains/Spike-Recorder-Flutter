@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src = "main.js">
+  </script>
+  <script type="worklet">
+    class AudioWorkletStream extends AudioWorkletProcessor {
+      constructor(options) {
+        super();
+        this.timeScale = 10000; // 10ms
+        //this.timeScale = 2008; // 10ms
+        console.log(sampleRate);
+
+        this.capacityMin = (sampleRate/(1000/this.timeScale));
+        this.capacityMax = sampleRate*10;
+        this.capacity = this.capacityMin;
+
+        this.currentArr = [];
+        this.arrMax = [];
+
+        this.idx = 0;
+        this.limiter=3;
+  
+
+        let vm = this;
+        this.port.onmessage = e => {
+          if (e.data.settingChannel === undefined){
+            this.channel = e.data;
+          }else{
+            this.channel2 = e.data.settingChannel;
+            this.channel2.onmessage=function(setting){
+              vm.timeScale = setting.data;
+              if (vm.timeScale === 10){
+                vm.capacityMin = (sampleRate * vm.timeScale / 1000);
+                vm.limiter=3;
+              }else
+              if (vm.timeScale === 2008){
+                vm.capacityMin = (sampleRate * 0.03);
+                vm.limiter=4;
+              }else
+              if (vm.timeScale === 6004){
+                vm.capacityMin = (sampleRate * 0.04);
+                vm.limiter=5;
+              }else
+              if (vm.timeScale === 8002){
+                vm.capacityMin = (sampleRate * 0.06);
+                vm.limiter=6;
+              }else{
+                vm.capacityMin = (sampleRate * 0.08);
+                vm.limiter=8;
+              }
+              vm.capacityMin = Math.floor(sampleRate * vm.timeScale / 1000);
+
+              vm.capacity = vm.capacityMin;
+              //vm.capacityMax = sampleRate * 0.5;
+              vm.capacityMax = sampleRate*10;
+
+            }  
+          }
+          this.port.postMessage('stream');  
+        };
+
+      }
+      process(inputs, outputs) {
+        this.idx++;
+        //console.log("inputs");
+        //console.log(inputs);
+        //console.log(inputs[0][0]);
+        //const channels = inputs[0][0].flat().reduce((f32, channel, index) => (f32.set(channel, !index ? index : 128), f32), new Float32Array(256));
+        //let data = Array.from(channels.slice(0,127));
+        const channels = inputs[0][0];
+        let data = Array.from(channels);
+        //let sum2 = data.reduce((p,c)=> p+c);
+        //if (sum2 == 0) return true;
+
+        this.arrMax=this.arrMax.concat(data);
+
+        if (this.arrMax.length>this.capacityMax){
+          this.arrMax = this.arrMax.slice(this.arrMax.length-this.capacityMax-1, this.arrMax.length);
+          this.currentArr = this.arrMax.slice(this.arrMax.length-this.capacity-1, this.arrMax.length);
+          ///console.log("2 : "+this.currentArr.length+" | "+this.capacity+" : "+this.capacityMax+" : "+this.arrMax.length);
+        }else{
+          if (this.arrMax.length>this.capacity){
+            this.currentArr = this.arrMax.slice(this.arrMax.length-this.capacity-1,this.arrMax.length);
+            ///console.log("2 : "+this.currentArr.length+" | "+this.capacity+" : "+this.capacityMax+" : "+this.arrMax.length);
+            //2 : 44101 | 88552 : 44100 : 44101
+          }else{
+            this.currentArr = this.arrMax.slice(0, this.arrMax.length);
+            ///console.log("3 : "+this.capacity+" : "+this.capacityMax+" : "+this.arrMax.length);
+          }
+        }
+        if (this.idx>=Math.ceil(this.limiter/2)){
+          //this.currentArr = this.currentArr.flat();
+          //this.currentArr = this.currentArr.filter((a,i)=>i%this.limiter===0);
+          //console.log("this.currentArr "+this.capacity);
+          //console.log(this.currentArr.length);
+          //need to process the currentArr first using wasm, so send to the webworker
+          //SharedArrayBuffer 
+          //this.channel.postMessage(this.currentArr);
+          //let sum = this.currentArr.reduce((p,c)=> p+c);
+          //if (sum== 0) return true;
+            
+          let arrBuffer = (new Float32Array(this.currentArr)).buffer;
+          this.channel.postMessage(arrBuffer,[arrBuffer]);
+          delete arrBuffer;
+          this.idx=0;
+        }
+
+        
+        return true;
+      }
+    };
+    registerProcessor(
+      'audio-worklet-stream',
+      AudioWorkletStream
+    );
+  </script>
+  <script>
+
+    const ac = new AudioContext();
+    async function pauseResume(flag){
+      console.log("flag");
+      console.log(flag);
+      if (flag == 1){
+        await ac.suspend();
+      }else
+      if (flag == 2){
+        await ac.resume();
+      }
+    }
+
+    let channel = new MessageChannel();
+    let channelSetting = new MessageChannel();
+    let channelWasmWorkerResult = new MessageChannel();
+    let source;
+
+    let wasmWorker = new Worker('WasmWorker.js')
+    function refreshAudioSetting(setting){
+      // console.log("setting");
+      // console.log(setting);
+      channelSetting.port1.postMessage(setting);
+    }
+
+
+    function callJavascript(){
+      console.log(new Date().getTime());
+
+    }
+    // const getUserMedia = require('get-user-media-promise');
+    // const MicrophoneStream = require('microphone-stream').default;
+    // setTimeout(async ()=>{
+    async function recordAudio(text) {
+
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+      });
+      // console.log("mediaStream");
+      // console.log(mediaStream);
+      const worklet = URL.createObjectURL(
+        new Blob(
+          [document.querySelector('script[type=worklet]').textContent],
+          {
+            type: 'text/javascript',
+          }
+        )
+      );
+      source = new MediaStreamAudioSourceNode(ac, { mediaStream });
+
+      await ac.suspend();
+      await ac.audioWorklet.addModule(worklet);
+      const aw = new AudioWorkletNode(ac, 'audio-worklet-stream');
+      source.connect(aw);
+
+      aw.onprocessorerror = (e) => {
+        console.error("err");
+        console.error(e);
+        console.trace();
+      };
+      aw.port.onmessage = async (e) => {
+        console.log("eonmessage");
+        console.log(e);
+        await ac.resume();
+      };
+
+
+
+      aw.port.postMessage(channel.port1, [channel.port1]);
+      aw.port.postMessage({settingChannel:channelSetting.port2,setting:true}, [channelSetting.port2]);
+      // aw.port.postMessage({port: channel.port2, index:1}, [channel.port2]);
+      wasmWorker.postMessage({
+        command : "connect",
+        width : window.innerWidth,
+        height : window.innerHeight,
+        toSample : -1000,
+        fromSample : 0,
+      },[ channel.port2 ]);
+      wasmWorker.postMessage({
+        command : "forward",
+      },[ channelWasmWorkerResult.port1 ]);
+
+      channelWasmWorkerResult.port2.onmessage = async (e) =>{
+        // let f = Float32Array.from(e.data);
+        // console.log("f");
+        // console.log(f);
+        let arr = Array.from( new Float32Array(e.data) );
+        // waveform.push(arr);
+        // waveform.render();
+
+        // console.log(arr);
+                
+        // console.log(Float32Array.from(e.data));
+        window.jsToDart(arr);
+        delete arr;
+        delete e.data;
+      }    
+      
+      // channel.port2.onmessage = async (e) =>{
+      //   // console.log(e.data);
+      //   window.jsToDart(e.data);
+      // }    
+
+
+      // refreshAudioSetting(1);
+
+      if (window.changeSampleRate!==undefined){ 
+        // console.log("this");
+        // console.log(aw.context);
+
+        window.changeSampleRate(aw.context.sampleRate);
+      }
+
+      window.onbeforeunload = function() {
+        wasmWorker.terminate();
+        channel.port1.close();
+        channel.port2.close();
+
+        channelSetting.port1.close();
+        channelSetting.port2.close();
+
+        channelWasmWorkerResult.port1.close();
+        channelWasmWorkerResult.port2.close();
+
+        // channel = new MessageChannel();
+        // channelSetting = new MessageChannel();
+        // channelWasmWorkerResult = new MessageChannel();
+
+        // wasmWorker = new Worker('WasmWorker.js')
+
+
+        return undefined;
+      }
+    }
+
+
+    // },1000)
+
+  </script>
+
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="A new Flutter project.">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="micsound">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>micsound</title>
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+  <!-- This script installs service_worker.js to provide PWA functionality to
+       application. For more information, see:
+       https://developers.google.com/web/fundamentals/primers/service-workers -->
+  <script>
+    var serviceWorkerVersion = null;
+    var scriptLoaded = false;
+    function loadMainDartJs() {
+      if (scriptLoaded) {
+        return;
+      }
+      scriptLoaded = true;
+      var scriptTag = document.createElement('script');
+      scriptTag.src = 'main.dart.js';
+      scriptTag.type = 'application/javascript';
+      document.body.append(scriptTag);
+    }
+
+    if ('serviceWorker' in navigator) {
+      // Service workers are supported. Use them.
+      window.addEventListener('load', function () {
+        // Wait for registration to finish before dropping the <script> tag.
+        // Otherwise, the browser will load the script multiple times,
+        // potentially different versions.
+        var serviceWorkerUrl = 'flutter_service_worker.js?v=' + serviceWorkerVersion;
+        navigator.serviceWorker.register(serviceWorkerUrl)
+          .then((reg) => {
+            function waitForActivation(serviceWorker) {
+              serviceWorker.addEventListener('statechange', () => {
+                if (serviceWorker.state == 'activated') {
+                  console.log('Installed new service worker.');
+                  loadMainDartJs();
+                }
+              });
+            }
+            if (!reg.active && (reg.installing || reg.waiting)) {
+              // No active web worker and we have installed or are installing
+              // one for the first time. Simply wait for it to activate.
+              waitForActivation(reg.installing || reg.waiting);
+            } else if (!reg.active.scriptURL.endsWith(serviceWorkerVersion)) {
+              // When the app updates the serviceWorkerVersion changes, so we
+              // need to ask the service worker to update.
+              console.log('New service worker available.');
+              reg.update();
+              waitForActivation(reg.installing);
+            } else {
+              // Existing service worker is still good.
+              console.log('Loading app from service worker.');
+              loadMainDartJs();
+            }
+          });
+
+        // If service worker doesn't succeed in a reasonable amount of time,
+        // fallback to plaint <script> tag.
+        setTimeout(() => {
+          if (!scriptLoaded) {
+            console.warn(
+              'Failed to load app from service worker. Falling back to plain <script> tag.',
+            );
+            loadMainDartJs();
+          }
+        }, 4000);
+      });
+    } else {
+      // Service workers not supported. Just drop the <script> tag.
+      loadMainDartJs();
+    }
+  </script>
+  
+</body>
+</html>

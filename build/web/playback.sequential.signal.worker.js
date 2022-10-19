@@ -1,0 +1,764 @@
+let eventsCounterInt;
+let eventsInt;
+let eventPositionInt;
+let eventGlobalPositionInt;
+let eventPositionResultInt;
+
+let CHANNEL_COUNT_FIX=1;
+let type = 'audio';
+const arrTimescale = [ 600000,60000, 6000, 1200, 600, 120, 60, 12, 6 ];
+
+let isPrint = 2;
+const STATE = {
+  'REQUEST_SIGNAL_REFORM': 9,
+};
+
+const CONFIG = {
+  bytesPerState: Int32Array.BYTES_PER_ELEMENT,
+  bytesPerSample: Int16Array.BYTES_PER_ELEMENT,
+};
+const PLAYBACK_STATE = {
+  'SCROLL_VALUE': 0,
+  'DRAG_VALUE': 1,
+};
+
+const DRAW_STATE = {
+  'LEVEL': 0,
+  'DIVIDER': 1,
+  'SKIP_COUNTS':2,
+  'SURFACE_WIDTH':3,
+  'TIME_SCALE':4,
+  'SAMPLE_RATE':5,
+  'HEAD_IDX':6,
+  'TAIL_IDX':7,
+  'CHANNEL_COUNTS':8,
+  'CURRENT_HEAD' : 9,
+  'CURRENT_START' : 10,
+  'IS_FULL' : 11,
+  'IS_LOG' : 12,
+  'EXTRA_CHANNELS' : 13,
+  'MAX_SAMPLING_RATE' : 14,
+  'MIN_CHANNELS' : 15,
+  'MAX_CHANNELS' : 16,
+  'SAMPLING_RATE_1' : 17,
+  'SAMPLING_RATE_2' : 18,
+  'SAMPLING_RATE_3' : 19,
+  'SAMPLING_RATE_4' : 20,
+  'SAMPLING_RATE_5' : 21,
+  'SAMPLING_RATE_6' : 22,
+
+  'EVENT_FLAG' : 25,
+  'EVENT_NUMBER' : 26,
+  'EVENT_POSITION' : 27,
+  'EVENT_COUNTER' : 28,
+  //to filter array of events
+  'EVENT_HEAD' : 29,
+  'EVENT_TAIL' : 30,
+
+  'DIRECT_LOAD_FILE' : 40,
+  'HORIZONTAL_DRAG' : 41,
+  'HORIZONTAL_SCROLL_VALUE' : 42,
+
+  'WRITING_FILE_STATUS' : 50,
+
+};
+
+
+const SIZE_LOGS2 = 10;
+const NUMBER_OF_SEGMENTS = 60;
+const SEGMENT_SIZE = 10000;
+const SIZE = NUMBER_OF_SEGMENTS * SEGMENT_SIZE;
+
+var signalworker2port;
+var workerForwardPort;
+var displayWidth;
+let vm = this;
+
+// var arrCounts = [ 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288 ];
+let sabDrawing = [];
+let rawSabDraw;
+var arrCounts = [ 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048 ];
+var skipCounts = new Uint32Array(arrCounts);
+let divider = 6;
+let draw_states = [
+  new Int32Array(Int32Array.BYTES_PER_ELEMENT * 8),
+  new Int32Array(Int32Array.BYTES_PER_ELEMENT * 8),
+  new Int32Array(Int32Array.BYTES_PER_ELEMENT * 8),
+  new Int32Array(Int32Array.BYTES_PER_ELEMENT * 8),
+  new Int32Array(Int32Array.BYTES_PER_ELEMENT * 8),
+  new Int32Array(Int32Array.BYTES_PER_ELEMENT * 8),
+];
+let isReducingMarkers = false;
+
+const shiftLeft = (collection, steps = 1, pos = 1) => {
+  const subarr = collection.slice(steps);
+  collection.fill(0, 0);
+  collection.set(subarr,0);
+  return collection;
+}
+
+function reduceMarkers(ctr){
+  // if (eventPositionResultInt[0] == 0 && draw_states[0][DRAW_STATE.EVENT_FLAG]==0 ){
+  //   eventsCounterInt[0]--;
+  //   const pos = eventsCounterInt[0];
+  //   draw_states[0][DRAW_STATE.EVENT_COUNTER] = pos;
+  //   console.log("eventsCounterInt[0] reduce markers: ",eventsCounterInt[0]);
+  //   shiftLeft(eventsInt,1,pos);
+  //   shiftLeft(eventPositionInt,1,pos);
+  //   shiftLeft(eventPositionResultInt,1,pos);
+  // }
+  // eventsInt.set( eventsInt.slice(1),0 );
+  // eventPositionInt.set( eventPositionInt.slice(1),0 );
+  // eventPositionResultInt.set( eventPositionResultInt.slice(1),0 ); 
+}
+
+
+self.onmessage = function( event ) {
+  var onMessageFromWorker = function( e ){
+    const skipCounts = e.data.skipCounts;
+    // eventsCounterInt = new Uint8Array(rawSabDraw.eventsCounter);
+    // eventPositionInt = new Uint8Array(rawSabDraw.eventPosition);
+    // eventsInt = new Uint8Array(rawSabDraw.events);
+    const channelIdx = e.data.channelIdx;
+
+
+    const head = Math.floor(e.data.head/skipCounts); // idx of particular envelope
+    const tail = Math.floor(e.data.tail/skipCounts); // idx of particular envelope
+    const isFull = e.data.isFull;
+    const globalPositionCap = e.data.globalPositionCap;    
+    const nextGlobalPositionCap = e.data.nextGlobalPositionCap;    
+    // const halfwayCap = globalPositionCap * 0.8;
+    const halfwayCap = globalPositionCap;
+
+    const maxSize = nextGlobalPositionCap - globalPositionCap;
+    const offsetHead = e.data.offsetHead;
+    const maxMinMultiplier = 2;
+    const offsetTo = Math.floor( (offsetHead % maxSize )/skipCounts * maxMinMultiplier);
+    // offsetTo : 
+
+    const envelopeSamples = e.data.array;
+    const sampleRate = e.data.sampleRate;
+    const maxSampleRate = e.data.maxSampleRate;
+    // console.log("sampleRate : ",sampleRate, maxSampleRate);
+    // let sabDraw = new Int16Array(e.data.sabDraw);
+
+    // const rawLength = envelopeSamples.length;
+    const bufferLength = vm.drawBuffer.length;
+
+    // sampleRate is already priced in using the maximum samplerate
+    let prevSegment = vm.drawBuffer.length;
+    // if (maxSampleRate == 0){ // loading data is loading wav sampleRate (1666,2000,etc), so do not need maxSampleRate
+    //   prevSegment = Math.floor( envelopeSamples.length/divider );
+    // }else{
+    //   prevSegment = Math.floor( envelopeSamples.length/divider);
+    // }
+
+    // Envelope Samples
+    // 10000 * 60 * 2 / 6
+    // if the sample rate decreased,
+    // 5000 * 60 * 2 / 6 => immediately the draw buffer became smaller, but the envelope samples is not
+    let start = head * 2 - prevSegment;
+    let to = head * 2;
+
+    // let startTail = tail * 2;
+
+    const evtCounter = eventsCounterInt[0];
+    let excess = bufferLength - prevSegment;
+    // Serial Marker issue fixed below
+    if (excess < 0) excess = 0;
+    
+    const nearFull = start + prevSegment;
+    if (channelIdx == 0){
+      eventPositionResultInt.fill(0);
+    }  
+    if (!isFull && nearFull <= envelopeSamples.length){
+      if (start < 0 ) start = 0;
+      if (channelIdx == 0 && offsetHead > 0){
+        for ( let ctr = 0; ctr < evtCounter; ctr++ ){
+          // if (eventGlobalPositionInt[ctr] >= globalPositionCap && eventGlobalPositionInt[ctr] < nextGlobalPositionCap){
+          {
+            const markerPosition = Math.floor(eventPositionInt[ctr] / skipCounts * maxMinMultiplier); // headPosition in envelope realm
+            let offsetTail = offsetHead - bufferLength / 2 * skipCounts;
+            if ( offsetTail < 0 ) offsetTail = 0;
+
+            if (eventGlobalPositionInt[ctr] < offsetTail){
+              eventPositionResultInt[ctr] = 0;
+              isReducingMarkers = true;
+            }else
+            if (eventGlobalPositionInt[ctr] >= offsetTail && eventGlobalPositionInt[ctr] <= offsetHead){
+              // eventPositionResultInt[ctr] = ( bufferLength - excess - (to - (markerPosition)) ) / bufferLength * vm.drawSurfaceWidth;
+              // eventPositionResultInt[ctr] = ( bufferLength - excess - (bufferLength - (markerPosition)) ) / bufferLength * vm.drawSurfaceWidth;
+              const posMarker = Math.floor( (offsetHead - eventGlobalPositionInt[ctr] ) /skipCounts * maxMinMultiplier);              
+              eventPositionResultInt[ctr] = ( bufferLength - excess - posMarker ) / bufferLength * vm.drawSurfaceWidth;
+            }else
+            if (eventGlobalPositionInt[ctr] > offsetHead){
+              eventPositionResultInt[ctr] = 0;
+              isReducingMarkers = true;
+            }
+
+
+            // let offsetTail = offsetHead - bufferLength / 2 * skipCounts;
+            // if ( offsetTail < 0 ) offsetTail = 0;
+
+            // if (eventGlobalPositionInt[ctr] < offsetTail){
+            //   eventPositionResultInt[ctr] = 0;
+            //   isReducingMarkers = true;
+            // }else
+            // if (eventGlobalPositionInt[ctr] >= offsetTail && eventGlobalPositionInt[ctr] <= offsetHead){
+            //   eventPositionResultInt[ctr] = ( bufferLength - excess - (offsetTo - (markerPosition)) ) / bufferLength * vm.drawSurfaceWidth;
+            // }
+
+          }
+          // console.log("DIFF : ", (eventGlobalPositionInt[ctr] - globalPositionCap)/SIZE );
+          /*
+          if (eventGlobalPositionInt[ctr] >= globalPositionCap && eventGlobalPositionInt[ctr] < nextGlobalPositionCap){
+            const headPosition = Math.floor(eventPositionInt[ctr] / skipCounts * 2) ; // headPosition in envelope realm
+            if ( headPosition < start) {
+              eventPositionResultInt[ctr] = 0;
+              isReducingMarkers = true;
+            }else//{
+            if (headPosition >= start && headPosition <= to){
+    
+              // eventPositionResultInt[ctr] = bufferLength - excess - (to - (headPosition));
+              eventPositionResultInt[ctr] = ( bufferLength - excess - (to - (headPosition)) ) / bufferLength * vm.drawSurfaceWidth;
+            }
+          }
+          */
+        }  
+      }
+      // console.log("RESULT 0 : ",bufferLength, to, vm.drawSurfaceWidth);
+      // console.log("MARKERZ : ",start, to, vm.drawBuffer.length, eventsInt, eventPositionInt, eventPositionResultInt);
+
+      // const subarray = envelopeSamples.subarray(start,to);
+      const subarray = envelopeSamples.subarray(start,to);      
+      if (subarray.length < bufferLength){
+        // console.log(" !isFull 1 subarray.length < bufferLength");
+        // sabDraw.set(subarray, bufferLength - subarray.length  - 1 );
+        vm.drawBuffer.set(subarray, bufferLength - subarray.length  - 1 );
+        // vm.drawBuffer.set(subarray, 0 );
+      }else{
+        try{
+          start = to - vm.drawBuffer.length;
+          // const subarray2 = envelopeSamples.subarray(start,to);
+          const subarray2 = envelopeSamples.subarray(start,to );
+
+          // sabDraw.set(subarray2, 0 );
+          vm.drawBuffer.set(subarray2, 0 );
+        }catch(err){
+          console.log("ERROR SIGNAL", vm.drawBuffer.length, subarray.length);
+        }
+        // console.log(" !isFull 2 subarray.length >= bufferLength");
+
+      }
+    }else{
+      let segmentCount = prevSegment;
+      if (start<0){
+        // console.log(" isFull 3 start<0");
+
+        const processedHead = head * 2;
+        segmentCount = segmentCount - processedHead - 1;
+        start = envelopeSamples.length - segmentCount;
+        const firstPartOfData = envelopeSamples.subarray(start);
+        const secondPartOfData = envelopeSamples.subarray(0, processedHead);
+        const secondIdx = bufferLength - secondPartOfData.length - 1;
+        if (secondPartOfData.length>0){
+          // sabDraw.set(secondPartOfData, secondIdx);
+          // sabDraw.set(firstPartOfData, secondIdx - firstPartOfData.length);  
+
+          // vm.drawBuffer.set(secondPartOfData, secondIdx);
+          // vm.drawBuffer.set(firstPartOfData, secondIdx - firstPartOfData.length);  
+          try{
+            vm.drawBuffer.set(firstPartOfData, 0);
+            vm.drawBuffer.set(secondPartOfData, firstPartOfData.length);
+  
+          }catch(err){
+            console.log("strange error : ",err);
+          }
+          // vm.drawBuffer.set(firstPartOfData, 0);  
+
+          // vm.drawBuffer.set(firstPartOfData, 0);  
+          // vm.drawBuffer.set(secondPartOfData, firstPartOfData.length);
+        }else {
+        // if (headPosition >= start && headPosition <= to){
+          // sabDraw.set(firstPartOfData, bufferLength - firstPartOfData.length-1);  
+          try{
+            vm.drawBuffer.set(firstPartOfData, bufferLength - firstPartOfData.length-1);  
+          }catch(err){
+            console.log("Err : ", err);
+
+          }
+
+          // vm.drawBuffer.set(firstPartOfData, 0);  
+        }
+
+        if (channelIdx == 0){
+          if (channelIdx == 0 && offsetHead > 0){
+            for ( let ctr = 0; ctr < evtCounter; ctr++ ){
+              // caveat : the user seems to 
+              // if (eventGlobalPositionInt[ctr] >= globalPositionCap && eventGlobalPositionInt[ctr] < nextGlobalPositionCap){
+              {
+                // const markerPosition = Math.floor(eventPositionInt[ctr] / skipCounts * maxMinMultiplier); // headPosition in envelope realm
+                let offsetTail = offsetHead - bufferLength / 2 * skipCounts;
+                if ( offsetTail < 0 ) offsetTail = 0;
+    
+                if (eventGlobalPositionInt[ctr] < offsetTail){
+                  eventPositionResultInt[ctr] = 0;
+                  isReducingMarkers = true;
+                }else
+                if (eventGlobalPositionInt[ctr] >= offsetTail && eventGlobalPositionInt[ctr] <= offsetHead){
+                  const posMarker = Math.floor( (offsetHead - eventGlobalPositionInt[ctr] ) /skipCounts * maxMinMultiplier);              
+                  eventPositionResultInt[ctr] = ( bufferLength - excess - posMarker ) / bufferLength * vm.drawSurfaceWidth;
+    
+                  // eventPositionResultInt[ctr] = ( bufferLength - excess - (offsetTo - (markerPosition)) ) / bufferLength * vm.drawSurfaceWidth;
+                }else
+                if (eventGlobalPositionInt[ctr] > offsetHead){
+                  eventPositionResultInt[ctr] = 0;
+                  isReducingMarkers = true;
+                }
+    
+                // const distanceMarker = (offsetHead - eventGlobalPositionInt[ctr]) * maxMinMultiplier / skipCounts; // in envelope Realm
+                
+                // const offsetTail = offsetHead - bufferLength / maxMinMultiplier * skipCounts;
+                // const offsetStart = (offsetTail) * maxMinMultiplier / skipCounts;
+                // const offsetEnd = offsetStart + bufferLength;
+                // if (eventGlobalPositionInt[ctr] >= offsetTail && eventGlobalPositionInt[ctr] <= offsetHead){
+  
+                //   if (markerPosition >= offsetStart && markerPosition <= envelopeSamples.length){
+                //     const pos = bufferLength - excess - ( envelopeSamples.length - markerPosition);
+                //     eventPositionResultInt[ctr] = pos / bufferLength * vm.drawSurfaceWidth;
+                //   }else//{ // headPosition < to // below
+                //   if (markerPosition <= offsetEnd && markerPosition >=0){
+                //     // console.log("below");
+                //     const pos = bufferLength - excess - ( offsetEnd - (markerPosition) );
+                //     eventPositionResultInt[ctr] = pos / bufferLength * vm.drawSurfaceWidth;
+                //   }
+                // }else{
+                //   eventPositionResultInt[ctr] = 0;
+                //   isReducingMarkers = true;
+                // }                
+                // const markerPosition = Math.floor(eventPositionInt[ctr] / skipCounts * maxMinMultiplier); // headPosition in envelope realm
+                // const offsetTail = offsetHead - bufferLength / 2 * skipCounts;
+                // const offsetStart = (offsetTail % maxSize) * maxMinMultiplier / skipCounts;
+                // if (eventGlobalPositionInt[ctr] >= offsetTail && eventGlobalPositionInt[ctr] <= offsetHead){
+
+                //   if (markerPosition >= offsetStart && markerPosition <= envelopeSamples.length){
+                //     const counter = bufferLength - ( envelopeSamples.length - headPosition + secondPartOfData.length );
+                //     eventPositionResultInt[ctr] = counter / bufferLength * vm.drawSurfaceWidth;
+                //   }else//{ // headPosition < to // below
+                //   if (markerPosition <= offsetTo && markerPosition >=0){
+    
+                //     // console.log("below");
+                //     const counter = bufferLength - excess - ( offsetTo - (markerPosition) );
+                //     eventPositionResultInt[ctr] = counter / bufferLength * vm.drawSurfaceWidth;
+                //   }
+                // }else{
+                //   eventPositionResultInt[ctr] = 0;
+                //   isReducingMarkers = true;
+                // }
+                
+              }
+    
+            }
+          }          
+          /*
+          for ( let ctr = 0; ctr < evtCounter; ctr++ ){
+            if (eventGlobalPositionInt[ctr] >= halfwayCap && eventGlobalPositionInt[ctr] < nextGlobalPositionCap){
+              // if (eventGlobalPositionInt[ctr] >= halfwayCap){
+              const headPosition = Math.floor(eventPositionInt[ctr] / skipCounts * 2 ); // headPosition in envelope realm
+
+              if ( headPosition < start && headPosition > to) {
+                eventPositionResultInt[ctr] = 0;
+                isReducingMarkers = true;
+      
+              }else{
+                if ( headPosition <= envelopeSamples.length && headPosition>= start){ // upper
+                  const counter = bufferLength - ( envelopeSamples.length - headPosition + secondPartOfData.length );
+                  // const counter = prevSegment - excess - ( (maxSampleSingular - headPosition + secondPartOfData.length );
+                  // const counter = prevSegment - excess - ( (firstPartOfData.length - (headPosition - start) ) + secondPartOfData.length );
+
+                  // eventPositionResultInt[ctr] = 300;
+                  eventPositionResultInt[ctr] = counter / bufferLength * vm.drawSurfaceWidth;
+                  // console.log("upper ", eventPositionResultInt[ctr].toString());
+                }else//{ // headPosition < to // below
+                if (headPosition <= to && headPosition >=0){
+
+                  // console.log("below");
+                  const counter = bufferLength - excess - ( to - (headPosition) );
+                  eventPositionResultInt[ctr] = counter / bufferLength * vm.drawSurfaceWidth;
+                }
+
+              }          
+            }
+          }*/
+
+        }
+      }else{
+        // console.log(" isFull 3 start>=0");
+        start = start;
+        // const subarray = envelopeSamples.subarray(start,to);
+        const subarray = envelopeSamples.subarray(start,to);
+        const startIdx = bufferLength - subarray.length;
+
+        try{
+          vm.drawBuffer.set(subarray, startIdx);
+        }catch(err){
+          console.log("Error here","start : ", start, "to : ",to, "startIdx : ", startIdx, "bufferLength : ",bufferLength, "subarray : ", subarray.length);
+        }
+        if (channelIdx == 0 && offsetHead > 0){
+          for ( let ctr = 0; ctr < evtCounter; ctr++ ){
+            // if (eventGlobalPositionInt[ctr] >= globalPositionCap && eventGlobalPositionInt[ctr] < nextGlobalPositionCap){
+            {
+              const markerPosition = Math.floor(eventPositionInt[ctr] / skipCounts * maxMinMultiplier); // headPosition in envelope realm
+              let offsetTail = offsetHead - bufferLength / 2 * skipCounts;
+              if ( offsetTail < 0 ) offsetTail = 0;
+  
+              if (eventGlobalPositionInt[ctr] < offsetTail){
+                eventPositionResultInt[ctr] = 0;
+                isReducingMarkers = true;
+              }else
+              if (eventGlobalPositionInt[ctr] >= offsetTail && eventGlobalPositionInt[ctr] <= offsetHead){
+                const posMarker = Math.floor( (offsetHead - eventGlobalPositionInt[ctr] ) /skipCounts * maxMinMultiplier);              
+                eventPositionResultInt[ctr] = ( bufferLength - excess - posMarker ) / bufferLength * vm.drawSurfaceWidth;
+  
+                // eventPositionResultInt[ctr] = ( bufferLength - excess - (offsetTo - (markerPosition)) ) / bufferLength * vm.drawSurfaceWidth;
+              }else
+              if (eventGlobalPositionInt[ctr] > offsetHead){
+                eventPositionResultInt[ctr] = 0;
+                isReducingMarkers = true;
+              }
+
+
+              // const markerPosition = Math.floor(eventPositionInt[ctr] / skipCounts * maxMinMultiplier); // headPosition in envelope realm
+              // let offsetTail = offsetHead - bufferLength / 2 * skipCounts;
+              // if ( offsetTail < 0 ) offsetTail = 0;
+  
+              // if (eventGlobalPositionInt[ctr] < offsetTail){
+              //   eventPositionResultInt[ctr] = 0;
+              //   isReducingMarkers = true;
+              // }else
+              // if (eventGlobalPositionInt[ctr] >= offsetTail && eventGlobalPositionInt[ctr] <= offsetHead){
+              //   eventPositionResultInt[ctr] = ( bufferLength - excess - (offsetTo - (markerPosition)) ) / bufferLength * vm.drawSurfaceWidth;
+              // }
+  
+            }
+          }  
+        }
+  
+      }
+    }
+
+  };
+
+  switch( event.data.command )
+  {
+    case "initialize_drawing":
+      vm.channelCount = event.data.channelCount;
+      vm.channelIdx = event.data.channelIdx;
+    break;
+    case "connect":
+      signalworker2port = event.ports[0];
+      signalworker2port.onmessage = onMessageFromWorker;
+      vm.idx=0;
+      vm.limiter = 4;
+    break;
+
+    case "setUp":
+      if (event.data.divider !== undefined){
+        divider = event.data.divider / 10;
+      } 
+      type = event.data.type;
+      rawSabDraw= event.data.sabDraw;
+      let c = 0;
+      // CHANNEL_COUNT_FIX = event.data.channelCount;
+      // for (; c < CHANNEL_COUNT_FIX ; c++){
+      for (; c < 6 ; c++){
+        draw_states[c] = new Int32Array(rawSabDraw.draw_states[c]);
+      }
+
+      sabDrawing = rawSabDraw.levels;
+      
+      vm.drawSurfaceWidth = event.data.drawSurfaceWidth;
+      vm.level = draw_states[0][DRAW_STATE.LEVEL];
+      vm.skip_counts = draw_states[0][DRAW_STATE.SKIP_COUNTS];
+      // vm.level = -1;
+      // vm.skip_counts = 1;
+      divider = draw_states[0][DRAW_STATE.DIVIDER] / 10;
+      vm.isDirect = draw_states[0][DRAW_STATE.DIRECT_LOAD_FILE];
+
+      eventsCounterInt = new Uint8Array(rawSabDraw.eventsCounter);
+      eventPositionInt = new Uint32Array(rawSabDraw.eventPosition);
+      eventPositionResultInt = new Float32Array(rawSabDraw.eventPositionResult);
+      eventsInt = new Uint8Array(rawSabDraw.events);
+
+      const sampleRate = draw_states[0][DRAW_STATE.SAMPLE_RATE];
+
+      if (rawSabDraw === undefined){
+        vm.drawBufferLength = vm.sampleLength / divider;
+        vm.drawBuffer = new Int16Array(vm.drawBufferLength); // 10 seconds per 120 seconds
+      }else{
+        vm.drawBufferLength = Math.floor(sampleRate * 60 / divider * 2 / arrCounts[vm.level]);
+        console.log("vm.drawBufferLength : ",vm.drawBufferLength);
+        // vm.drawBufferLength = Math.floor(sampleRate * 60 / divider * 2 );
+        vm.drawBuffer = new Int16Array( vm.drawBufferLength );
+      }
+
+      //SETUP :  10000 6 4 64 3125
+      console.log("SETUP : ",sampleRate, divider, vm.level, arrCounts[vm.level], Math.floor(sampleRate * 60 / divider * 2 / arrCounts[vm.level]));
+    break;
+
+    case "sabcs":
+      vm.rawSabcs = event.data.rawSabcs;
+      vm.sabcs = vm.rawSabcs[0];
+      vm.sabcs2 = vm.rawSabcs[1];
+
+      console.log("vm.sabcs 0 11111",vm.sabcs);
+      const playbackStates = new Uint32Array(rawSabDraw.playback_states[0]);
+
+      let StatesDraw = new Int32Array(vm.sabcs.statesDraw);
+      let StatesDraw2;
+      console.log("type", type);
+      if (type == 'serial'){
+        console.log("sabcs2 undefined", StatesDraw[STATE.REQUEST_SIGNAL_REFORM]);
+        // try{
+          vm.isDirect = 1;
+          eventGlobalPositionInt = new Uint32Array(vm.sabcs.eventGlobalPosition);
+
+          while ( Atomics.wait(StatesDraw, STATE.REQUEST_SIGNAL_REFORM, 0) === 'ok' ) {
+            const sampleRate = draw_states[0][DRAW_STATE.SAMPLE_RATE];
+            // isPrint = draw_states[0][DRAW_STATE.IS_LOG];
+            // console.log("vm.sabcs1 12323", sampleRate );
+            // console.log( "SIGNAL 1", (new Date()).getTime() )
+  
+            // console.log("DRAW_STATE.CHANNEL_COUNTS : ", draw_states[0][DRAW_STATE.CHANNEL_COUNTS]);
+            // if (draw_states[0][DRAW_STATE.LEVEL] != vm.level || divider != draw_states[0][DRAW_STATE.DIVIDER]/10 || CHANNEL_COUNT_FIX != draw_states[0][DRAW_STATE.CHANNEL_COUNTS] ){
+              if (draw_states[0][DRAW_STATE.LEVEL] != vm.level || divider != draw_states[0][DRAW_STATE.DIVIDER]/10 || CHANNEL_COUNT_FIX != draw_states[0][DRAW_STATE.CHANNEL_COUNTS] || vm.drawSurfaceWidth != draw_states[0][DRAW_STATE.SURFACE_WIDTH]){
+              // if ( CHANNEL_COUNT_FIX != draw_states[0][DRAW_STATE.CHANNEL_COUNTS] ){
+              //   CHANNEL_COUNT_FIX = draw_states[0][DRAW_STATE.CHANNEL_COUNTS];
+                
+              //   let c=0;
+              //   let envelopeSamples;
+              // }
+
+            // if ( divider != draw_states[0][DRAW_STATE.DIVIDER] || CHANNEL_COUNT_FIX != draw_states[0][DRAW_STATE.CHANNEL_COUNTS] ){
+              vm.level = draw_states[0][DRAW_STATE.LEVEL];
+              // vm.level = -1;
+              vm.drawSurfaceWidth = draw_states[0][DRAW_STATE.SURFACE_WIDTH]
+        
+              divider = draw_states[0][DRAW_STATE.DIVIDER] / 10; 
+              // console.log("CHANGE SOMETHING! ", vm.level,divider);
+              vm.skip_counts = draw_states[0][DRAW_STATE.SKIP_COUNTS];
+              if (vm.level == -1){
+                vm.skip_counts = 1;
+                vm.drawBufferLength = Math.floor(sampleRate * 60 / divider * 2);
+                vm.drawBuffer = new Int16Array( vm.drawBufferLength );
+              }else{
+                vm.drawBufferLength = Math.floor(sampleRate * 60 / divider * 2 / arrCounts[vm.level]);
+                vm.drawBuffer = new Int16Array( vm.drawBufferLength );
+              }
+            }
+            CHANNEL_COUNT_FIX = draw_states[0][DRAW_STATE.CHANNEL_COUNTS];
+            // console.log("Compare22 : ", vm.isDirect, draw_states[0][DRAW_STATE.DIRECT_LOAD_FILE]);
+            vm.drawBuffer.fill(0);
+    
+            let c = 0;
+            let envelopeSamples;
+            for (;c < CHANNEL_COUNT_FIX ; c++){
+              try{
+
+              const sabcs = vm.rawSabcs[0];
+              if (vm.level == -1){
+                switch( c )
+                {
+                  case 0:
+                    envelopeSamples = new Int16Array(sabcs.arrMax);
+                  break;
+                  case 1:
+                    envelopeSamples = new Int16Array(sabcs.arrMax2);
+                  break;
+                  case 2:
+                    envelopeSamples = new Int16Array(sabcs.arrMax3);
+                    break;
+                  case 3:
+                    envelopeSamples = new Int16Array(sabcs.arrMax4);
+                  break;
+                  case 4:
+                    envelopeSamples = new Int16Array(sabcs.arrMax5);
+                  break;
+                  case 5:
+                    envelopeSamples = new Int16Array(sabcs.arrMax6);
+                  break;
+                }
+  
+              }else{
+                // console.log("sabcs.sabEnvelopes : ", vm.level);
+                //envelopeSamples = new Int16Array(sabcs.sabEnvelopes[vm.level]);
+                switch( c )
+                {
+                  case 0:
+                    envelopeSamples = new Int16Array(sabcs.sabEnvelopes[vm.level]);
+                  break;
+                  case 1:
+                    envelopeSamples = new Int16Array(sabcs.sabEnvelopes2[vm.level]);
+                  break;
+                  case 2:
+                    envelopeSamples = new Int16Array(sabcs.sabEnvelopes3[vm.level]);
+                    break;
+                  case 3:
+                    envelopeSamples = new Int16Array(sabcs.sabEnvelopes4[vm.level]);
+                  break;
+                  case 4:
+                    envelopeSamples = new Int16Array(sabcs.sabEnvelopes5[vm.level]);
+                  break;
+                  case 5:
+                    envelopeSamples = new Int16Array(sabcs.sabEnvelopes6[vm.level]);
+                  break;
+                }
+              
+              }
+              const skipCounts = vm.skip_counts;
+              // const head = new Int32Array(sabcs.config)[0];
+              // console.log( "sabcs.arrHeads : ", new Uint32Array(sabcs.arrHeads) );
+              // const temporary= new Uint32Array(sabcs.arrHeads);
+              let head = new Uint32Array(sabcs.arrHeads)[c];
+              let tail = new Uint32Array(sabcs.arrTails)[c];
+              let full = new Uint32Array(sabcs.arrIsFull)[c];
+              let offsetHead = new Uint32Array(sabcs.arrOffsetHead)[c];
+              // console.log("HEAD DRAW ", head);
+              const maxSize = (new Int16Array(sabcs.arrMax)).length;
+              // const currentCap = (new Uint32Array(sabcs.arrIsFull)[c]);
+              const currentCap = offsetHead / maxSize;
+              // const globalPositionCap = Math.floor( currentCap* maxSize / 2);
+              const globalPositionCap = Math.floor( currentCap * sampleRate * NUMBER_OF_SEGMENTS );
+              const nextGlobalPositionCap = Math.floor( (currentCap+1) * sampleRate * NUMBER_OF_SEGMENTS );
+              // console.log( "Global Position cap ", globalPositionCap, currentCap, Math.floor( currentCap* maxSize / 2) );
+              const isFull = full >= 1 ? true : false;              
+              // console.log("isFull ", isFull);
+
+              if (c==0){
+                draw_states[0][DRAW_STATE.CURRENT_HEAD] = head;
+                draw_states[0][DRAW_STATE.IS_FULL] = isFull;
+              }
+  
+              const scrollHorizontalValue = playbackStates[PLAYBACK_STATE.DRAG_VALUE];
+              const zoomHorizontalDifference = draw_states[0][DRAW_STATE.CURRENT_START]; //ZOOM DONOT DELETE
+  
+              if (zoomHorizontalDifference != 0){
+                head = head - Math.floor(zoomHorizontalDifference) ;
+                offsetHead = offsetHead - Math.floor(zoomHorizontalDifference) ;
+              }
+              if (scrollHorizontalValue > 0){
+                console.log("SCROLLING : ",zoomHorizontalDifference, head, scrollHorizontalValue, zoomHorizontalDifference == scrollHorizontalValue);
+                head = head - scrollHorizontalValue;
+                offsetHead = offsetHead - scrollHorizontalValue;
+              }
+        
+      
+              // const d = (new Date()).getTime();
+              // console.log("SIGNAL DRAW", d );
+  
+              // if (isFull){
+                // if (isPrint == 3){
+                //   let i = new Int32Array(draw_states[0]);
+                //   i[DRAW_STATE.IS_LOG] = 1;
+                //   isPrint = 1;
+                //   console.log( JSON.stringify(envelopeSamples, null, 1) );
+                  
+                // }
+              // }
+              // vm.drawBuffer.fill(0);
+              const maxSampleRate = draw_states[0][DRAW_STATE.MAX_SAMPLING_RATE];
+              let prevSegment;
+              if (maxSampleRate == 0){
+                prevSegment = Math.floor( envelopeSamples.length/divider * sampleRate );
+              }else{
+                prevSegment = Math.floor( envelopeSamples.length/divider * sampleRate / maxSampleRate);
+              }
+          
+              // const prevSegment = Math.floor( envelopeSamples.length/divider ) * sampleRate / maxSampleRate;
+              // const prevSegment = Math.floor( envelopeSamples.length/divider * sampleRate / maxSampleRate);
+              let starting = vm.drawBuffer.length - prevSegment;
+              if (starting < 0 ) starting = 0;
+
+              // console.log("sabcs.sabEnvelopes : ", vm.level, envelopeSamples);
+
+              onMessageFromWorker({
+                data : {
+                  skipCounts : skipCounts,
+                  head : head,
+                  tail : tail,
+                  offsetHead : offsetHead,
+                  isFull : isFull,
+                  array : envelopeSamples,
+                  sampleRate : sampleRate,
+                  // maxSampleRate : draw_states[0][DRAW_STATE.MAX_SAMPLING_RATE],
+                  maxSampleRate : maxSampleRate,
+                  globalPositionCap : globalPositionCap,
+                  nextGlobalPositionCap : nextGlobalPositionCap,
+                  channelIdx : c,
+                  // sabDraw: sabDrawing[c],
+                }
+              });
+              // const now = (new Date()).getTime();
+              // console.log("SIGNAL DRAW 2 ", now ,now - d );
+  
+  
+              let temp = new Int16Array(sabDrawing[c]);
+              temp.set(vm.drawBuffer.slice(0),0);
+              // console.log(temp);
+              draw_states[c][DRAW_STATE.HEAD_IDX]=starting;
+              draw_states[c][DRAW_STATE.TAIL_IDX]=vm.drawBuffer.length;
+              
+            // console.log("temp : ",temp);
+              
+              // let temp = new Int16Array(sabDrawing[c]);
+              // temp.set(vm.drawBuffer,0);
+
+              // temp.set(envelopeSamples,0);
+              // console.log( JSON.stringify(vm.drawBuffer, null, 2) );
+              // console.log("level v skipcounts : ", vm.level, skipCounts, envelopeSamples.length);
+              // temp.set(envelopeSamples,0);
+              // console.log("envelopeSamples");
+              // console.log(envelopeSamples);
+
+              // draw_states[c][DRAW_STATE.HEAD_IDX]=0;
+              // draw_states[c][DRAW_STATE.TAIL_IDX]=vm.drawBuffer.length;
+
+              // draw_states[c][DRAW_STATE.TAIL_IDX]=envelopeSamples.length;
+              // if (c==1){
+              //   console.log("channel");
+              // }
+  
+              // draw_states[c][DRAW_STATE.TAIL_IDX]=(envelopeSamples.length-1);
+              }catch(err){
+                console.log("ATOMICS WAIT ", err);
+              }
+            }
+            
+            // console.log( "SIGNAL 2", (new Date()).getTime() )
+   
+            Atomics.store(StatesDraw, STATE.REQUEST_SIGNAL_REFORM, 0);
+            if (isReducingMarkers == true){
+              // console.log("reduceMarkers ", reduceMarkers);
+              isReducingMarkers=false;
+              reduceMarkers(1);
+            }
+  
+          }           
+  
+
+        // }catch(err){
+        //   console.log("SIGNAL err");
+        //   console.log(err);
+        // }
+
+      }
+    break;    
+
+    case "forward":
+      workerForwardPort = event.ports[0];
+    break;
+
+    default:
+      console.log( event.data );
+  }
+};
