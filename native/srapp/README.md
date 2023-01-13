@@ -30,7 +30,7 @@
 
 ## Introduction
 
-Neural recording app for the PC and Macs. Runs on Windows, Linux and OSX
+Neural recording app for the macOS, Windows, iOS, Android, web
 
 
 ## Build Process
