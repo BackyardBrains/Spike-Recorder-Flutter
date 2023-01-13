@@ -1,0 +1,4 @@
+return s==null?"build/web/canvaskit/":s}, /*return s==null?"https://unpkg.com/canvaskit-wasm@0.35.0/bin/":s},*/
+
+s+("assets
+build/web/assets/
