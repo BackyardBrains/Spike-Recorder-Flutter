@@ -1,5 +1,5 @@
 
-<h1 align="center"> Spike Recorder - Native App </h1> <br>
+<h1 align="center"> Spike Recorder - Flutter Native App </h1> <br>
 <p align="center">
   <a href="https://backyardbrains.com/">
     <img alt="SpikeRecorder" title="SpikeRecorder" src="https://backyardbrains.com/products/img/SpikeRecorder.png" width="150">
