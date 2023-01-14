@@ -25,6 +25,7 @@ import 'package:fps_widget/fps_widget.dart';
 import 'package:mfi/mfi.dart';
 
 import 'package:mic_stream/mic_stream.dart';
+import 'package:nativec/nativec.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:srmobileapp/firebase_options.dart';
 // import 'package:flutter_wasm/flutter_wasm.dart';
@@ -87,6 +88,8 @@ final _data = Uint8List.fromList([
 bool isPlayingWav = false;
 bool isPaused = false;
 
+
+
 // final mod = WasmModule(data);
 // print(mod.describe());
 // final inst = mod.builder().build();
@@ -123,6 +126,9 @@ void main() async {
   } else {
     await Firebase.initializeApp();
   }
+
+  Nativec _nativec = Nativec();
+  _nativec.getPlatformVersion();
   runApp(const MyApp());
   // final data = File('fib.wasm').readAsBytesSync();
 
@@ -2491,6 +2497,9 @@ class _MyHomePageState extends State<MyHomePage> {
     getCachedWidget();
     calculateArrScaleBar();
     getDeviceCatalog();
+    
+
+
 
     initPorts();
     Future.delayed(new Duration(milliseconds: 10), () {
