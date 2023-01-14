@@ -1,5 +1,5 @@
 
-<h1 align="center"> Spike Recorder - Native App </h1> <br>
+<h1 align="center"> Spike Recorder - Flutter Native App </h1> <br>
 <p align="center">
   <a href="https://backyardbrains.com/">
     <img alt="SpikeRecorder" title="SpikeRecorder" src="https://backyardbrains.com/products/img/SpikeRecorder.png" width="150">
@@ -30,7 +30,7 @@
 
 ## Introduction
 
-Neural recording app for the PC and Macs. Runs on Windows, Linux and OSX
+Neural recording app for the macOS, Windows, iOS, Android, web
 
 
 ## Build Process
