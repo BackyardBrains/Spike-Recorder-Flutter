@@ -51,16 +51,16 @@ class Nativec {
         nativeLrsLib.lookupFunction<CreateStruct, CreateStruct>('CreateStruct');
     getInfoFn = nativeLrsLib.lookupFunction<GetInfo, GetInfo>('GetInfo');        
 
-    var dartMyStruct = createStructFn();
-    // var myStructPtr = malloc<MyStruct>()..ref = dartMyStruct;
-    var myStructPtr = malloc<MyStruct>();
-    String hello = 'hello123';
-    dartMyStruct.info = hello.toNativeUtf8();
+    // var dartMyStruct = createStructFn();
+    // // var myStructPtr = malloc<MyStruct>()..ref = dartMyStruct;
+    // var myStructPtr = malloc<MyStruct>();
+    // String hello = 'hello123';
+    // dartMyStruct.info = hello.toNativeUtf8();
 
-    // It's a pointer, so we can pass by reference.
-    final result = getInfoFn(myStructPtr);
-    print("result.toDartString()");
-    print(result.toDartString());    
+    // // It's a pointer, so we can pass by reference.
+    // final result = getInfoFn(myStructPtr);
+    // print("result.toDartString()");
+    // print(result.toDartString());    
   }
 
   double gain(a, b){
