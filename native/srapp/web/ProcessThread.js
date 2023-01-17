@@ -1,22 +1,31 @@
 var functions;
-importScripts("require.js");
-requirejs.config({
-    baseUrl: "libraries",
-    paths: {
-        // functions:"library1"
-        // functions:"library"
-        functions:"libraries"
-        // functions:"a"
-    },
-    waitSeconds: 20
-});
-requirejs(["functions"], (_functions) => {
-    functions = _functions;
-    console.log("functions");
-    console.log(functions);
-    // // console.log("Add (300,2) : ", _functions.myHyperSuperMegaFunction(300,2));
-    // console.log("Multiplications (0.5 * 212) : ",functions.multiply(0.5,212));
-});
+// importScripts("require.js");
+// requirejs.config({
+//     baseUrl: "libraries",
+//     paths: {
+//         // functions:"library1"
+//         // functions:"library"
+//         functions:"libraries"
+//         // functions:"a"
+//     },
+//     waitSeconds: 20
+// });
+// requirejs(["functions"], (_functions) => {
+//     functions = _functions;
+//     console.log("functions");
+//     console.log(functions);
+//     // // console.log("Add (300,2) : ", _functions.myHyperSuperMegaFunction(300,2));
+//     // console.log("Multiplications (0.5 * 212) : ",functions.multiply(0.5,212));
+// });
+self.importScripts("a.out.js"); 
+self.Module.onRuntimeInitialized = _ => {
+  functions = new Module.Gain(22);
+  console.log(functions.val); // prints 22
+  functions.increase();
+  console.log(functions.val); // prints 23
+  console.log("c.squareGain()"); // prints 529
+  console.log(functions.multiply(3,123)); // prints 529
+};
 
 let tempArray = new Int16Array(30000);
 
@@ -1230,9 +1239,9 @@ function areWeAtTheEndOfFrame()
                 envelopes = allEnvelopes[numberOfParsedChannels - 1];
                 _head = _arrHeadsInt[numberOfParsedChannels - 1];
                 try{
-                  // envelopingSamples(_head, sample, envelopes);                  
+                  envelopingSamples(_head, sample, envelopes);                  
                   // functions.enveloping(_head, sample, envelopes, SIZE_LOGS2, skipCounts);                  
-                  functions.envelopingSamples(_head, sample, envelopes, SIZE_LOGS2, skipCounts);                  
+                  // functions.envelopingSamples(_head, sample, envelopes, SIZE_LOGS2, skipCounts);                  
                 }catch(err){
                   //err undefined 512 undefined
                   // error when changing from audio long time to serial
@@ -1589,9 +1598,10 @@ function processAudioKernel(availableFrames) {
     for (; i < availableFrames; ++i) {
       sample = InputRingBuffer[c][inputReadIndex];
       try{
-        functions.enveloping(_head, sample, _envelopes, SIZE_LOGS2, skipCounts);
+        // functions.enveloping(_head, sample, _envelopes, SIZE_LOGS2, skipCounts);
         // functions.envelopingSamples(_head, sample, _envelopes, SIZE_LOGS2, skipCounts);
-        // envelopingSamples(_head, sample, _envelopes);
+        // console.log(functions);
+        envelopingSamples(_head, functions.multiply(sample,1), _envelopes);
 
         // if (_head % 51200 == 0){
         //   const tempLevel = 9;
@@ -1696,7 +1706,7 @@ function processAudioKernel(availableFrames) {
     }
     // console.log("channel|sample end", c, _head, States[c][STATE.IB_FRAMES_AVAILABLE]);
 
-    console.log( "enveloping speed channel : ", (new Date()) - prevDate, availableFrames, _head, c );
+    // console.log( "enveloping speed channel : ", (new Date()) - prevDate, availableFrames, _head, c );
 
     // if (c == 1){
     //   console.log("_envelopes : ", _head, offsetHead, _arrMaxInt[_head]);

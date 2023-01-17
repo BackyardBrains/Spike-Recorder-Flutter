@@ -25,6 +25,7 @@ import 'package:fps_widget/fps_widget.dart';
 import 'package:mfi/mfi.dart';
 
 import 'package:mic_stream/mic_stream.dart';
+import 'package:nativec/nativec.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:srmobileapp/firebase_options.dart';
 // import 'package:flutter_wasm/flutter_wasm.dart';
@@ -86,6 +87,9 @@ final _data = Uint8List.fromList([
 // PLAYING WAV
 bool isPlayingWav = false;
 bool isPaused = false;
+Nativec nativec = Nativec();
+
+
 
 // final mod = WasmModule(data);
 // print(mod.describe());
@@ -123,6 +127,10 @@ void main() async {
   } else {
     await Firebase.initializeApp();
   }
+
+  
+  // _nativec.getPlatformVersion();
+  // _nativec.init();
   runApp(const MyApp());
   // final data = File('fib.wasm').readAsBytesSync();
 
@@ -352,8 +360,9 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
         samples[c].forEach((tmp) {
           // print("allEnvelopes 3");
           // print(tmp);
+          // print(nativec.gain(tmp.toDouble(), 10.0));
           try {
-            envelopingSamples(cBuffIdx, tmp.toDouble(), allEnvelopes[c],
+            envelopingSamples(cBuffIdx, nativec.gain(tmp.toDouble(), 10.0) , allEnvelopes[c],
                 SIZE_LOGS2, skipCounts);
 
             cBuffIdx++;
@@ -2491,6 +2500,9 @@ class _MyHomePageState extends State<MyHomePage> {
     getCachedWidget();
     calculateArrScaleBar();
     getDeviceCatalog();
+    
+
+
 
     initPorts();
     Future.delayed(new Duration(milliseconds: 10), () {

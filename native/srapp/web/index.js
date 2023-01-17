@@ -1,6 +1,4 @@
 
-
-
 /* ---------------------------------------------------
 Old Data Below
 
@@ -61,6 +59,46 @@ let incSkip = 0;
 
 let isRecordingParam = 0;
 // let draw_states = [];
+let WASM;
+const importObject = {
+  imports: {
+    gain(v,arg) {
+      console.log(arg);
+    },
+  },
+};
+
+const memory = new WebAssembly.Memory({
+  initial: 10,
+  maximum: 100,
+});
+
+WebAssembly.instantiateStreaming(fetch("build/web/a.out.wasm",{
+  headers:{
+    'Content-Type':'Content-Type: application/wasm'
+  }
+}), {
+  js: { mem: memory },
+}).then((obj) => {
+  // const summands = new Uint32Array(memory.buffer);
+  // for (let i = 0; i < 10; i++) {
+  //   summands[i] = i;
+  // }
+  // const sum = obj.instance.exports.accumulate(0, 10);
+  console.log(obj);
+});
+// fetch("build/web/a.out.wasm")
+//   .then((response) => response.arrayBuffer())
+//   .then((bytes) => WebAssembly.instantiate(bytes, importObject))
+//   .then((result) => {
+//     console.log("WASM.multiply(10,99)");
+//     WASM = result.instance.exports;
+//     console.log(WASM.multiply(10,99));
+//   })
+//   .catch((err)=>{
+//     console.log("err");
+//     console.log(err);
+//   });
 
 let extraChannel = 0;
 const arrCounts = [ 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048 ];
