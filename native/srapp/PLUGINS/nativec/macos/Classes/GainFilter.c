@@ -10,6 +10,28 @@
 #else
 #define EXTERNC
 #endif
+
+EXTERNC typedef struct {
+    const char* info;
+} MyStruct;
+
+EXTERNC MyStruct CreateStruct() {
+    // MyStruct test = new MyStruct();
+    // MyStruct.info = "Hello Dart!";
+    // return MyStruct;
+    // return {.info = "Hello Dart!"};
+
+    MyStruct test ={
+        info: "Hello FFI"
+    };
+    return test;
+}
+
+EXTERNC const char* GetInfo(MyStruct* s) {
+    return s->info;
+}
+
+
 double result;
 double GainFilter(double sample, double multiplier){
     result = sample * multiplier;

@@ -87,6 +87,7 @@ final _data = Uint8List.fromList([
 // PLAYING WAV
 bool isPlayingWav = false;
 bool isPaused = false;
+Nativec nativec = Nativec();
 
 
 
@@ -127,8 +128,9 @@ void main() async {
     await Firebase.initializeApp();
   }
 
-  Nativec _nativec = Nativec();
-  _nativec.getPlatformVersion();
+  
+  // _nativec.getPlatformVersion();
+  // _nativec.init();
   runApp(const MyApp());
   // final data = File('fib.wasm').readAsBytesSync();
 
@@ -358,8 +360,9 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
         samples[c].forEach((tmp) {
           // print("allEnvelopes 3");
           // print(tmp);
+          // print(nativec.gain(tmp.toDouble(), 10.0));
           try {
-            envelopingSamples(cBuffIdx, tmp.toDouble(), allEnvelopes[c],
+            envelopingSamples(cBuffIdx, nativec.gain(tmp.toDouble(), 10.0) , allEnvelopes[c],
                 SIZE_LOGS2, skipCounts);
 
             cBuffIdx++;

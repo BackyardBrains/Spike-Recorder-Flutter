@@ -3,10 +3,6 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
-  desktop_window
-  flutter_libserialport
-  nativec
-  permission_handler_windows
   winaudio
 )
 

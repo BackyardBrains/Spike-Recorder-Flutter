@@ -1,6 +1,6 @@
-# srmobileapp
+# winaudio_example
 
-A new Flutter project.
+Demonstrates how to use the winaudio plugin.
 
 ## Getting Started
 
