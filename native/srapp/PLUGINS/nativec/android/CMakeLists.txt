@@ -4,4 +4,4 @@ add_library( native_nativec
 
              SHARED
 
-             ../ios/Classes/GainFilter.c ../ios/Classes/resamplesubs.c )
+             ../ios/Classes/GainFilter.cpp ../ios/Classes/resamplesubs.c )

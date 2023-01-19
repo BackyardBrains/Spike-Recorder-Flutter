@@ -362,8 +362,7 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
           // print(tmp);
           // print(nativec.gain(tmp.toDouble(), 10.0));
           try {
-            // envelopingSamples(cBuffIdx, nativec.gain(tmp.toDouble(), 10.0) , allEnvelopes[c],
-            envelopingSamples(cBuffIdx, (tmp.toDouble()) , allEnvelopes[c],
+            envelopingSamples(cBuffIdx, nativec.gain(tmp.toDouble(), 10.0) , allEnvelopes[c],
                 SIZE_LOGS2, skipCounts);
 
             cBuffIdx++;

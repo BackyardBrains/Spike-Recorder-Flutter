@@ -2,7 +2,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
-#include "GainFilter.h"
+// #include "GainFilter.h"
 
 #include<stdint.h>
 #ifdef __cplusplus
@@ -33,13 +33,21 @@ EXTERNC const char* GetInfo(MyStruct* s) {
 
 
 double result;
-double GainFilter(double sample, double multiplier){
+EXTERNC double GainFilter(double sample, double multiplier){
     result = sample * multiplier;
     return result;
 }
 
-double ReturnGainFilter(double sample){
+EXTERNC double ReturnGainFilter(double sample){
     return result * 80;
 }
 
+
+EXTERNC double CreateFilters2(){
+    return 30;
+    // filterBase = new FilterBase();
+    // filterBase->initWithSamplingRate(4000);
+
+    // return filterBase->getSamplingRate();
+}
 
