@@ -30,19 +30,23 @@ typedef ReturnGainFilterProcess = double Function(double);
 typedef create_low_pass_filters_func = ffi.Double Function(ffi.Double,ffi.Double,ffi.Double,ffi.Pointer<ffi.Int16>, ffi.Uint32);
 typedef CreateLowPassFilterProcess = double Function(double,double,double,ffi.Pointer<ffi.Int16>,int);
 
+typedef create_high_pass_filters_func = ffi.Double Function(ffi.Double,ffi.Double,ffi.Double,ffi.Pointer<ffi.Int16>, ffi.Uint32);
+typedef CreateHighPassFilterProcess = double Function(double,double,double,ffi.Pointer<ffi.Int16>,int);
+
 // Low Pass filter sample https://www.youtube.com/watch?v=X8JD8hHkBMc
 class Nativec {
   final ffi.DynamicLibrary nativeLrsLib = Platform.isAndroid
       ? ffi.DynamicLibrary.open("libnative_nativec.so")
       : ffi.DynamicLibrary.process();    
   late CreateLowPassFilterProcess _createLowPassFilterProcess;
+  late CreateHighPassFilterProcess _createHighPassFilterProcess;
   late GainFilterProcess _gainFilterProcess;
   late ReturnGainFilterProcess _returnGainFilterProcess;
   
   late CreateStruct createStructFn;
   late GetInfo getInfoFn;
 
-  static int totalBytes = 1000;
+  static int totalBytes = 1024 * 8;
   static ffi.Pointer<ffi.Int16> _data  = allocate<ffi.Int16>(count: totalBytes);
   late Int16List _bytes;
 
@@ -53,6 +57,8 @@ class Nativec {
 
   Nativec(){
     _createLowPassFilterProcess = nativeLrsLib.lookup<ffi.NativeFunction<create_low_pass_filters_func>>('createLowPassFilter')
+          .asFunction();    
+    _createHighPassFilterProcess = nativeLrsLib.lookup<ffi.NativeFunction<create_high_pass_filters_func>>('createHighPassFilter')
           .asFunction();    
     _gainFilterProcess = nativeLrsLib.lookup<ffi.NativeFunction<gain_filter_func>>('GainFilter')
           .asFunction();    
@@ -65,7 +71,7 @@ class Nativec {
     }
     // int byteCount = Nativec.totalBytes;
     _bytes = _data.asTypedList(Nativec.totalBytes);
-    _bytes.fillRange(0, 100, 33);
+    // _bytes.fillRange(0, Nativec.totalBytes, 55);
 
     createStructFn =
         nativeLrsLib.lookupFunction<CreateStruct, CreateStruct>('CreateStruct');
@@ -87,12 +93,12 @@ class Nativec {
     // List<int> data = List<int>.generate(100, (index) => index);
     
     
-    int totalBytes = 1000;
-    (_createLowPassFilterProcess(44100.0, 44100.0/2, 0.5, _data, totalBytes));    
-    print(_data.asTypedList(totalBytes));
-		if (_data != null) {
-			free(_data);
-		}    
+    // int totalBytes = 1000;
+    // (_createLowPassFilterProcess(44100.0, 30.0, 0.5, _data, totalBytes));    
+    // print(_data.asTypedList(totalBytes));
+		// if (_data != null) {
+		// 	free(_data);
+		// }    
   }
 
   double gain(a, b){
@@ -108,16 +114,43 @@ class Nativec {
   
   }
 
-  double lowpassFilter(sampleRate, highCutOff, q, _data, totalBytes){
+  List<int> lowPassFilter(sampleRate, highCutOff, q, List<int> data, totalBytes){
+    _bytes.fillRange(0, totalBytes, 0);
+    int len = data.length;
+    for (int i =0; i<len; i++){
+      _bytes[i] = data[i];
+    }
+
     double multipliedSample = _createLowPassFilterProcess(sampleRate, highCutOff, q, _data,totalBytes);
+    data = _bytes.sublist(0, totalBytes);
     // print("multipliedSample");
     // print(multipliedSample);
 
-    return multipliedSample;
+    return data;
 
 
     // print("RESULT ");
     // print(_returnGainFilterProcess(1));
   
-  }  
+  }
+
+  List<int> highPassFilter(sampleRate, highCutOff, q, List<int> data, totalBytes){
+    _bytes.fillRange(0, totalBytes, 0);
+    int len = data.length;
+    for (int i =0; i<len; i++){
+      _bytes[i] = data[i];
+    }
+
+    double multipliedSample = _createHighPassFilterProcess(sampleRate, highCutOff, q, _data,totalBytes);
+    data = _bytes.sublist(0, totalBytes);
+    // print("multipliedSample");
+    // print(multipliedSample);
+
+    return data;
+
+
+    // print("RESULT ");
+    // print(_returnGainFilterProcess(1));
+  
+  }    
 }

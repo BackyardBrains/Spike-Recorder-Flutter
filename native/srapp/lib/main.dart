@@ -286,6 +286,7 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
   SendPort sendPort = values[0];
   allEnvelopes = values[1];
   int cBufferSize = values[2];
+  double sampleRate = values[3];
   sendPort.send(iReceivePort.sendPort);
   int cBuffIdx = 0;
   int globalIdx = 0;
@@ -321,11 +322,13 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
     bool isPaused = arr[5];
     String curKey = arr[6];
     double surfaceWidth = arr[7];
+    double lowPassFilter = arr[8];
+    double highPassFilter = arr[9];
 
     int maxSize = (allEnvelopes[0][0]).length;
     int globalPositionCap = (globalIdx * maxSize / 2).floor();
 
-    List<List<double>> samples =
+    List<List<int>> samples =
         getAllChannelsSample(rawSamples, numberOfChannels);
 
     // print("!=======");
@@ -357,12 +360,23 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
       for (int c = 0; c < numberOfChannels; c++) {
         cBuffIdx = arrHeads[c];
         globalIdx = arrGlobalIdx[c];
+        // 2875. audioInputConfigArray[INPUT_TYPE_NEURONSS].filterLowPass = 5000.0f;
+        // audioInputConfigArray[INPUT_TYPE_NEURONSS].filterHighPass = 1.0f;
+    
+        // List<int> temp = List<int>.from(samples[c]);
+        samples[c]=nativec.lowPassFilter(sampleRate, lowPassFilter, 0.5, samples[c], samples[c].length);
+        samples[c]= nativec.highPassFilter(sampleRate, highPassFilter, 0.5, samples[c], samples[c].length);
+        // if (temp != samples[c]){
+        //   print("Error");
+        //   print(temp);
+        //   print(samples[c]);
+        // }
         samples[c].forEach((tmp) {
           // print("allEnvelopes 3");
           // print(tmp);
           // print(nativec.gain(tmp.toDouble(), 10.0));
           try {
-            envelopingSamples(cBuffIdx, nativec.gain(tmp.toDouble(), 10.0) , allEnvelopes[c],
+            envelopingSamples(cBuffIdx, tmp.toDouble() , allEnvelopes[c],
                 SIZE_LOGS2, skipCounts);
 
             cBuffIdx++;
@@ -986,6 +1000,7 @@ class _MyHomePageState extends State<MyHomePage> {
       FirebaseAnalyticsObserver(analytics: analytics);
 
   bool isFeedback = false;
+  bool isSettingDialog = false;
 
   double surfaceWidth = 0;
 
@@ -995,6 +1010,9 @@ class _MyHomePageState extends State<MyHomePage> {
 
   List<int> globalMarkers = [];
   String currentKey = "";
+  
+  double _lowPassFilter = 5000;
+  double _highPassFilter = 1;
 
   // bool isZoomingWhilePlaying = false;
 
@@ -1305,7 +1323,7 @@ class _MyHomePageState extends State<MyHomePage> {
     "initialMaxSerialChannels": 6,
     "muteSpeakers": true,
     "lowFilterValue": "0",
-    "highFilterValue": "1000",
+    "highFilterValue": "5000",
     "notchFilter50": false,
     "notchFilter60": false,
     "defaultMicrophoneLeftColor": 0,
@@ -1842,7 +1860,20 @@ class _MyHomePageState extends State<MyHomePage> {
         }
       } catch (err) {}
       sampleRate = 48000;
-      double _sampleRate = sampleRate.toDouble();
+      Stream<List<int>>? stream = await MicStream.microphone(
+          audioSource: AudioSource.DEFAULT,
+          sampleRate: 48000,
+          channelConfig: ChannelConfig.CHANNEL_IN_MONO,
+          audioFormat: AudioFormat.ENCODING_PCM_16BIT);
+
+      double _sampleRate = await MicStream.sampleRate!;
+      sampleRate = _sampleRate.floor();
+      MicStream.stopListening();
+      _lowPassFilter = _sampleRate / 2;
+      _highPassFilter = 1;
+      settingParams['lowFilterValue'] = _highPassFilter.floor().toString();
+      settingParams['highFilterValue'] = _lowPassFilter.floor().toString();
+
       List<int> envelopeSizes = [];
       int SEGMENT_SIZE = _sampleRate.toInt();
       int SIZE = NUMBER_OF_SEGMENTS * SEGMENT_SIZE;
@@ -1863,6 +1894,7 @@ class _MyHomePageState extends State<MyHomePage> {
         _receiveAudioPort.sendPort,
         allEnvelopes,
         cBufferSize,
+        _sampleRate.toDouble(),
         [197]
       ]);
       iSendAudioPort = await _receiveAudioQueue.next;
@@ -1932,6 +1964,8 @@ class _MyHomePageState extends State<MyHomePage> {
             isPaused,
             currentKey,
             MediaQuery.of(context).size.width,
+            _lowPassFilter,
+            _highPassFilter,
             // DISPLAY_CHANNEL_FIX,
           ]);
           currentKey = "";
@@ -1949,7 +1983,9 @@ class _MyHomePageState extends State<MyHomePage> {
           CURRENT_START,
           isPaused,
           currentKey,
-          MediaQuery.of(context).size.width
+          MediaQuery.of(context).size.width,
+          _lowPassFilter,
+          _highPassFilter,
           // DISPLAY_CHANNEL_FIX,
         ]);
         currentKey = "";
@@ -1973,6 +2009,11 @@ class _MyHomePageState extends State<MyHomePage> {
     double? tempSampleRate = (await MicStream.sampleRate);
     int? bitDepth = await MicStream.bitDepth;
     int? bufferSize = await MicStream.bufferSize;
+
+    _lowPassFilter = tempSampleRate! / 2;
+    _highPassFilter = 1;
+    settingParams['lowFilterValue'] = _highPassFilter.floor().toString();
+    settingParams['highFilterValue'] = _lowPassFilter.floor().toString();
     // sampleRate = tempSampleRate!.floor();
     // int SIZE = sampleRate!.toInt() * 60 * 2;
     // int SIZE = 48000 * 60 * 2;
@@ -2007,6 +2048,7 @@ class _MyHomePageState extends State<MyHomePage> {
       _receiveAudioPort.sendPort,
       allEnvelopes,
       cBufferSize,
+      _sampleRate.toDouble(),
       [197]
     ]);
     iSendAudioPort = await _receiveAudioQueue.next;
@@ -2046,6 +2088,8 @@ class _MyHomePageState extends State<MyHomePage> {
           isPaused,
           currentKey,
           MediaQuery.of(context).size.width,
+          _lowPassFilter,
+          _highPassFilter,
           // DISPLAY_CHANNEL_FIX,
         ]);
       } else {
@@ -2057,7 +2101,10 @@ class _MyHomePageState extends State<MyHomePage> {
           CURRENT_START,
           isPaused,
           currentKey,
-          MediaQuery.of(context).size.width
+          MediaQuery.of(context).size.width,
+          _lowPassFilter,
+          _highPassFilter,
+
           // DISPLAY_CHANNEL_FIX,
         ]);
         currentKey = "";
@@ -2242,7 +2289,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    if (!isFeedback) FocusScope.of(context).requestFocus(keyboardFocusNode);
+    if (isFeedback||isSettingDialog) {
+
+    }else{
+      FocusScope.of(context).requestFocus(keyboardFocusNode);
+    }
 
     if (Platform.isAndroid || Platform.isIOS) {
       return Scaffold(
@@ -2888,6 +2939,7 @@ class _MyHomePageState extends State<MyHomePage> {
       _receivePort.sendPort,
       allEnvelopes,
       surfaceSize,
+      _sampleRate.toDouble(),
       [197]
     ]);
     iSendPort = await _receiveQueue.next;
@@ -3057,6 +3109,10 @@ class _MyHomePageState extends State<MyHomePage> {
               });
               bool enableDeviceLegacy =
                   settingParams["enableDeviceLegacy"] as bool;
+              settingParams['highFilterValue'] = (_lowPassFilter).floor().toString();
+              settingParams['lowFilterValue'] = (_highPassFilter).floor().toString();
+              settingParams['sampleRate'] = (sampleRate).floor().toString();
+              isSettingDialog = true; 
               showCustomAudioDialog(context, settingParams).then((params) {
                 try {
                   print("params");
@@ -3076,6 +3132,15 @@ class _MyHomePageState extends State<MyHomePage> {
                       settingParams["defaultMicrophoneRightColor"] as int];
                   print("channelsColor[1] : " + channelsColor[1].toString());
                   // need to check again
+                  _lowPassFilter = int.parse(settingParams["highFilterValue"] as String).toDouble();
+                  _highPassFilter = int.parse(settingParams["lowFilterValue"] as String).toDouble();
+                  print("Filter : ");
+                  print(_lowPassFilter);
+                  if (_highPassFilter == 0){
+                    _highPassFilter = 1;
+                  }
+                  print(_highPassFilter);
+
                   if (channelsColor[1] != Color(0xff000000)) {
                     var data = {
                       "channelCount": 2,
@@ -3140,7 +3205,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
               bool enableDeviceLegacy =
                   settingParams["enableDeviceLegacy"] as bool;
-
+              isSettingDialog = true;
               showCustomSerialDialog(context, settingParams).then((params) {
                 // check with previous data
                 try {
@@ -3543,42 +3608,42 @@ class _MyHomePageState extends State<MyHomePage> {
     //   },
     // },
     if (Platform.isMacOS) {
-      dataWidgets.add(
-        Positioned(
-          top: 10,
-          left: MediaQuery.of(context).size.width / 3,
-          child: ElevatedButton(
-            onPressed: () async {
-              if (Platform.isMacOS) {
-                // Stream<List<int>>? stream = await MicStream.microphone(
-                //     audioSource: AudioSource.DEFAULT,
-                //     sampleRate: 48000,
-                //     channelConfig: ChannelConfig.CHANNEL_IN_MONO,
-                //     audioFormat: AudioFormat.ENCODING_PCM_16BIT);
+      // dataWidgets.add(
+      //   Positioned(
+      //     top: 10,
+      //     left: MediaQuery.of(context).size.width / 3,
+      //     child: ElevatedButton(
+      //       onPressed: () async {
+      //         if (Platform.isMacOS) {
+      //           // Stream<List<int>>? stream = await MicStream.microphone(
+      //           //     audioSource: AudioSource.DEFAULT,
+      //           //     sampleRate: 48000,
+      //           //     channelConfig: ChannelConfig.CHANNEL_IN_MONO,
+      //           //     audioFormat: AudioFormat.ENCODING_PCM_16BIT);
 
-                // double _sampleRate = await MicStream.sampleRate!;
-                // MicStream.stopListening();
+      //           // double _sampleRate = await MicStream.sampleRate!;
+      //           // MicStream.stopListening();
 
-                // print("_sampleRate");
-                // print(_sampleRate);
-                // (Winaudio()).initBassAudio(48000);
-              }
-              // await (Winaudio()).initBassAudio(48000);
-              // Future.delayed(Duration(seconds: 1), () {
-              // await (Winaudio()).startRecording();
-              // });
-              // winAudioSubscription?.cancel();
-              // winAudioSubscription = Winaudio.audioData().listen((samples) {
-              //   // print(samples.length);
-              // });
+      //           // print("_sampleRate");
+      //           // print(_sampleRate);
+      //           // (Winaudio()).initBassAudio(48000);
+      //         }
+      //         // await (Winaudio()).initBassAudio(48000);
+      //         // Future.delayed(Duration(seconds: 1), () {
+      //         // await (Winaudio()).startRecording();
+      //         // });
+      //         // winAudioSubscription?.cancel();
+      //         // winAudioSubscription = Winaudio.audioData().listen((samples) {
+      //         //   // print(samples.length);
+      //         // });
 
-              closeRawSerial();
-              print("abcd");
-            },
-            child: Text("Close Serial"),
-          ),
-        ),
-      );
+      //         closeRawSerial();
+      //         print("abcd");
+      //       },
+      //       child: Text("Close Serial"),
+      //     ),
+      //   ),
+      // );
     }
     List<Widget> widgetsChannelGainLevel = [];
     Color curColor = Colors.white;

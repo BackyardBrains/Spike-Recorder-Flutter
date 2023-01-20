@@ -92,7 +92,7 @@ screenPositionToElementPosition(posX, part, level, skipCount,
 }
 
 getVisibleSamples(samples, i, len, int maxOsChannel) {
-  List<double> visibleSamples = [];
+  List<int> visibleSamples = [];
   for (int j = i * 2; j < len; j += 2 * maxOsChannel) {
     // print("j : "+j.toString());
     // print("i : " +
@@ -117,7 +117,7 @@ getVisibleSamples(samples, i, len, int maxOsChannel) {
 
         ByteData byteData = ByteData.view(byteArray.buffer);
         tmp = (byteData.getInt16(0, Endian.little));
-        visibleSamples.add(tmp.toDouble());
+        visibleSamples.add(tmp);
 
         tmp = 0;
       }
@@ -128,11 +128,11 @@ getVisibleSamples(samples, i, len, int maxOsChannel) {
 }
 
 getAllChannelsSample(samples, int maxOsChannel) {
-  List<List<double>> arrVisibleSamples = [];
+  List<List<int>> arrVisibleSamples = [];
   for (int i = 0; i < maxOsChannel; i++) {
     final len = samples.length;
     // tempBuffIdx = cBuffIdx;
-    List<double> visibleSamples =
+    List<int> visibleSamples =
         getVisibleSamples(samples, i, len, maxOsChannel);
 
     // for (int sample in samples) {
@@ -141,7 +141,7 @@ getAllChannelsSample(samples, int maxOsChannel) {
     //   print("visibleSamples");
     //   print(visibleSamples);
     // }
-    arrVisibleSamples.add(List<double>.from(visibleSamples));
+    arrVisibleSamples.add(List<int>.from(visibleSamples));
   }
   return arrVisibleSamples;
 }

@@ -59,13 +59,15 @@ private:
 };
 
 HighPassFilter* highPassFilter;
-EXTERNC double createHighPassFilter(double sampleRate){
+EXTERNC double createHighPassFilter(double sampleRate, double highCutOff, double q, short *data, uint32_t sampleCount){
     highPassFilter = new HighPassFilter();
     highPassFilter->initWithSamplingRate(sampleRate);
-
-    return highPassFilter->getSamplingRate();
+    if (highCutOff > sampleRate / 2.0f) highCutOff = sampleRate / 2.0f;
+    highPassFilter->setCornerFrequency(highCutOff);
+    highPassFilter->setQ(q);
+    highPassFilter->filter(data, sampleCount, false);
+    return 1;
 }
-
 
 
 // EXTERNC double createFilters(){

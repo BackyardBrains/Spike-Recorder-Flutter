@@ -39,7 +39,7 @@ dependencies:
   nativec: 
     path: ./PLUGINS/nativec/
   gesture_x_detector: 1.1.1
-
+  another_xlider: 1.1.2
 
 
   flutter:
