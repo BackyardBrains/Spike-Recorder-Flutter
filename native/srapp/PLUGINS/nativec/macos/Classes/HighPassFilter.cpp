@@ -58,17 +58,36 @@ protected:
 private:
 };
 
-HighPassFilter* highPassFilter;
-EXTERNC double createHighPassFilter(double sampleRate, double highCutOff, double q, short *data, uint32_t sampleCount){
-    highPassFilter = new HighPassFilter();
-    highPassFilter->initWithSamplingRate(sampleRate);
-    if (highCutOff > sampleRate / 2.0f) highCutOff = sampleRate / 2.0f;
-    highPassFilter->setCornerFrequency(highCutOff);
-    highPassFilter->setQ(q);
-    highPassFilter->filter(data, sampleCount, false);
+HighPassFilter* highPassFilters;
+EXTERNC double createHighPassFilter(short channelCount, double sampleRate, double highCutOff, double q){
+    highPassFilters = new HighPassFilter[channelCount];
+    for( uint32_t i = 0; i < channelCount; i++ )
+    {
+        HighPassFilter highPassFilter = highPassFilters[i];
+        highPassFilter.initWithSamplingRate(sampleRate);
+        if (highCutOff > sampleRate / 2.0f) highCutOff = sampleRate / 2.0f;
+        highPassFilter.setCornerFrequency(highCutOff);
+        highPassFilter.setQ(q);
+    }
     return 1;
 }
 
+EXTERNC double initHighPassFilter(short channelCount, double sampleRate, double highCutOff, double q){
+    for( uint32_t i = 0; i < channelCount; i++ )
+    {
+        HighPassFilter highPassFilter = highPassFilters[i];
+        highPassFilter.initWithSamplingRate(sampleRate);
+        if (highCutOff > sampleRate / 2.0f) highCutOff = sampleRate / 2.0f;
+        highPassFilter.setCornerFrequency(highCutOff);
+        highPassFilter.setQ(q);
+    }
+    return 1;
+}
+
+EXTERNC double applyHighPassFilter(short channelIdx, short *data, uint32_t sampleCount){
+    highPassFilters[channelIdx].filter(data, sampleCount, false);
+    return 1;
+}
 
 // EXTERNC double createFilters(){
 //     return 30;

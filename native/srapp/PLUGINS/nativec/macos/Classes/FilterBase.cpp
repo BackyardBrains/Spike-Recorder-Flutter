@@ -103,9 +103,6 @@ public:
         free(tInputBuffer);
         free(tOutputBuffer);
     }
-
-protected:
-
     void intermediateVariables(float Fc, float Q) {
         omega = static_cast<float>(2 * M_PI * Fc / samplingRate);
         omegaS = sin(omega);
@@ -120,6 +117,9 @@ protected:
     float omega, omegaS, omegaC, alpha;
     float coefficients[5];
     float a0, a1, a2, b0, b1, b2;
+
+protected:
+
 private:  
 };
 

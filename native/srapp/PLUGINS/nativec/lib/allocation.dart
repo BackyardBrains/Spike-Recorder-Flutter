@@ -43,8 +43,8 @@ stdlib.lookupFunction<WinHeapFreeNative, WinHeapFree>("HeapFree");
 /// of 0 is undefined.
 ///
 /// Throws an ArgumentError on failure to allocate.
-Pointer<T> allocate<T extends NativeType>({int count = 1}) {
-  final int totalSize = count * sizeOf<Int16>();
+Pointer<T> allocate<T extends NativeType>({int count = 1, int sizeOfType = 2}) {
+  final int totalSize = count * sizeOfType;
   Pointer<T> result;
   if (Platform.isWindows) {
     result = winHeapAlloc(processHeap, /*flags=*/ 0, totalSize).cast();

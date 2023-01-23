@@ -27,11 +27,20 @@ typedef GetInfo = ffi.Pointer<Utf8> Function(ffi.Pointer<MyStruct>);
 typedef return_gain_filter_func = ffi.Double Function(ffi.Double);
 typedef ReturnGainFilterProcess = double Function(double);
 
-typedef create_low_pass_filters_func = ffi.Double Function(ffi.Double,ffi.Double,ffi.Double,ffi.Pointer<ffi.Int16>, ffi.Uint32);
-typedef CreateLowPassFilterProcess = double Function(double,double,double,ffi.Pointer<ffi.Int16>,int);
+typedef create_low_pass_filters_func = ffi.Double Function(ffi.Int16,ffi.Double,ffi.Double,ffi.Double);
+typedef CreateLowPassFilterProcess = double Function(int, double,double,double);
+typedef init_low_pass_filters_func = ffi.Double Function(ffi.Int16,ffi.Double,ffi.Double,ffi.Double);
+typedef InitLowPassFilterProcess = double Function(int, double,double,double);
+typedef apply_low_pass_filters_func = ffi.Double Function(ffi.Int16,ffi.Pointer<ffi.Int16>, ffi.Uint32);
+typedef ApplyLowPassFilterProcess = double Function(int,ffi.Pointer<ffi.Int16>,int);
 
-typedef create_high_pass_filters_func = ffi.Double Function(ffi.Double,ffi.Double,ffi.Double,ffi.Pointer<ffi.Int16>, ffi.Uint32);
-typedef CreateHighPassFilterProcess = double Function(double,double,double,ffi.Pointer<ffi.Int16>,int);
+
+typedef create_high_pass_filters_func = ffi.Double Function(ffi.Int, ffi.Double,ffi.Double,ffi.Double);
+typedef CreateHighPassFilterProcess = double Function(int, double,double,double);
+typedef init_high_pass_filters_func = ffi.Double Function(ffi.Int, ffi.Double,ffi.Double,ffi.Double);
+typedef InitHighPassFilterProcess = double Function(int, double,double,double);
+typedef apply_high_pass_filters_func = ffi.Double Function(ffi.Int16,ffi.Pointer<ffi.Int16>, ffi.Uint32);
+typedef ApplyHighPassFilterProcess = double Function(int,ffi.Pointer<ffi.Int16>,int);
 
 // Low Pass filter sample https://www.youtube.com/watch?v=X8JD8hHkBMc
 class Nativec {
@@ -42,12 +51,16 @@ class Nativec {
   late CreateHighPassFilterProcess _createHighPassFilterProcess;
   late GainFilterProcess _gainFilterProcess;
   late ReturnGainFilterProcess _returnGainFilterProcess;
+  late ApplyLowPassFilterProcess _applyLowPassFilterProcess;
+  late ApplyHighPassFilterProcess _applyHighPassFilterProcess;
+  late InitLowPassFilterProcess _initLowPassFilterProcess;
+  late InitHighPassFilterProcess _initHighPassFilterProcess;
   
   late CreateStruct createStructFn;
   late GetInfo getInfoFn;
 
   static int totalBytes = 1024 * 8;
-  static ffi.Pointer<ffi.Int16> _data  = allocate<ffi.Int16>(count: totalBytes);
+  static ffi.Pointer<ffi.Int16> _data  = allocate<ffi.Int16>(count: totalBytes, sizeOfType: ffi.sizeOf<ffi.Int16>());
   late Int16List _bytes;
 
   Future<String?> getPlatformVersion() {
@@ -60,6 +73,16 @@ class Nativec {
           .asFunction();    
     _createHighPassFilterProcess = nativeLrsLib.lookup<ffi.NativeFunction<create_high_pass_filters_func>>('createHighPassFilter')
           .asFunction();    
+    _initLowPassFilterProcess = nativeLrsLib.lookup<ffi.NativeFunction<init_low_pass_filters_func>>('initLowPassFilter')
+          .asFunction();    
+    _initHighPassFilterProcess = nativeLrsLib.lookup<ffi.NativeFunction<init_high_pass_filters_func>>('initHighPassFilter')
+          .asFunction();    
+    _applyLowPassFilterProcess = nativeLrsLib.lookup<ffi.NativeFunction<apply_low_pass_filters_func>>('applyLowPassFilter')
+          .asFunction();    
+    _applyHighPassFilterProcess = nativeLrsLib.lookup<ffi.NativeFunction<apply_high_pass_filters_func>>('applyHighPassFilter')
+          .asFunction();    
+
+
     _gainFilterProcess = nativeLrsLib.lookup<ffi.NativeFunction<gain_filter_func>>('GainFilter')
           .asFunction();    
     _returnGainFilterProcess = nativeLrsLib.lookup<ffi.NativeFunction<return_gain_filter_func>>('ReturnGainFilter')
@@ -114,18 +137,31 @@ class Nativec {
   
   }
 
-  List<int> lowPassFilter(sampleRate, highCutOff, q, List<int> data, totalBytes){
-    _bytes.fillRange(0, totalBytes, 0);
+  double createLowPassFilter(channelCount, sampleRate,cutOff, q){
+    return _createLowPassFilterProcess(channelCount, sampleRate, cutOff, q);
+  }
+  void initLowPassFilter(channelCount, sampleRate,cutOff, q){
+    _initLowPassFilterProcess(channelCount, sampleRate, cutOff, q);
+  }
+
+  List<int> lowPassFilter(channelIdx, List<int> data, totalBytes){
+    _bytes.fillRange(0, Nativec.totalBytes, 0);
     int len = data.length;
     for (int i =0; i<len; i++){
       _bytes[i] = data[i];
     }
 
-    double multipliedSample = _createLowPassFilterProcess(sampleRate, highCutOff, q, _data,totalBytes);
+    
+    // data = _bytes.sublist(0, totalBytes);
+    // print(_data.asTypedList(totalBytes));
+    _applyLowPassFilterProcess(channelIdx, _data, totalBytes);
     data = _bytes.sublist(0, totalBytes);
+
+    // _data.asTypedList(totalBytes);
     // print("multipliedSample");
     // print(multipliedSample);
 
+    // return List<int>.from(_data.asTypedList(totalBytes));
     return data;
 
 
@@ -134,19 +170,30 @@ class Nativec {
   
   }
 
-  List<int> highPassFilter(sampleRate, highCutOff, q, List<int> data, totalBytes){
+  void createHighPassFilter(channelCount, sampleRate,cutOff, q){
+    _createHighPassFilterProcess(channelCount, sampleRate, cutOff, q);
+  }
+
+  void initHighPassFilter(channelCount, sampleRate,cutOff, q){
+    _initHighPassFilterProcess(channelCount, sampleRate, cutOff, q);
+  }
+
+
+  List<int> highPassFilter(channelIdx, List<int> data, totalBytes){
     _bytes.fillRange(0, totalBytes, 0);
     int len = data.length;
     for (int i =0; i<len; i++){
       _bytes[i] = data[i];
     }
 
-    double multipliedSample = _createHighPassFilterProcess(sampleRate, highCutOff, q, _data,totalBytes);
+    _applyHighPassFilterProcess(channelIdx, _data, totalBytes);
     data = _bytes.sublist(0, totalBytes);
     // print("multipliedSample");
     // print(multipliedSample);
 
+    // return List<int>.from(_data.asTypedList(totalBytes));
     return data;
+
 
 
     // print("RESULT ");

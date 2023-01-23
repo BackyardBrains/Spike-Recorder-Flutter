@@ -58,17 +58,41 @@ protected:
 private:
 };
 
-LowPassFilter *lowPassFilter;
-EXTERNC double createLowPassFilter(double sampleRate, double highCutOff, double q, short *data, uint32_t sampleCount){
-    lowPassFilter = new LowPassFilter();
-    lowPassFilter->initWithSamplingRate(sampleRate);
-    if (highCutOff > sampleRate / 2.0f) highCutOff = sampleRate / 2.0f;
-    lowPassFilter->setCornerFrequency(highCutOff);
-    lowPassFilter->setQ(0.5f);
-    lowPassFilter->filter(data, sampleCount, false);
+LowPassFilter* lowPassFilters;
+EXTERNC double createLowPassFilter(short channelCount, double sampleRate, double cutOff, double q){
+    lowPassFilters = new LowPassFilter[channelCount];
+    for( uint32_t i = 0; i < channelCount; i++ )
+    {
+        LowPassFilter lowPassFilter = lowPassFilters[i];
+        lowPassFilter.initWithSamplingRate(sampleRate);
+        if (cutOff > sampleRate / 2.0f) cutOff = sampleRate / 2.0f;
+        lowPassFilter.setCornerFrequency(cutOff);
+        lowPassFilter.setQ(q);
+    }
+    return lowPassFilters[0].alpha;
+}
+
+EXTERNC double initLowPassFilter(short channelCount, double sampleRate, double cutOff, double q){
+    for( uint32_t i = 0; i < channelCount; i++ )
+    {
+        LowPassFilter lowPassFilter = lowPassFilters[i];
+        lowPassFilter.initWithSamplingRate(sampleRate);
+        if (cutOff > sampleRate / 2.0f) cutOff = sampleRate / 2.0f;
+        lowPassFilter.setCornerFrequency(cutOff);
+        lowPassFilter.setQ(q);
+    }
     return 1;
 }
 
+EXTERNC double applyLowPassFilter(short channelIdx, short *data, uint32_t sampleCount){
+    lowPassFilters[channelIdx].filter(data, sampleCount, false);
+    // for( int i = 0; i < sampleCount; ++i )
+    // {
+    //     data[i] = -3000;
+    // }
+
+    return 1;
+}
 
 
 // EXTERNC double createFilters(){
