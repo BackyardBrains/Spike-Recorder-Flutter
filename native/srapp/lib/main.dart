@@ -47,6 +47,8 @@ import 'utils/debouncers.dart';
 
 const max_markers = 300;
 
+
+int maxOsChannel = 1;
 int DISPLAY_CHANNEL_FIX = 1;
 int DISPLAY_CHANNEL = 1;
 var DEVICE_PRODUCT = {};
@@ -89,7 +91,8 @@ bool isPlayingWav = false;
 bool isPaused = false;
 Nativec nativec = Nativec();
 
-
+bool isHighPass = false;
+bool isLowPass = false;
 
 // final mod = WasmModule(data);
 // print(mod.describe());
@@ -324,6 +327,8 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
     double surfaceWidth = arr[7];
     double lowPassFilter = arr[8];
     double highPassFilter = arr[9];
+    bool isLowPass = arr[10];
+    bool isHighPass = arr[11];
 
     int maxSize = (allEnvelopes[0][0]).length;
     int globalPositionCap = (globalIdx * maxSize / 2).floor();
@@ -364,8 +369,13 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
         // audioInputConfigArray[INPUT_TYPE_NEURONSS].filterHighPass = 1.0f;
     
         // List<int> temp = List<int>.from(samples[c]);
-        samples[c]=nativec.lowPassFilter(c, samples[c], samples[c].length);
-        // samples[c]= nativec.highPassFilter(c, samples[c], samples[c].length);
+        if (isLowPass){
+          samples[c] = nativec.lowPassFilter(c, samples[c], samples[c].length);
+        }
+        // samples[c] = nativec.lowPassFilter(c, samples[c], samples[c].length);
+        if (isHighPass){
+          samples[c] = nativec.highPassFilter(c, samples[c], samples[c].length);
+        }
         // if (temp != samples[c]){
         //   print("Error");
         //   print(temp);
@@ -1850,7 +1860,7 @@ class _MyHomePageState extends State<MyHomePage> {
     // await (Winaudio()).startRecording();
     // }
     // if android : audioRecord.getRoutedDevice()   https://developer.android.com/reference/android/media/AudioDeviceInfo#getChannelCounts()
-    int maxOsChannel = 1;
+    maxOsChannel = 1;
     if (Platform.isWindows || Platform.isMacOS) {
       maxOsChannel = 2;
 
@@ -1877,10 +1887,23 @@ class _MyHomePageState extends State<MyHomePage> {
       settingParams['lowFilterValue'] = _highPassFilter.floor().toString();
       settingParams['highFilterValue'] = _lowPassFilter.floor().toString();
 
-      double low = nativec.createLowPassFilter(maxOsChannel, _sampleRate, _lowPassFilter, 0.5);
-      print("lowPass Alpha");
-      print(low);
-      nativec.createHighPassFilter(maxOsChannel, _sampleRate, _highPassFilter, 0.5);
+      if (_lowPassFilter == sampleRate / 2){
+        isLowPass = false;
+      }else{
+        isLowPass = true;
+      }
+      if (_highPassFilter == 0){
+        isHighPass = false;
+      }else{
+        isHighPass = true;
+      }
+
+      if (isLowPass)
+        nativec.createLowPassFilter(maxOsChannel, _sampleRate, _lowPassFilter, 0.5);
+      // print("lowPass Alpha");
+      // print(low);
+      if (isHighPass)
+        nativec.createHighPassFilter(maxOsChannel, _sampleRate, _highPassFilter == 0? 1.0:_highPassFilter, 0.5);
 
 
       List<int> envelopeSizes = [];
@@ -1975,6 +1998,8 @@ class _MyHomePageState extends State<MyHomePage> {
             MediaQuery.of(context).size.width,
             _lowPassFilter,
             _highPassFilter,
+            isLowPass,
+            isHighPass,
             // DISPLAY_CHANNEL_FIX,
           ]);
           currentKey = "";
@@ -1995,6 +2020,9 @@ class _MyHomePageState extends State<MyHomePage> {
           MediaQuery.of(context).size.width,
           _lowPassFilter,
           _highPassFilter,
+          isLowPass,
+          isHighPass,
+
           // DISPLAY_CHANNEL_FIX,
         ]);
         currentKey = "";
@@ -2024,8 +2052,21 @@ class _MyHomePageState extends State<MyHomePage> {
     settingParams['lowFilterValue'] = _highPassFilter.floor().toString();
     settingParams['highFilterValue'] = _lowPassFilter.floor().toString();
 
-    nativec.createLowPassFilter(maxOsChannel, tempSampleRate, _lowPassFilter, 0.5);
-    nativec.createHighPassFilter(maxOsChannel, tempSampleRate, _highPassFilter, 0.5);
+    if (_lowPassFilter == tempSampleRate / 2){
+      isLowPass = false;
+    }else{
+      isLowPass = true;
+    }
+    if (_highPassFilter == 0){
+      isHighPass = false;
+    }else{
+      isHighPass = true;
+    }
+
+    if (isLowPass)
+      nativec.createLowPassFilter(maxOsChannel, tempSampleRate, _lowPassFilter, 0.5);
+    if (isHighPass)
+      nativec.createHighPassFilter(maxOsChannel, tempSampleRate, _highPassFilter == 0? 1.0:_highPassFilter, 0.5);
 
     // sampleRate = tempSampleRate!.floor();
     // int SIZE = sampleRate!.toInt() * 60 * 2;
@@ -2103,6 +2144,9 @@ class _MyHomePageState extends State<MyHomePage> {
           MediaQuery.of(context).size.width,
           _lowPassFilter,
           _highPassFilter,
+          isLowPass,
+          isHighPass,
+
           // DISPLAY_CHANNEL_FIX,
         ]);
       } else {
@@ -2117,6 +2161,8 @@ class _MyHomePageState extends State<MyHomePage> {
           MediaQuery.of(context).size.width,
           _lowPassFilter,
           _highPassFilter,
+          isLowPass,
+          isHighPass,
 
           // DISPLAY_CHANNEL_FIX,
         ]);
@@ -3126,6 +3172,7 @@ class _MyHomePageState extends State<MyHomePage> {
               settingParams['lowFilterValue'] = (_highPassFilter).floor().toString();
               settingParams['sampleRate'] = (sampleRate).floor().toString();
               isSettingDialog = true; 
+
               showCustomAudioDialog(context, settingParams).then((params) {
                 try {
                   print("params");
@@ -3153,6 +3200,27 @@ class _MyHomePageState extends State<MyHomePage> {
                   //   _highPassFilter = 1;
                   // }
                   print(_highPassFilter);
+
+                  if (_lowPassFilter == sampleRate / 2){
+                    isLowPass = false;
+                  }else{
+                    isLowPass = true;
+                  }
+
+                  if (_highPassFilter == 0){
+                    isHighPass = false;
+                  }else{
+                    isHighPass = true;
+                  }
+
+                  print("low High ");
+                  print(isLowPass);
+                  print(isHighPass);
+
+                  if (isHighPass)
+                    nativec.createLowPassFilter(maxOsChannel, sampleRate.toDouble(), _lowPassFilter, 0.5);
+                  if (isHighPass)
+                    nativec.createHighPassFilter(maxOsChannel, sampleRate.toDouble(), _highPassFilter, 0.5);
 
                   if (channelsColor[1] != Color(0xff000000)) {
                     var data = {

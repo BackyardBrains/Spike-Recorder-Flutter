@@ -37,6 +37,19 @@ public:
 
     void initWithSamplingRate(float sr) {
         samplingRate = sr;
+        omega = 0;
+        omegaS = 0;
+        omegaC = 0;
+        alpha = 0;
+        gInputKeepBuffer[0]=0;
+        gInputKeepBuffer[1]=0;
+        gOutputKeepBuffer[0]=0;
+        gOutputKeepBuffer[1]=0;
+    // float gInputKeepBuffer[2];
+    // float gOutputKeepBuffer[2];
+    // float omega, omegaS, omegaC, alpha;
+    // float coefficients[5];
+    // float a0, a1, a2, b0, b1, b2;
 
         for (float &coefficient : coefficients) {
             coefficient = 0.0f;
@@ -104,7 +117,7 @@ public:
         free(tOutputBuffer);
     }
     void intermediateVariables(float Fc, float Q) {
-        omega = static_cast<float>(2 * M_PI * Fc / samplingRate);
+        omega = 2 * M_PI * Fc / samplingRate;
         omegaS = sin(omega);
         omegaC = cos(omega);
         alpha = omegaS / (2 * Q);

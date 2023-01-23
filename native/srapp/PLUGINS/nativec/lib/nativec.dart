@@ -145,7 +145,9 @@ class Nativec {
   }
 
   List<int> lowPassFilter(channelIdx, List<int> data, totalBytes){
-    _bytes.fillRange(0, Nativec.totalBytes, 0);
+    // _data  = allocate<ffi.Int16>(count: totalBytes, sizeOfType: ffi.sizeOf<ffi.Int16>());
+    // _bytes = _data.asTypedList(totalBytes);
+    _bytes.fillRange(0, totalBytes, 0);
     int len = data.length;
     for (int i =0; i<len; i++){
       _bytes[i] = data[i];
@@ -154,8 +156,13 @@ class Nativec {
     
     // data = _bytes.sublist(0, totalBytes);
     // print(_data.asTypedList(totalBytes));
-    _applyLowPassFilterProcess(channelIdx, _data, totalBytes);
+    var lowPassValue = _applyLowPassFilterProcess(channelIdx, _data, totalBytes);
+    if (lowPassValue != -1){
+      print("lowPassValue");
+      print(lowPassValue);
+    }
     data = _bytes.sublist(0, totalBytes);
+    // data = _bytes.sublist(0, totalBytes);
 
     // _data.asTypedList(totalBytes);
     // print("multipliedSample");

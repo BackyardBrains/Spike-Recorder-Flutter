@@ -52,24 +52,34 @@ public:
         Q = newQ;
         calculateCoefficients();
     }
+    float cornerFrequency = 0;
+    float Q = 0;
+
 protected:
-    float cornerFrequency;
-    float Q;
 private:
 };
 
+int logIdx = -1;
 LowPassFilter* lowPassFilters;
 EXTERNC double createLowPassFilter(short channelCount, double sampleRate, double cutOff, double q){
     lowPassFilters = new LowPassFilter[channelCount];
-    for( uint32_t i = 0; i < channelCount; i++ )
+    // int sum = 0;
+    for( int i = 0; i < channelCount; i++ )
     {
-        LowPassFilter lowPassFilter = lowPassFilters[i];
-        lowPassFilter.initWithSamplingRate(sampleRate);
+        // LowPassFilter lowPassFilter = LowPassFilter();
+        lowPassFilters[i] = LowPassFilter();
+        // LowPassFilter lowPassFilter = lowPassFilters[i];
+        lowPassFilters[i].initWithSamplingRate(sampleRate);
         if (cutOff > sampleRate / 2.0f) cutOff = sampleRate / 2.0f;
-        lowPassFilter.setCornerFrequency(cutOff);
-        lowPassFilter.setQ(q);
+        lowPassFilters[i].setCornerFrequency(cutOff);
+        lowPassFilters[i].setQ(q);
+        
+        // lowPassFilters[i] = lowPassFilter;
     }
-    return lowPassFilters[0].alpha;
+    // return lowPassFilters[0].cornerFrequency;
+    return 1;
+    // return 2 * M_PI * cutOff / sampleRate;
+    // return q;
 }
 
 EXTERNC double initLowPassFilter(short channelCount, double sampleRate, double cutOff, double q){
@@ -86,12 +96,55 @@ EXTERNC double initLowPassFilter(short channelCount, double sampleRate, double c
 
 EXTERNC double applyLowPassFilter(short channelIdx, short *data, uint32_t sampleCount){
     lowPassFilters[channelIdx].filter(data, sampleCount, false);
+    // return -1.0;
     // for( int i = 0; i < sampleCount; ++i )
     // {
     //     data[i] = -3000;
     // }
+    // logIdx++;
+    // // return logIdx;
+    // if (logIdx == 0){
+    //     // return lowPassFilters[channelIdx].coefficients[0];
+    //     return -1;
+    // }else
+    // if (logIdx == 1){
+    //     // return lowPassFilters[channelIdx].coefficients[1];
+    //     return -1;
+    // }else
+    // if (logIdx == 2){
+    //     // return lowPassFilters[channelIdx].coefficients[2];
+    //     return -1;
+    // }else
+    // if (logIdx == 3){    
+    //     // return lowPassFilters[channelIdx].coefficients[3];
+    //     return -1;
+    // }else
+    // if (logIdx == 4){   
+    //     // return lowPassFilters[channelIdx].omega;
+    //     return -1;
+    // }else
+    // if (logIdx == 5){
+    //     // return lowPassFilters[channelIdx].omegaS;
+    //     return -100000000;
+    // }else
+    // if (logIdx == 6){
+    //     return lowPassFilters[channelIdx].gOutputKeepBuffer[0];
+    //     // return lowPassFilters[channelIdx].omegaC;
+    // }else
+    // if (logIdx == 7){
+    //     return lowPassFilters[channelIdx].gOutputKeepBuffer[1];
+    //     // return lowPassFilters[channelIdx].alpha;
+    // }else
+    // if (logIdx == 8){
+    //     return lowPassFilters[channelIdx].gInputKeepBuffer[0];
+    // }else
+    // if (logIdx == 9){
+    //     logIdx = -1;
+    //     return lowPassFilters[channelIdx].gInputKeepBuffer[1];
+    // }
+    return -1;
 
-    return 1;
+
 }
 
 

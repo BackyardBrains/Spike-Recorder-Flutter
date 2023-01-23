@@ -63,11 +63,12 @@ EXTERNC double createHighPassFilter(short channelCount, double sampleRate, doubl
     highPassFilters = new HighPassFilter[channelCount];
     for( uint32_t i = 0; i < channelCount; i++ )
     {
-        HighPassFilter highPassFilter = highPassFilters[i];
-        highPassFilter.initWithSamplingRate(sampleRate);
+        // HighPassFilter highPassFilter = HighPassFilter();
+        highPassFilters[i].initWithSamplingRate(sampleRate);
         if (highCutOff > sampleRate / 2.0f) highCutOff = sampleRate / 2.0f;
-        highPassFilter.setCornerFrequency(highCutOff);
-        highPassFilter.setQ(q);
+        highPassFilters[i].setCornerFrequency(highCutOff);
+        highPassFilters[i].setQ(q);
+        // highPassFilters[i] = highPassFilter;
     }
     return 1;
 }
