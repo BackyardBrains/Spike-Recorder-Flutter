@@ -3,7 +3,7 @@
 //
 #ifndef SPIKE_RECORDER_ANDROID_LOWPASSFILTER
 #define SPIKE_RECORDER_ANDROID_LOWPASSFILTER
-
+// https://www.howtogeek.com/297721/how-to-create-and-use-symbolic-links-aka-symlinks-on-a-mac/
 #include "FilterBase.cpp"
 
 #include <stdlib.h>
@@ -22,6 +22,11 @@
 #define EXTERNC
 #endif
 
+#if defined(__GNUC__)
+    #define FUNCTION_ATTRIBUTE __attribute__((visibility("default"))) __attribute__((used))
+#elif defined(_MSC_VER)
+    #define FUNCTION_ATTRIBUTE __declspec(dllexport)
+#endif
 
 class LowPassFilter : public FilterBase {
 public:
@@ -43,26 +48,29 @@ public:
         }
     }
 
-    void setCornerFrequency(float newCornerFrequency) {
+    void setCornerFrequency(double newCornerFrequency) {
         cornerFrequency = newCornerFrequency;
         calculateCoefficients();
     }
 
-    void setQ(float newQ) {
+    void setQ(double newQ) {
         Q = newQ;
         calculateCoefficients();
     }
-    float cornerFrequency = 0;
-    float Q = 0;
+    double cornerFrequency = 0;
+    double Q = 0;
 
 protected:
 private:
 };
 
 int logIdx = -1;
-LowPassFilter* lowPassFilters;
-EXTERNC double createLowPassFilter(short channelCount, double sampleRate, double cutOff, double q){
-    lowPassFilters = new LowPassFilter[channelCount];
+// 
+// LowPassFilter* lowPassFilters;
+LowPassFilter lowPassFilters[6];
+
+EXTERNC FUNCTION_ATTRIBUTE double createLowPassFilter(short channelCount, double sampleRate, double cutOff, double q){
+    // lowPassFilters = new LowPassFilter[channelCount];
     // int sum = 0;
     for( int i = 0; i < channelCount; i++ )
     {
@@ -82,20 +90,26 @@ EXTERNC double createLowPassFilter(short channelCount, double sampleRate, double
     // return q;
 }
 
-EXTERNC double initLowPassFilter(short channelCount, double sampleRate, double cutOff, double q){
-    for( uint32_t i = 0; i < channelCount; i++ )
+EXTERNC FUNCTION_ATTRIBUTE double initLowPassFilter(short channelCount, double sampleRate, double cutOff, double q){
+    for( int32_t i = 0; i < channelCount; i++ )
     {
-        LowPassFilter lowPassFilter = lowPassFilters[i];
-        lowPassFilter.initWithSamplingRate(sampleRate);
+        // LowPassFilter lowPassFilter = lowPassFilters[i];
+        lowPassFilters[i].initWithSamplingRate(sampleRate);
         if (cutOff > sampleRate / 2.0f) cutOff = sampleRate / 2.0f;
-        lowPassFilter.setCornerFrequency(cutOff);
-        lowPassFilter.setQ(q);
+        lowPassFilters[i].setCornerFrequency(cutOff);
+        lowPassFilters[i].setQ(q);
     }
-    return 1;
+    return lowPassFilters[0].omega;
 }
 
-EXTERNC double applyLowPassFilter(short channelIdx, short *data, uint32_t sampleCount){
-    lowPassFilters[channelIdx].filter(data, sampleCount, false);
+EXTERNC FUNCTION_ATTRIBUTE double applyLowPassFilter(short channelIdx, short *data, int32_t sampleCount){
+    if (lowPassFilters[channelIdx].omega != 0){
+        lowPassFilters[channelIdx].filter(data, sampleCount, false);
+    }else{
+        // return -1;
+        return lowPassFilters[channelIdx].omega;
+    }
+    
     // return -1.0;
     // for( int i = 0; i < sampleCount; ++i )
     // {

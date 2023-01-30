@@ -47,7 +47,6 @@ import 'utils/debouncers.dart';
 
 const max_markers = 300;
 
-
 int maxOsChannel = 1;
 int DISPLAY_CHANNEL_FIX = 1;
 int DISPLAY_CHANNEL = 1;
@@ -131,7 +130,6 @@ void main() async {
     await Firebase.initializeApp();
   }
 
-  
   // _nativec.getPlatformVersion();
   // _nativec.init();
   runApp(const MyApp());
@@ -367,15 +365,17 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
         globalIdx = arrGlobalIdx[c];
         // 2875. audioInputConfigArray[INPUT_TYPE_NEURONSS].filterLowPass = 5000.0f;
         // audioInputConfigArray[INPUT_TYPE_NEURONSS].filterHighPass = 1.0f;
-    
+
         // List<int> temp = List<int>.from(samples[c]);
-        if (isLowPass){
+        // print("lowPassFilter");
+        if (isLowPass) {
           samples[c] = nativec.lowPassFilter(c, samples[c], samples[c].length);
         }
         // samples[c] = nativec.lowPassFilter(c, samples[c], samples[c].length);
-        if (isHighPass){
+        if (isHighPass) {
           samples[c] = nativec.highPassFilter(c, samples[c], samples[c].length);
         }
+        // print("lowPassFilter2");
         // if (temp != samples[c]){
         //   print("Error");
         //   print(temp);
@@ -386,7 +386,7 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
           // print(tmp);
           // print(nativec.gain(tmp.toDouble(), 10.0));
           try {
-            envelopingSamples(cBuffIdx, tmp.toDouble() , allEnvelopes[c],
+            envelopingSamples(cBuffIdx, tmp.toDouble(), allEnvelopes[c],
                 SIZE_LOGS2, skipCounts);
 
             cBuffIdx++;
@@ -1020,8 +1020,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   List<int> globalMarkers = [];
   String currentKey = "";
-  
-  double _lowPassFilter = 44100/2;
+
+  double _lowPassFilter = 44100 / 2;
   double _highPassFilter = 0;
 
   // bool isZoomingWhilePlaying = false;
@@ -1881,30 +1881,30 @@ class _MyHomePageState extends State<MyHomePage> {
       sampleRate = _sampleRate.floor();
       MicStream.stopListening();
 
-
       _lowPassFilter = _sampleRate / 2;
       _highPassFilter = 0;
       settingParams['lowFilterValue'] = _highPassFilter.floor().toString();
       settingParams['highFilterValue'] = _lowPassFilter.floor().toString();
 
-      if (_lowPassFilter == sampleRate / 2){
+      if (_lowPassFilter == sampleRate / 2) {
         isLowPass = false;
-      }else{
+      } else {
         isLowPass = true;
       }
-      if (_highPassFilter == 0){
+      if (_highPassFilter == 0) {
         isHighPass = false;
-      }else{
+      } else {
         isHighPass = true;
       }
 
       if (isLowPass)
-        nativec.createLowPassFilter(maxOsChannel, _sampleRate, _lowPassFilter, 0.5);
+        nativec.createLowPassFilter(
+            maxOsChannel, _sampleRate, _lowPassFilter, 0.5);
       // print("lowPass Alpha");
       // print(low);
       if (isHighPass)
-        nativec.createHighPassFilter(maxOsChannel, _sampleRate, _highPassFilter == 0? 1.0:_highPassFilter, 0.5);
-
+        nativec.createHighPassFilter(maxOsChannel, _sampleRate,
+            _highPassFilter == 0 ? 1.0 : _highPassFilter, 0.5);
 
       List<int> envelopeSizes = [];
       int SEGMENT_SIZE = _sampleRate.toInt();
@@ -2047,27 +2047,6 @@ class _MyHomePageState extends State<MyHomePage> {
     int? bitDepth = await MicStream.bitDepth;
     int? bufferSize = await MicStream.bufferSize;
 
-    _lowPassFilter = tempSampleRate! / 2;
-    _highPassFilter = 0;
-    settingParams['lowFilterValue'] = _highPassFilter.floor().toString();
-    settingParams['highFilterValue'] = _lowPassFilter.floor().toString();
-
-    if (_lowPassFilter == tempSampleRate / 2){
-      isLowPass = false;
-    }else{
-      isLowPass = true;
-    }
-    if (_highPassFilter == 0){
-      isHighPass = false;
-    }else{
-      isHighPass = true;
-    }
-
-    if (isLowPass)
-      nativec.createLowPassFilter(maxOsChannel, tempSampleRate, _lowPassFilter, 0.5);
-    if (isHighPass)
-      nativec.createHighPassFilter(maxOsChannel, tempSampleRate, _highPassFilter == 0? 1.0:_highPassFilter, 0.5);
-
     // sampleRate = tempSampleRate!.floor();
     // int SIZE = sampleRate!.toInt() * 60 * 2;
     // int SIZE = 48000 * 60 * 2;
@@ -2080,6 +2059,30 @@ class _MyHomePageState extends State<MyHomePage> {
         audioFormat: AudioFormat.ENCODING_PCM_16BIT);
 
     double _sampleRate = await MicStream.sampleRate!;
+
+    _lowPassFilter = _sampleRate / 2;
+    _highPassFilter = 0;
+    settingParams['lowFilterValue'] = _highPassFilter.floor().toString();
+    settingParams['highFilterValue'] = _lowPassFilter.floor().toString();
+
+    if (_lowPassFilter == _sampleRate / 2) {
+      isLowPass = false;
+    } else {
+      isLowPass = true;
+    }
+    if (_highPassFilter == 0) {
+      isHighPass = false;
+    } else {
+      isHighPass = true;
+    }
+
+    if (isLowPass)
+      nativec.createLowPassFilter(
+          maxOsChannel, _sampleRate, _lowPassFilter, 0.5);
+    if (isHighPass)
+      nativec.createHighPassFilter(maxOsChannel, _sampleRate,
+          _highPassFilter == 0 ? 1.0 : _highPassFilter, 0.5);
+
     sampleRate = _sampleRate.floor();
     List<int> envelopeSizes = [];
     int SEGMENT_SIZE = _sampleRate.toInt();
@@ -2348,9 +2351,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    if (isFeedback||isSettingDialog) {
-
-    }else{
+    if (isFeedback || isSettingDialog) {
+    } else {
       FocusScope.of(context).requestFocus(keyboardFocusNode);
     }
 
@@ -2610,9 +2612,6 @@ class _MyHomePageState extends State<MyHomePage> {
     getCachedWidget();
     calculateArrScaleBar();
     getDeviceCatalog();
-    
-
-
 
     initPorts();
     Future.delayed(new Duration(milliseconds: 10), () {
@@ -3168,10 +3167,12 @@ class _MyHomePageState extends State<MyHomePage> {
               });
               bool enableDeviceLegacy =
                   settingParams["enableDeviceLegacy"] as bool;
-              settingParams['highFilterValue'] = (_lowPassFilter).floor().toString();
-              settingParams['lowFilterValue'] = (_highPassFilter).floor().toString();
+              settingParams['highFilterValue'] =
+                  (_lowPassFilter).floor().toString();
+              settingParams['lowFilterValue'] =
+                  (_highPassFilter).floor().toString();
               settingParams['sampleRate'] = (sampleRate).floor().toString();
-              isSettingDialog = true; 
+              isSettingDialog = true;
 
               showCustomAudioDialog(context, settingParams).then((params) {
                 try {
@@ -3192,8 +3193,12 @@ class _MyHomePageState extends State<MyHomePage> {
                       settingParams["defaultMicrophoneRightColor"] as int];
                   print("channelsColor[1] : " + channelsColor[1].toString());
                   // need to check again
-                  _lowPassFilter = int.parse(settingParams["highFilterValue"] as String).toDouble();
-                  _highPassFilter = int.parse(settingParams["lowFilterValue"] as String).toDouble();
+                  _lowPassFilter =
+                      int.parse(settingParams["highFilterValue"] as String)
+                          .toDouble();
+                  _highPassFilter =
+                      int.parse(settingParams["lowFilterValue"] as String)
+                          .toDouble();
                   print("Filter : ");
                   print(_lowPassFilter);
                   // if (_highPassFilter == 0){
@@ -3201,15 +3206,15 @@ class _MyHomePageState extends State<MyHomePage> {
                   // }
                   print(_highPassFilter);
 
-                  if (_lowPassFilter == sampleRate / 2){
+                  if (_lowPassFilter > sampleRate / 2 - 2) {
                     isLowPass = false;
-                  }else{
+                  } else {
                     isLowPass = true;
                   }
 
-                  if (_highPassFilter == 0){
+                  if (_highPassFilter == 0) {
                     isHighPass = false;
-                  }else{
+                  } else {
                     isHighPass = true;
                   }
 
@@ -3217,10 +3222,20 @@ class _MyHomePageState extends State<MyHomePage> {
                   print(isLowPass);
                   print(isHighPass);
 
-                  if (isHighPass)
-                    nativec.createLowPassFilter(maxOsChannel, sampleRate.toDouble(), _lowPassFilter, 0.5);
-                  if (isHighPass)
-                    nativec.createHighPassFilter(maxOsChannel, sampleRate.toDouble(), _highPassFilter, 0.5);
+                  double result = -100;
+
+                  if (isLowPass) {
+                    result = nativec.initLowPassFilter(maxOsChannel,
+                        sampleRate.toDouble(), _lowPassFilter, 0.5);
+                    print("result");
+                    print(result);
+                  }
+                  if (isHighPass) {
+                    result = nativec.initHighPassFilter(maxOsChannel,
+                        sampleRate.toDouble(), _highPassFilter, 0.5);
+                    print("result high");
+                    print(result);
+                  }
 
                   if (channelsColor[1] != Color(0xff000000)) {
                     var data = {

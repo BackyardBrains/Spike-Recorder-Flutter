@@ -22,7 +22,7 @@ EXTERNC MyStruct CreateStruct() {
     // return {.info = "Hello Dart!"};
 
     MyStruct test ={
-        info: "Hello FFI"
+        // info: "Hello FFI"
     };
     return test;
 }

@@ -22,6 +22,12 @@
 #define EXTERNC
 #endif
 
+#if defined(__GNUC__)
+    #define FUNCTION_ATTRIBUTE __attribute__((visibility("default"))) __attribute__((used))
+#elif defined(_MSC_VER)
+    #define FUNCTION_ATTRIBUTE __declspec(dllexport)
+#endif
+
 
 class HighPassFilter : public FilterBase {
 public:
@@ -43,25 +49,26 @@ public:
         }
     }
 
-    void setCornerFrequency(float newCornerFrequency) {
+    void setCornerFrequency(double newCornerFrequency) {
         cornerFrequency = newCornerFrequency;
         calculateCoefficients();
     }
 
-    void setQ(float newQ) {
+    void setQ(double newQ) {
         Q = newQ;
         calculateCoefficients();
     }
 protected:
-    float cornerFrequency;
-    float Q;
+    double cornerFrequency;
+    double Q;
 private:
 };
 
-HighPassFilter* highPassFilters;
-EXTERNC double createHighPassFilter(short channelCount, double sampleRate, double highCutOff, double q){
-    highPassFilters = new HighPassFilter[channelCount];
-    for( uint32_t i = 0; i < channelCount; i++ )
+// HighPassFilter* highPassFilters;
+HighPassFilter highPassFilters[6];
+EXTERNC FUNCTION_ATTRIBUTE double createHighPassFilter(short channelCount, double sampleRate, double highCutOff, double q){
+    // highPassFilters = new HighPassFilter[channelCount];
+    for( int32_t i = 0; i < channelCount; i++ )
     {
         // HighPassFilter highPassFilter = HighPassFilter();
         highPassFilters[i].initWithSamplingRate(sampleRate);
@@ -73,19 +80,19 @@ EXTERNC double createHighPassFilter(short channelCount, double sampleRate, doubl
     return 1;
 }
 
-EXTERNC double initHighPassFilter(short channelCount, double sampleRate, double highCutOff, double q){
-    for( uint32_t i = 0; i < channelCount; i++ )
+EXTERNC FUNCTION_ATTRIBUTE double initHighPassFilter(short channelCount, double sampleRate, double highCutOff, double q){
+    for( int32_t i = 0; i < channelCount; i++ )
     {
-        HighPassFilter highPassFilter = highPassFilters[i];
-        highPassFilter.initWithSamplingRate(sampleRate);
+        // HighPassFilter highPassFilter = highPassFilters[i];
+        highPassFilters[i].initWithSamplingRate(sampleRate);
         if (highCutOff > sampleRate / 2.0f) highCutOff = sampleRate / 2.0f;
-        highPassFilter.setCornerFrequency(highCutOff);
-        highPassFilter.setQ(q);
+        highPassFilters[i].setCornerFrequency(highCutOff);
+        highPassFilters[i].setQ(q);
     }
     return 1;
 }
 
-EXTERNC double applyHighPassFilter(short channelIdx, short *data, uint32_t sampleCount){
+EXTERNC FUNCTION_ATTRIBUTE double applyHighPassFilter(short channelIdx, short *data, int32_t sampleCount){
     highPassFilters[channelIdx].filter(data, sampleCount, false);
     return 1;
 }
