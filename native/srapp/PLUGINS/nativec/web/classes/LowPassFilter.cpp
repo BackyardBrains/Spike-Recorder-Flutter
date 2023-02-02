@@ -1,3 +1,6 @@
+#include <emscripten/bind.h>
+using namespace emscripten;
+
 //
 // Created by Stanislav Mircic  <stanislav at backyardbrains.com>
 //
@@ -14,7 +17,12 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
-#include<stdint.h>
+#include <stdint.h>
+
+#include <iostream>
+#include <array>
+#include <functional>
+#include <vector>
 
 #ifdef __cplusplus
 #define EXTERNC extern "C"
@@ -88,8 +96,8 @@ EXTERNC FUNCTION_ATTRIBUTE double createLowPassFilter(int16_t channelCount, doub
         
         // lowPassFilters[i] = lowPassFilter;
     }
-    // return lowPassFilters[0].cornerFrequency;
-    return 1;
+    return lowPassFilters[0].getSamplingRate();
+    // return 1;
     // return 2 * M_PI * cutOff / sampleRate;
     // return q;
 }
@@ -106,67 +114,76 @@ EXTERNC FUNCTION_ATTRIBUTE double initLowPassFilter(int16_t channelCount, double
     return lowPassFilters[0].omega;
 }
 
-EXTERNC FUNCTION_ATTRIBUTE double applyLowPassFilter(int16_t channelIdx, int16_t *data, int32_t sampleCount){
+EXTERNC FUNCTION_ATTRIBUTE auto applyLowPassFilter(int16_t channelIdx, const val &data, int32_t sampleCount){
+    std::vector<short> raw = convertJSArrayToNumberVector<short>(data); 
     if (lowPassFilters[channelIdx].omega != 0){
-        lowPassFilters[channelIdx].filter(data, sampleCount, false);
+        lowPassFilters[channelIdx].filter(raw.data(), sampleCount, false);
+        // std::vector<short> output(raw.size());
+        val view{ typed_memory_view(raw.size(), raw.data()) };
+        auto result = val::global("Int16Array").new_(raw.size());
+        result.call<void>("set", view);
+
+        return result;
     }else{
-        // return -1;
-        return lowPassFilters[channelIdx].omega;
+        val view{ typed_memory_view(raw.size(), raw.data()) };
+        auto result = val::global("Int16Array").new_(raw.size());
+        result.call<void>("set", view);
+
+        return result;
+        // return lowPassFilters[channelIdx].omega;
+        // return data;
     }
-    
-    // return -1.0;
-    // for( int i = 0; i < sampleCount; ++i )
-    // {
-    //     data[i] = -3000;
-    // }
-    // logIdx++;
-    // // return logIdx;
-    // if (logIdx == 0){
-    //     // return lowPassFilters[channelIdx].coefficients[0];
-    //     return -1;
-    // }else
-    // if (logIdx == 1){
-    //     // return lowPassFilters[channelIdx].coefficients[1];
-    //     return -1;
-    // }else
-    // if (logIdx == 2){
-    //     // return lowPassFilters[channelIdx].coefficients[2];
-    //     return -1;
-    // }else
-    // if (logIdx == 3){    
-    //     // return lowPassFilters[channelIdx].coefficients[3];
-    //     return -1;
-    // }else
-    // if (logIdx == 4){   
+
+    // // auto x = reinterpret_cast<short*>( data["ptr"].as<short>() );
+    // // std::vector<short> nums(x, x + sampleCount);
+    // std::vector<short> rv;
+
+    // const auto l = data["length"].as<unsigned>();
+    // rv.resize(l);
+
+    // emscripten::val memoryView{emscripten::typed_memory_view(l, rv.data())};
+    // memoryView.call<void>("set", data);
+
+    // if (lowPassFilters[channelIdx].omega != 0){
+    //     // std::vector<short> vec = vecFromJSArray<short>(data);
+    //     lowPassFilters[channelIdx].filter(rv.data(), sampleCount, false);
+
+    //     return rv;
+    // }else{
+    //     return rv;
     //     // return lowPassFilters[channelIdx].omega;
-    //     return -1;
-    // }else
-    // if (logIdx == 5){
-    //     // return lowPassFilters[channelIdx].omegaS;
-    //     return -100000000;
-    // }else
-    // if (logIdx == 6){
-    //     return lowPassFilters[channelIdx].gOutputKeepBuffer[0];
-    //     // return lowPassFilters[channelIdx].omegaC;
-    // }else
-    // if (logIdx == 7){
-    //     return lowPassFilters[channelIdx].gOutputKeepBuffer[1];
-    //     // return lowPassFilters[channelIdx].alpha;
-    // }else
-    // if (logIdx == 8){
-    //     return lowPassFilters[channelIdx].gInputKeepBuffer[0];
-    // }else
-    // if (logIdx == 9){
-    //     logIdx = -1;
-    //     return lowPassFilters[channelIdx].gInputKeepBuffer[1];
+    //     // return data;
     // }
-    return -1;
-
-
 }
+// // EXTERNC FUNCTION_ATTRIBUTE 
+// template<typename T> std::vector<T> applyLowPassFilter(int16_t channelIdx,const val& data, int32_t sampleCount){
+//     std::vector<T> vec = vecFromJSArray<T>(data);
+//     if (lowPassFilters[channelIdx].omega != 0){
+//         lowPassFilters[channelIdx].filter(vec.data(), sampleCount, false);
+//         return vec;
+//     }else{
+//         return vec;
+//     }
+
+//     return vec;    
+// }
 
 
 // EXTERNC double createFilters(){
 //     return 30;
 // }
 #endif
+
+EMSCRIPTEN_BINDINGS(my_module) {
+  class_<LowPassFilter>("LowPassFilter")
+    .constructor()
+    .function("calculateCoefficients", &LowPassFilter::calculateCoefficients)
+    .function("setCornerFrequency", &LowPassFilter::setCornerFrequency)
+    .function("setQ", &LowPassFilter::setQ)
+    ;
+    function("createLowPassFilter", &createLowPassFilter);
+    function("initLowPassFilter", &initLowPassFilter);
+    function("applyLowPassFilter", &applyLowPassFilter);
+    register_vector<short>("vector<short>");
+    // register_vector<short>("LowPassList");
+}
