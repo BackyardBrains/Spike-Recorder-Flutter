@@ -1,4 +1,15 @@
 var functions;
+var isLowPass;
+var isHighPass;
+self.importScripts("a.out.js"); 
+self.Module.onRuntimeInitialized = _ => {
+  // console.log("LOW PASS FILTER", Module);
+  // functions = new Module.LowPassFilter();
+  //SEGMENT_SIZE 1964
+  // functions.setCornerFrequency(1/2);
+  
+}; 
+
 // importScripts("require.js");
 // requirejs.config({
 //     baseUrl: "libraries",
@@ -17,15 +28,18 @@ var functions;
 //     // // console.log("Add (300,2) : ", _functions.myHyperSuperMegaFunction(300,2));
 //     // console.log("Multiplications (0.5 * 212) : ",functions.multiply(0.5,212));
 // });
-self.importScripts("a.out.js"); 
-self.Module.onRuntimeInitialized = _ => {
-  functions = new Module.Gain(22);
-  console.log(functions.val); // prints 22
-  functions.increase();
-  console.log(functions.val); // prints 23
-  console.log("c.squareGain()"); // prints 529
-  console.log(functions.multiply(3,123)); // prints 529
-};
+// self.importScripts("a.out.js"); 
+// self.Module.onRuntimeInitialized = _ => {
+//   functions = new Module.Gain(22);
+//   console.log(functions.val); // prints 22
+//   functions.increase();
+//   console.log(functions.val); // prints 23
+//   console.log("c.squareGain()"); // prints 529
+//   console.log(functions.multiply(3,123)); // prints 529
+// };
+
+console.log("Import FILTER");
+
 
 let tempArray = new Int16Array(30000);
 
@@ -125,6 +139,10 @@ const DRAW_STATE = {
 
   'WRITING_FILE_STATUS' : 50,
 
+  'IS_LOW_PASS_FILTER' : 51,
+  'IS_HIGH_PASS_FILTER' : 52,
+  'LOW_PASS_FILTER' : 53,
+  'HIGH_PASS_FILTER' : 54,
  
 };
 // let currentData = new SharedArrayBuffer(1024 * 8 * CONFIG.bytesPerSample);
@@ -328,7 +346,40 @@ let arrMaxInt = new Int16Array(arrMax);
 size/=2;
 let i = 0;
 
-
+function filterSample( availableFrames, inputReadIndex ){
+  for (let c = 0 ; c < curChannel ; c++){
+    let tempIdx = inputReadIndex;
+    let curIdx = 0;
+    let availableSamples = new Int16Array(availableFrames);
+    for (let i = 0 ; i < availableFrames ; i++){
+      availableSamples[curIdx] = InputRingBuffer[c][tempIdx];
+      curIdx++;
+      tempIdx++;
+      if (tempIdx == CONFIG.ringBufferLength){
+        tempIdx = 0;
+      }
+    }  
+    // console.log("availableSamples");
+    // console.log(availableSamples);
+    // console.log("filteredSamples : ", availableSamples[0]);
+    const lowPassFilterSamples = Module.applyLowPassFilter(c, availableSamples, availableFrames);
+    const highPassFilterSamples = Module.applyHighPassFilter(c, lowPassFilterSamples, availableFrames);
+    tempIdx = inputReadIndex;
+    curIdx = 0;
+    // console.log("filteredSamples2 : ", filteredSamples[0]);
+    // console.log("------------");
+    // console.log("filteredSamples2 : ", availax`bleSamples[0], availableSamples[1]);
+    for (let i = 0 ; i < availableFrames ; i++){
+      // console.log(filteredSamples[curIdx]);
+      InputRingBuffer[c][tempIdx] = highPassFilterSamples[curIdx];
+      curIdx++;
+      tempIdx++;
+      if (tempIdx == CONFIG.ringBufferLength){
+        tempIdx = 0;
+      }
+    }   
+  }
+}
 
 function createSharedBuffers(idx, maxChannels){
   let map = {
@@ -1594,6 +1645,39 @@ function processAudioKernel(availableFrames) {
     let j;
     // console.log("InputRingBuffer[c] : ", InputRingBuffer[0]);
     const prevDate = new Date();
+
+
+    // console.log("drawState[DRAW_STATE.IS_LOW_PASS_FILTER] : ", drawState[DRAW_STATE.IS_LOW_PASS_FILTER],drawState[DRAW_STATE.IS_HIGH_PASS_FILTER]);
+    // console.log("drawState[DRAW_STATE.LOW_PASS_FILTER] : ", drawState[DRAW_STATE.LOW_PASS_FILTER],drawState[DRAW_STATE.HIGH_PASS_FILTER]);
+    if (drawState[DRAW_STATE.IS_LOW_PASS_FILTER] === undefined || drawState[DRAW_STATE.IS_LOW_PASS_FILTER] == 0){
+      isLowPass = false;
+    }else
+    if (drawState[DRAW_STATE.IS_LOW_PASS_FILTER] == 1){
+      drawState[DRAW_STATE.IS_LOW_PASS_FILTER] = 1;
+      isLowPass = true;
+    }else{
+      const lowPassFilter = drawState[DRAW_STATE.LOW_PASS_FILTER];
+      console.log("LOW PASS FILTER")
+      Module.initLowPassFilter(curChannel,SEGMENT_SIZE, lowPassFilter, 0.5);//(int16_t channelCount, double sampleRate, double cutOff, double q){
+      drawState[DRAW_STATE.IS_LOW_PASS_FILTER] = 1;
+      isLowPass = true;
+    }
+    if (drawState[DRAW_STATE.IS_HIGH_PASS_FILTER] === undefined || drawState[DRAW_STATE.IS_HIGH_PASS_FILTER] == 0){
+      isHighPass = false;
+    }else
+    if (drawState[DRAW_STATE.IS_HIGH_PASS_FILTER] == 1){
+      drawState[DRAW_STATE.IS_HIGH_PASS_FILTER] = 1;
+      isHighPass = true;
+    }else{
+      const highPassFilter = drawState[DRAW_STATE.HIGH_PASS_FILTER];
+      console.log("HIGH PASS FILTER")
+      Module.initHighPassFilter(curChannel,SEGMENT_SIZE, highPassFilter, 0.5);//(int16_t channelCount, double sampleRate, double cutOff, double q){
+      drawState[DRAW_STATE.IS_HIGH_PASS_FILTER] = 1;
+      isHighPass = true;
+    }
+
+
+    filterSample(availableFrames, inputReadIndex);
     // for (; i < CONFIG.kernelLength; ++i) {
     for (; i < availableFrames; ++i) {
       sample = InputRingBuffer[c][inputReadIndex];
@@ -1601,7 +1685,8 @@ function processAudioKernel(availableFrames) {
         // functions.enveloping(_head, sample, _envelopes, SIZE_LOGS2, skipCounts);
         // functions.envelopingSamples(_head, sample, _envelopes, SIZE_LOGS2, skipCounts);
         // console.log(functions);
-        envelopingSamples(_head, functions.multiply(sample,1), _envelopes);
+        // envelopingSamples(_head, functions.multiply(sample,1), _envelopes);
+        envelopingSamples(_head, sample, _envelopes);
 
         // if (_head % 51200 == 0){
         //   const tempLevel = 9;
@@ -1946,6 +2031,8 @@ onmessage = async (eventFromMain) => {
     arrCounts = eventFromMain.data.options.arrCounts;
     console.log("arrCounts : ", eventFromMain.data, arrCounts, SEGMENT_SIZE);
     skipCounts = new Uint32Array(arrCounts);
+
+
         
     // SEGMENT_SIZE = 10000;
     console.log("INITIALIZE WORKER z ", eventFromMain.data.options.sampleRate);
@@ -1973,6 +2060,17 @@ onmessage = async (eventFromMain) => {
         totalChannel = AUDIO_CHANNEL_MAX;
       }
       console.log("TOTAL CHANNEL : ", totalChannel);
+      curChannel = totalChannel;
+      if ( deviceType == 'audio' ){
+        // if (isLowPass) 
+        Module.createLowPassFilter(curChannel, SEGMENT_SIZE, SEGMENT_SIZE/2, 1/2);
+        //if (isHighPass) 
+        Module.createHighPassFilter(curChannel, SEGMENT_SIZE, 0, 1/2);
+      }else{
+        if (isLowPass) Module.createLowPassFilter(totalChannel, SEGMENT_SIZE, SEGMENT_SIZE/2, 1/2);
+        if (isHighPass) Module.createHighPassFilter(totalChannel, SEGMENT_SIZE, SEGMENT_SIZE/2, 1/2);
+      }      
+
       for (let c = 0; c < totalChannel ; c++){
         var sabEnvelopes = [];
         var envelopes = [];

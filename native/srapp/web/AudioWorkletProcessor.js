@@ -71,6 +71,10 @@ const DRAW_STATE = {
   'HORIZONTAL_SCROLL_VALUE' : 42,
 
   'WRITING_FILE_STATUS' : 50,
+  'IS_LOW_PASS_FILTER' : 51,
+  'IS_HIGH_PASS_FILTER' : 52,
+  'LOW_PASS_FILTER' : 53,
+  'HIGH_PASS_FILTER' : 54,
 
 };
 
@@ -153,6 +157,8 @@ class SharedBufferWorkletProcessor extends AudioWorkletProcessor {
       this._ringBufferLength.push( _states[STATE.RING_BUFFER_LENGTH] );
       this._kernelLength.push( _states[STATE.KERNEL_LENGTH] );
     }
+    console.log("rawSharedBuffers[0]");
+    console.log(rawSharedBuffers[0]);
 
     this._initialized = true;
     this.port.postMessage({
@@ -221,6 +227,7 @@ class SharedBufferWorkletProcessor extends AudioWorkletProcessor {
    * @return {Boolean} Lifetime flag.
    */
   process(inputs, outputs) {
+    // console.log("this._initialized ", this._initialized);
     if (!this._initialized) {
       return true;
     }

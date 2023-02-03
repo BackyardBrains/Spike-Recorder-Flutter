@@ -68,25 +68,25 @@ const importObject = {
   },
 };
 
-const memory = new WebAssembly.Memory({
-  initial: 10,
-  maximum: 100,
-});
+// const memory = new WebAssembly.Memory({
+//   initial: 10,
+//   maximum: 100,
+// });
 
-WebAssembly.instantiateStreaming(fetch("build/web/a.out.wasm",{
-  headers:{
-    'Content-Type':'Content-Type: application/wasm'
-  }
-}), {
-  js: { mem: memory },
-}).then((obj) => {
-  // const summands = new Uint32Array(memory.buffer);
-  // for (let i = 0; i < 10; i++) {
-  //   summands[i] = i;
-  // }
-  // const sum = obj.instance.exports.accumulate(0, 10);
-  console.log(obj);
-});
+// WebAssembly.instantiateStreaming(fetch("build/web/a.out.wasm",{
+//   headers:{
+//     'Content-Type':'Content-Type: application/wasm'
+//   }
+// }), {
+//   js: { mem: memory },
+// }).then((obj) => {
+//   // const summands = new Uint32Array(memory.buffer);
+//   // for (let i = 0; i < 10; i++) {
+//   //   summands[i] = i;
+//   // }
+//   // const sum = obj.instance.exports.accumulate(0, 10);
+//   console.log(obj);
+// });
 // fetch("build/web/a.out.wasm")
 //   .then((response) => response.arrayBuffer())
 //   .then((bytes) => WebAssembly.instantiate(bytes, importObject))
@@ -303,6 +303,10 @@ const DRAW_STATE = {
   'HORIZONTAL_SCROLL_VALUE' : 42,
 
   'WRITING_FILE_STATUS' : 50,
+  'IS_LOW_PASS_FILTER' : 51,
+  'IS_HIGH_PASS_FILTER' : 52,
+  'LOW_PASS_FILTER' : 53,
+  'HIGH_PASS_FILTER' : 54,
 
 };
 
@@ -368,6 +372,8 @@ function initializeDrawState(channelCount, currentLevel, divider, sampleRate){
     draw_state[DRAW_STATE.SAMPLE_RATE] = sampleRate;
     draw_state[DRAW_STATE.CHANNEL_COUNTS] = 2;
     draw_state[DRAW_STATE.SURFACE_WIDTH] = window.innerWidth;
+    draw_state[DRAW_STATE.IS_LOW_PASS_FILTER] = 0;
+    draw_state[DRAW_STATE.IS_HIGH_PASS_FILTER] = 0;
     draw_states.push(draw_state);
   }
   return draw_states;
@@ -1131,11 +1137,10 @@ async function recordAudio(text){
     const {default: SharedBufferWorkletNode} = await import('./SharedWorkletNode.js');
     await ac.audioWorklet.addModule('build/web/shared-buffer-worklet-processor.js');
     sampleRate = ac.sampleRate;
-
     if (window.SharedArrayBuffer){
       incSkip = 0;
       currentLevel = calculateLevel(10000);
-      // window.changeSampleRate( [sampleRate,currentLevel, arrCounts[currentLevel] ]);
+      window.changeSampleRate( [sampleRate,currentLevel, arrCounts[currentLevel] ]);
       console.log("3 Sample Rate : "+sampleRate );
       initializeSabDraw();      
 
@@ -3623,4 +3628,15 @@ window.setFlagChannelDisplay = function(flagDisplay1,flagDisplay2,flagDisplay3,f
   //   flagChannelDisplays[i] = flagDisplays[i];
   // }
   console.log("flagChannelDisplays L: ", flagChannelDisplays);
+}
+
+window.changeFilter = function(channelCount, isLowPass, lowPassFilter, isHighPass, highPassFilter){
+  for (let c = 0; c < channelCount; c++){
+    let draw_state = new Int32Array(sabDraw.draw_states[c]);
+    draw_state[DRAW_STATE.LOW_PASS_FILTER] = lowPassFilter;
+    draw_state[DRAW_STATE.HIGH_PASS_FILTER] = highPassFilter;
+    draw_state[DRAW_STATE.IS_LOW_PASS_FILTER] = isLowPass?2:0;
+    draw_state[DRAW_STATE.IS_HIGH_PASS_FILTER] = isHighPass?2:0;
+  }
+ 
 }
