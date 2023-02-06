@@ -17,24 +17,15 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
         return android;
       case TargetPlatform.iOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for ios - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return ios;
       case TargetPlatform.macOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for macos - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return macos;
       case TargetPlatform.windows:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for windows - '
@@ -52,11 +43,43 @@ class DefaultFirebaseOptions {
     }
   }
 
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyCLnWX82fGBHvQWIHqEU2qfqGGgJHmIFJI',
+    appId: '1:62668804297:web:3fb6abbe2cfabf80523d18',
+    messagingSenderId: '62668804297',
+    projectId: 'webspikerecorder',
+    authDomain: 'webspikerecorder.firebaseapp.com',
+    storageBucket: 'webspikerecorder.appspot.com',
+    measurementId: 'G-BK6NLYYL50',
+  );
+
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyAHms3OKjtGx6DwKhM_VrHy7nUUpRpmIi4',
     appId: '1:62668804297:android:2774634e3310c763523d18',
     messagingSenderId: '62668804297',
     projectId: 'webspikerecorder',
     storageBucket: 'webspikerecorder.appspot.com',
+  );
+
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyCj4qNR5OWEggFND_54ns20g7xlHByQtvo',
+    appId: '1:62668804297:ios:2e1442d6910b0ba6523d18',
+    messagingSenderId: '62668804297',
+    projectId: 'webspikerecorder',
+    storageBucket: 'webspikerecorder.appspot.com',
+    androidClientId: '62668804297-e5l5ghtojirdcfm8lj0idtaa4cptj3n0.apps.googleusercontent.com',
+    iosClientId: '62668804297-mnl9lq4b30gl2qnhjb2a4ohfmkvkql35.apps.googleusercontent.com',
+    iosBundleId: 'com.backyardbrains.srflutterios',
+  );
+
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyCj4qNR5OWEggFND_54ns20g7xlHByQtvo',
+    appId: '1:62668804297:ios:948434efb4e92672523d18',
+    messagingSenderId: '62668804297',
+    projectId: 'webspikerecorder',
+    storageBucket: 'webspikerecorder.appspot.com',
+    androidClientId: '62668804297-e5l5ghtojirdcfm8lj0idtaa4cptj3n0.apps.googleusercontent.com',
+    iosClientId: '62668804297-kniaql0kbi2a69o08uqolg69bck8m7h9.apps.googleusercontent.com',
+    iosBundleId: 'com.backyardbrains.srfluttermac',
   );
 }

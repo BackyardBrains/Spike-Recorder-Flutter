@@ -49,6 +49,8 @@ Future showCustomAudioDialog(ctx, params) {
   controllerHighFilter.text = params["highFilterValue"];
   int sampleRate = int.parse(params["sampleRate"]);
   int halfSampleRate = (sampleRate / 2).floor();
+  bool isNotch50 = params["isNotch50"];
+  bool isNotch60 = params["isNotch60"];
 
   int flagChange = 0;
 
@@ -443,7 +445,56 @@ Future showCustomAudioDialog(ctx, params) {
                     },
                   ),
                 ),
+                
+                
+                // Notch FILTER
+                Container(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Text("Attenuate frequency (notch filter): "),
+                      Container(
+                        child: Row(
+                          children:[
+                            Checkbox(
+                              checkColor: Colors.white,
+                              // fillColor: MaterialStateProperty.resolveWith(getColor),
 
+                              value: isNotch50,
+                              onChanged: (bool? value) {
+                                setState(() {
+                                  isNotch50 = value!;
+                                  params['isNotch50'] = isNotch50;
+                                });
+                              },
+                            ),
+                            Text("50Hz")
+
+                          ]
+                        ),
+                      ),
+                      Container(
+                        child: Row(
+                          children:[
+                            Checkbox(
+                              checkColor: Colors.white,
+                              // fillColor: MaterialStateProperty.resolveWith(getColor),
+                              value: isNotch60,
+                              onChanged: (bool? value) {
+                                setState(() {
+                                  isNotch60 = value!;
+                                  params['isNotch60'] = isNotch60;
+                                });
+                              },
+                            ),
+                            Text("60Hz")
+                          ]
+                        ),
+                      ),
+
+                    ],
+                  )
+                ),
                 // Row(
                 //   children: [
                 //     Text("Attenuate frequency (Notch Filter)"),

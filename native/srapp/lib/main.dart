@@ -92,6 +92,8 @@ Nativec nativec = Nativec();
 
 bool isHighPass = false;
 bool isLowPass = false;
+bool isNotch50 = false;
+bool isNotch60 = false;
 
 // final mod = WasmModule(data);
 // print(mod.describe());
@@ -327,6 +329,8 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
     double highPassFilter = arr[9];
     bool isLowPass = arr[10];
     bool isHighPass = arr[11];
+    bool isNotch50 = arr[12];
+    bool isNotch60 = arr[13];
 
     int maxSize = (allEnvelopes[0][0]).length;
     int globalPositionCap = (globalIdx * maxSize / 2).floor();
@@ -374,6 +378,13 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
         // samples[c] = nativec.lowPassFilter(c, samples[c], samples[c].length);
         if (isHighPass) {
           samples[c] = nativec.highPassFilter(c, samples[c], samples[c].length);
+        }
+
+        if (isNotch50) {
+          samples[c] = nativec.notchPassFilter(true, c, samples[c], samples[c].length);
+        }
+        if (isNotch60) {
+          samples[c] = nativec.notchPassFilter(false, c, samples[c], samples[c].length);
         }
         // print("lowPassFilter2");
         // if (temp != samples[c]){
@@ -694,11 +705,18 @@ void serialBufferingEntryPoint(List<dynamic> values) {
     // print('deviceChannel');
     // print(deviceChannel);
     var _sampleRate = arr[4];
-    var _maxSampleRate = arr[5];
+    var _maxSampleRate = 10000;
     int CUR_START = arr[6];
     bool isPaused = arr[7];
     String curKey = arr[8];
-    double surfaceWidth = arr[9];
+    double surfaceWidth = 0;
+    try{
+      surfaceWidth = arr[9];
+    }catch(err){
+      print("err");
+      print(err);
+      // arr[9];     
+    }
     int maxSize = (allEnvelopes[0][0]).length;
     int globalPositionCap = (globalIdx * maxSize / 2).floor();
 
@@ -1352,7 +1370,9 @@ class _MyHomePageState extends State<MyHomePage> {
     "flagDisplay6": 0,
     "strokeWidth": 1.25,
     "strokeOptions": [1.00, 1.25, 1.5, 1.75, 2.00],
-    "enableDeviceLegacy": false
+    "enableDeviceLegacy": false,
+    "isNotch50":false,
+    "isNotch60":false,
   };
 
   List<Color> audioChannelColors = [
@@ -1906,6 +1926,11 @@ class _MyHomePageState extends State<MyHomePage> {
         nativec.createHighPassFilter(maxOsChannel, _sampleRate,
             _highPassFilter == 0 ? 1.0 : _highPassFilter, 0.5);
 
+      nativec.createNotchPassFilter(1, maxOsChannel, _sampleRate,
+          50.0, 1.0);
+      nativec.createNotchPassFilter(0, maxOsChannel, _sampleRate,
+          60.0, 1.0);
+
       List<int> envelopeSizes = [];
       int SEGMENT_SIZE = _sampleRate.toInt();
       int SIZE = NUMBER_OF_SEGMENTS * SEGMENT_SIZE;
@@ -2000,6 +2025,8 @@ class _MyHomePageState extends State<MyHomePage> {
             _highPassFilter,
             isLowPass,
             isHighPass,
+            isNotch50,
+            isNotch60,
             // DISPLAY_CHANNEL_FIX,
           ]);
           currentKey = "";
@@ -2022,6 +2049,8 @@ class _MyHomePageState extends State<MyHomePage> {
           _highPassFilter,
           isLowPass,
           isHighPass,
+          isNotch50,
+          isNotch60,
 
           // DISPLAY_CHANNEL_FIX,
         ]);
@@ -2149,6 +2178,8 @@ class _MyHomePageState extends State<MyHomePage> {
           _highPassFilter,
           isLowPass,
           isHighPass,
+          isNotch50,
+          isNotch60,
 
           // DISPLAY_CHANNEL_FIX,
         ]);
@@ -2166,6 +2197,8 @@ class _MyHomePageState extends State<MyHomePage> {
           _highPassFilter,
           isLowPass,
           isHighPass,
+          isNotch50,
+          isNotch60,
 
           // DISPLAY_CHANNEL_FIX,
         ]);
@@ -2713,6 +2746,7 @@ class _MyHomePageState extends State<MyHomePage> {
       print(message);
 
       CURRENT_DEVICE = DEVICE_CATALOG[message];
+      print(CURRENT_DEVICE);
       minChannels = 1;
       int maxExpansionChannels = 0;
       List<int> sampleRates = [];
@@ -2740,7 +2774,8 @@ class _MyHomePageState extends State<MyHomePage> {
       if (maxChannels > 5) {
         DISPLAY_CHANNEL = 1;
       } else {
-        DISPLAY_CHANNEL = maxChannels;
+        // DISPLAY_CHANNEL = maxChannels;
+        DISPLAY_CHANNEL = minChannels;
       }
       numberOfChannels = DISPLAY_CHANNEL;
 
@@ -3199,6 +3234,10 @@ class _MyHomePageState extends State<MyHomePage> {
                   _highPassFilter =
                       int.parse(settingParams["lowFilterValue"] as String)
                           .toDouble();
+
+                  isNotch50 = settingParams["isNotch50"] as bool;
+                  isNotch60 = settingParams["isNotch60"] as bool;
+                  
                   print("Filter : ");
                   print(_lowPassFilter);
                   // if (_highPassFilter == 0){
@@ -3235,6 +3274,13 @@ class _MyHomePageState extends State<MyHomePage> {
                         sampleRate.toDouble(), _highPassFilter, 0.5);
                     print("result high");
                     print(result);
+                  }
+
+                  if (isNotch50){
+                    result = nativec.initNotchPassFilter(1, maxOsChannel, sampleRate.toDouble(), 50.0, 1.0);
+                  }
+                  if (isNotch60){
+                    result = nativec.initNotchPassFilter(-1, maxOsChannel, sampleRate.toDouble(), 60.0, 1.0);
                   }
 
                   if (channelsColor[1] != Color(0xff000000)) {
