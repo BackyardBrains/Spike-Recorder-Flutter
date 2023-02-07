@@ -75,12 +75,12 @@ EXTERNC FUNCTION_ATTRIBUTE double setNotch(int16_t _isNotch50, int16_t _isNotch6
 }
 
 
-EXTERNC FUNCTION_ATTRIBUTE double createNotchPassFilter(int16_t isNotch50, int16_t channelCount, double sampleRate, double cutOff, double q){
+EXTERNC FUNCTION_ATTRIBUTE double createNotchPassFilter(int16_t _isNotch50, int16_t channelCount, double sampleRate, double cutOff, double q){
     // NotchFilters = new NotchFilter[channelCount];
     // int sum = 0;
     for( int i = 0; i < channelCount; i++ )
     {
-        if (isNotch50 == 1){
+        if (_isNotch50 == 1){
             NotchFilters50[i] = NotchFilter();
             // NotchFilter NotchFilter = NotchFilters[i];
             NotchFilters50[i].initWithSamplingRate(sampleRate);
@@ -101,11 +101,11 @@ EXTERNC FUNCTION_ATTRIBUTE double createNotchPassFilter(int16_t isNotch50, int16
     return 1;
 }
 
-EXTERNC FUNCTION_ATTRIBUTE double initNotchPassFilter(int16_t isNotch50, int16_t channelCount, double sampleRate, double cutOff, double q){
+EXTERNC FUNCTION_ATTRIBUTE double initNotchPassFilter(int16_t _isNotch50, int16_t channelCount, double sampleRate, double cutOff, double q){
     for( int32_t i = 0; i < channelCount; i++ )
     {
         // NotchFilter NotchFilter = NotchFilters[i];
-        if (isNotch50 == 1){
+        if (_isNotch50 == 1){
 
             NotchFilters50[i].initWithSamplingRate(sampleRate);
             if (cutOff > sampleRate / 2.0f) cutOff = sampleRate / 2.0f;
@@ -121,8 +121,8 @@ EXTERNC FUNCTION_ATTRIBUTE double initNotchPassFilter(int16_t isNotch50, int16_t
     return NotchFilters50[0].omega;
 }
 
-EXTERNC FUNCTION_ATTRIBUTE double applyNotchPassFilter(int16_t isNotch50, int16_t channelIdx, int16_t *data, int32_t sampleCount){
-    if (isNotch50 == 1){
+EXTERNC FUNCTION_ATTRIBUTE double applyNotchPassFilter(int16_t _isNotch50, int16_t channelIdx, int16_t *data, int32_t sampleCount){
+    if (_isNotch50 == 1){
         if (NotchFilters50[channelIdx].omega != 0){
             NotchFilters50[channelIdx].filter(data, sampleCount, false);
         }else{

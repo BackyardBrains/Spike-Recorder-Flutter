@@ -445,75 +445,66 @@ Future showCustomAudioDialog(ctx, params) {
                     },
                   ),
                 ),
-                
-                
+
                 // Notch FILTER
                 Container(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      Text("Attenuate frequency (notch filter): "),
-                      Container(
-                        child: Row(
-                          children:[
-                            Checkbox(
-                              checkColor: Colors.white,
-                              // fillColor: MaterialStateProperty.resolveWith(getColor),
+                    child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    Text("Attenuate frequency (notch filter): "),
+                    Container(
+                      child: Row(children: [
+                        Checkbox(
+                          checkColor: Colors.white,
+                          // fillColor: MaterialStateProperty.resolveWith(getColor),
 
-                              value: isNotch50,
-                              onChanged: (bool? value) {
-                                setState(() {
-                                  isNotch50 = value!;
-                                  params['isNotch50'] = isNotch50;
-                                });
-                              },
-                            ),
-                            Text("50Hz")
-
-                          ]
+                          value: isNotch50,
+                          onChanged: (bool? value) {
+                            setState(() {
+                              isNotch50 = value!;
+                              params['isNotch50'] = isNotch50;
+                            });
+                          },
                         ),
-                      ),
-                      Container(
-                        child: Row(
-                          children:[
-                            Checkbox(
-                              checkColor: Colors.white,
-                              // fillColor: MaterialStateProperty.resolveWith(getColor),
-                              value: isNotch60,
-                              onChanged: (bool? value) {
-                                setState(() {
-                                  isNotch60 = value!;
-                                  params['isNotch60'] = isNotch60;
-                                });
-                              },
-                            ),
-                            Text("60Hz")
-                          ]
+                        Text("50Hz")
+                      ]),
+                    ),
+                    Container(
+                      child: Row(children: [
+                        Checkbox(
+                          checkColor: Colors.white,
+                          // fillColor: MaterialStateProperty.resolveWith(getColor),
+                          value: isNotch60,
+                          onChanged: (bool? value) {
+                            setState(() {
+                              isNotch60 = value!;
+                              params['isNotch60'] = isNotch60;
+                            });
+                          },
                         ),
-                      ),
+                        Text("60Hz")
+                      ]),
+                    ),
+                  ],
+                )),
 
-                    ],
-                  )
-                ),
                 // Row(
                 //   children: [
                 //     Text("Attenuate frequency (Notch Filter)"),
                 //     Text("50Hz"),
                 //     Checkbox(
-                //       value: params["notchFilter50"],
-                //       onChanged: (flag){
-                //         params["notchFilter50"] = !params["notchFilter50"];
-                //         setState((){});
-                //       }
-                //     ),
+                //         value: params["notchFilter50"],
+                //         onChanged: (flag) {
+                //           params["notchFilter50"] = !params["notchFilter50"];
+                //           setState(() {});
+                //         }),
                 //     Text("60Hz"),
                 //     Checkbox(
-                //       value: params["notchFilter60"],
-                //       onChanged: (flag){
-                //         params["notchFilter60"] = !params["notchFilter60"];
-                //         setState((){});
-                //       }
-                //     ),
+                //         value: params["notchFilter60"],
+                //         onChanged: (flag) {
+                //           params["notchFilter60"] = !params["notchFilter60"];
+                //           setState(() {});
+                //         }),
                 //   ],
                 // ),
 

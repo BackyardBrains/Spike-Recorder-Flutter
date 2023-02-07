@@ -11,39 +11,46 @@
 #define EXTERNC
 #endif
 
-EXTERNC typedef struct {
-    const char* info;
-} MyStruct;
+#if defined(__GNUC__)
+    #define FUNCTION_ATTRIBUTE __attribute__((visibility("default"))) __attribute__((used))
+#elif defined(_MSC_VER)
+    #define FUNCTION_ATTRIBUTE __declspec(dllexport)
+#endif
 
-EXTERNC MyStruct CreateStruct() {
-    // MyStruct test = new MyStruct();
-    // MyStruct.info = "Hello Dart!";
-    // return MyStruct;
-    // return {.info = "Hello Dart!"};
 
-    MyStruct test ={
-        // info: "Hello FFI"
-    };
-    return test;
-}
+// EXTERNC typedef struct {
+//     const char* info;
+// } MyStruct;
 
-EXTERNC const char* GetInfo(MyStruct* s) {
-    return s->info;
-}
+// EXTERNC MyStruct CreateStruct() {
+//     // MyStruct test = new MyStruct();
+//     // MyStruct.info = "Hello Dart!";
+//     // return MyStruct;
+//     // return {.info = "Hello Dart!"};
+
+//     MyStruct test ={
+//         // info: "Hello FFI"
+//     };
+//     return test;
+// }
+
+// EXTERNC FUNCTION_ATTRIBUTE const char* GetInfo(MyStruct* s) {
+//     return s->info;
+// }
 
 
 double result;
-EXTERNC double GainFilter(double sample, double multiplier){
+EXTERNC FUNCTION_ATTRIBUTE double GainFilter(double sample, double multiplier){
     result = sample * multiplier;
     return result;
 }
 
-EXTERNC double ReturnGainFilter(double sample){
+EXTERNC FUNCTION_ATTRIBUTE double ReturnGainFilter(double sample){
     return result * 80;
 }
 
 
-EXTERNC double CreateFilters2(){
+EXTERNC FUNCTION_ATTRIBUTE double CreateFilters2(){
     return 30;
     // filterBase = new FilterBase();
     // filterBase->initWithSamplingRate(4000);

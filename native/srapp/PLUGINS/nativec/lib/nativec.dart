@@ -20,8 +20,8 @@ class MyStruct extends ffi.Struct {
   external ffi.Pointer<Utf8> info;
 }
 
-typedef CreateStruct = MyStruct Function();
-typedef GetInfo = ffi.Pointer<Utf8> Function(ffi.Pointer<MyStruct>);
+// typedef CreateStruct = MyStruct Function();
+// typedef GetInfo = ffi.Pointer<Utf8> Function(ffi.Pointer<MyStruct>);
 
 typedef return_gain_filter_func = ffi.Double Function(ffi.Double);
 typedef ReturnGainFilterProcess = double Function(double);
@@ -88,8 +88,8 @@ class Nativec {
   late InitHighPassFilterProcess _initHighPassFilterProcess;
   late InitNotchPassFilterProcess _initNotchPassFilterProcess;
 
-  late CreateStruct createStructFn;
-  late GetInfo getInfoFn;
+  // late CreateStruct createStructFn;
+  // late GetInfo getInfoFn;
 
   static int totalBytes = 1024 * 8;
   static ffi.Pointer<ffi.Int16> _data = allocate<ffi.Int16>(
@@ -158,18 +158,18 @@ class Nativec {
     _bytes = _data.asTypedList(Nativec.totalBytes);
     // _bytes.fillRange(0, Nativec.totalBytes, 55);
 
-    createStructFn =
-        nativeLrsLib.lookupFunction<CreateStruct, CreateStruct>('CreateStruct');
-    getInfoFn = nativeLrsLib.lookupFunction<GetInfo, GetInfo>('GetInfo');
+    // createStructFn =
+    //     nativeLrsLib.lookupFunction<CreateStruct, CreateStruct>('CreateStruct');
+    // getInfoFn = nativeLrsLib.lookupFunction<GetInfo, GetInfo>('GetInfo');
 
-    var dartMyStruct = createStructFn();
+    // var dartMyStruct = createStructFn();
     // var myStructPtr = malloc<MyStruct>()..ref = dartMyStruct;
-    var myStructPtr = malloc<MyStruct>();
-    String hello = 'hello123';
-    dartMyStruct.info = hello.toNativeUtf8();
+    // var myStructPtr = malloc<MyStruct>();
+    // String hello = 'hello123';
+    // dartMyStruct.info = hello.toNativeUtf8();
 
     // It's a pointer, so we can pass by reference.
-    final result = getInfoFn(myStructPtr);
+    // final result = getInfoFn(myStructPtr);
     // print("result.toDartString()");
     // print(result.toDartString());
     // List<int> data = List<int>.generate(100, (index) => index);

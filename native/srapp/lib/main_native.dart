@@ -381,12 +381,10 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
         }
 
         if (isNotch50) {
-          samples[c] =
-              nativec.notchPassFilter(true, c, samples[c], samples[c].length);
+          samples[c] = nativec.notchPassFilter(true, c, samples[c], samples[c].length);
         }
         if (isNotch60) {
-          samples[c] =
-              nativec.notchPassFilter(false, c, samples[c], samples[c].length);
+          samples[c] = nativec.notchPassFilter(false, c, samples[c], samples[c].length);
         }
         // print("lowPassFilter2");
         // if (temp != samples[c]){
@@ -707,18 +705,11 @@ void serialBufferingEntryPoint(List<dynamic> values) {
     // print('deviceChannel');
     // print(deviceChannel);
     var _sampleRate = arr[4];
-    var _maxSampleRate = 10000;
+    var _maxSampleRate = arr[5];
     int CUR_START = arr[6];
     bool isPaused = arr[7];
     String curKey = arr[8];
-    double surfaceWidth = 0;
-    try {
-      surfaceWidth = arr[9];
-    } catch (err) {
-      print("err");
-      print(err);
-      // arr[9];
-    }
+    double surfaceWidth = arr[9];
     int maxSize = (allEnvelopes[0][0]).length;
     int globalPositionCap = (globalIdx * maxSize / 2).floor();
 
@@ -1373,8 +1364,8 @@ class _MyHomePageState extends State<MyHomePage> {
     "strokeWidth": 1.25,
     "strokeOptions": [1.00, 1.25, 1.5, 1.75, 2.00],
     "enableDeviceLegacy": false,
-    "isNotch50": false,
-    "isNotch60": false,
+    "isNotch50":false,
+    "isNotch60":false,
   };
 
   List<Color> audioChannelColors = [
@@ -1893,18 +1884,15 @@ class _MyHomePageState extends State<MyHomePage> {
         }
       } catch (err) {}
       sampleRate = 48000;
-      double _sampleRate = sampleRate.toDouble();
-      if (Platform.isMacOS){
-        Stream<List<int>>? stream = await MicStream.microphone(
-            audioSource: AudioSource.DEFAULT,
-            sampleRate: 48000,
-            channelConfig: ChannelConfig.CHANNEL_IN_MONO,
-            audioFormat: AudioFormat.ENCODING_PCM_16BIT);
+      Stream<List<int>>? stream = await MicStream.microphone(
+          audioSource: AudioSource.DEFAULT,
+          sampleRate: 48000,
+          channelConfig: ChannelConfig.CHANNEL_IN_MONO,
+          audioFormat: AudioFormat.ENCODING_PCM_16BIT);
 
-        _sampleRate = await MicStream.sampleRate!;
-        MicStream.stopListening();
-      }
+      double _sampleRate = await MicStream.sampleRate!;
       sampleRate = _sampleRate.floor();
+      MicStream.stopListening();
 
       _lowPassFilter = _sampleRate / 2;
       _highPassFilter = 0;
@@ -1931,8 +1919,10 @@ class _MyHomePageState extends State<MyHomePage> {
         nativec.createHighPassFilter(maxOsChannel, _sampleRate,
             _highPassFilter == 0 ? 1.0 : _highPassFilter, 0.5);
 
-      nativec.createNotchPassFilter(1, maxOsChannel, _sampleRate, 50.0, 1.0);
-      nativec.createNotchPassFilter(0, maxOsChannel, _sampleRate, 60.0, 1.0);
+      nativec.createNotchPassFilter(1, maxOsChannel, _sampleRate,
+          50.0, 1.0);
+      nativec.createNotchPassFilter(0, maxOsChannel, _sampleRate,
+          60.0, 1.0);
 
       List<int> envelopeSizes = [];
       int SEGMENT_SIZE = _sampleRate.toInt();
@@ -2585,41 +2575,41 @@ class _MyHomePageState extends State<MyHomePage> {
           //   }
           // },
 
-          // child: Focus(
-          //   onKey: (FocusNode node, RawKeyEvent event) =>
-          //       KeyEventResult.handled,
-          child: RawKeyboardListener(
-            onKey: (key) {
-              if (isFeedback) return;
+          child: Focus(
+            onKey: (FocusNode node, RawKeyEvent event) =>
+                KeyEventResult.handled,
+            child: RawKeyboardListener(
+              onKey: (key) {
+                if (isFeedback) return;
 
-              if (key.character == null) {
-                prevKey = "~";
-                currentKey = "";
-              } else {
-                if (key.character.toString().codeUnitAt(0) >= 48 &&
-                    key.character.toString().codeUnitAt(0) <= 57) {
-                  if (prevKey != key.character.toString()) {
-                    prevKey = key.character.toString();
-                    if (kIsWeb) {
-                      // js.context.callMethod('setEventKeypress', [prevKey]);
-                    } else {
-                      if (globalMarkers.length + 1 >= max_markers) {
-                        globalMarkers.clear();
+                if (key.character == null) {
+                  prevKey = "~";
+                  currentKey = "";
+                } else {
+                  if (key.character.toString().codeUnitAt(0) >= 48 &&
+                      key.character.toString().codeUnitAt(0) <= 57) {
+                    if (prevKey != key.character.toString()) {
+                      prevKey = key.character.toString();
+                      if (kIsWeb) {
+                        // js.context.callMethod('setEventKeypress', [prevKey]);
+                      } else {
+                        if (globalMarkers.length + 1 >= max_markers) {
+                          globalMarkers.clear();
+                        }
+                        globalMarkers.add((prevKey.codeUnitAt(0) - 48));
+                        currentKey = prevKey;
                       }
-                      globalMarkers.add((prevKey.codeUnitAt(0) - 48));
-                      currentKey = prevKey;
                     }
                   }
                 }
-              }
-              return;
-            },
-            focusNode: keyboardFocusNode,
-            child: isLoadingFile
-                ? getLoadingWidget(context)
-                : (isFeedback ? getFeedbackWidget() : getMainWidget()),
+                return;
+              },
+              focusNode: keyboardFocusNode,
+              child: isLoadingFile
+                  ? getLoadingWidget(context)
+                  : (isFeedback ? getFeedbackWidget() : getMainWidget()),
+            ),
           ),
-          // ),
         ),
       );
     }
@@ -2749,7 +2739,6 @@ class _MyHomePageState extends State<MyHomePage> {
       print(message);
 
       CURRENT_DEVICE = DEVICE_CATALOG[message];
-      print(CURRENT_DEVICE);
       minChannels = 1;
       int maxExpansionChannels = 0;
       List<int> sampleRates = [];
@@ -2777,8 +2766,7 @@ class _MyHomePageState extends State<MyHomePage> {
       if (maxChannels > 5) {
         DISPLAY_CHANNEL = 1;
       } else {
-        // DISPLAY_CHANNEL = maxChannels;
-        DISPLAY_CHANNEL = minChannels;
+        DISPLAY_CHANNEL = maxChannels;
       }
       numberOfChannels = DISPLAY_CHANNEL;
 
@@ -3240,7 +3228,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
                   isNotch50 = settingParams["isNotch50"] as bool;
                   isNotch60 = settingParams["isNotch60"] as bool;
-
+                  
                   print("Filter : ");
                   print(_lowPassFilter);
                   // if (_highPassFilter == 0){
@@ -3279,13 +3267,11 @@ class _MyHomePageState extends State<MyHomePage> {
                     print(result);
                   }
 
-                  if (isNotch50) {
-                    result = nativec.initNotchPassFilter(
-                        1, maxOsChannel, sampleRate.toDouble(), 50.0, 1.0);
+                  if (isNotch50){
+                    result = nativec.initNotchPassFilter(1, maxOsChannel, sampleRate.toDouble(), 50.0, 1.0);
                   }
-                  if (isNotch60) {
-                    result = nativec.initNotchPassFilter(
-                        -1, maxOsChannel, sampleRate.toDouble(), 60.0, 1.0);
+                  if (isNotch60){
+                    result = nativec.initNotchPassFilter(-1, maxOsChannel, sampleRate.toDouble(), 60.0, 1.0);
                   }
 
                   if (channelsColor[1] != Color(0xff000000)) {
@@ -3996,151 +3982,151 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     }
 
-    // if (isOpeningFile == 1) {
-    // } else {
-    //   dataWidgets.add(
-    //     Positioned(
-    //       top: 10,
-    //       right: 160,
-    //       child: ElevatedButton(
-    //         style: ElevatedButton.styleFrom(
-    //           // style: ButtonStyle(
-    //           fixedSize: const Size(50, 50),
-    //           shape: const CircleBorder(),
-    //           shadowColor: Colors.blue,
+    if (isOpeningFile == 1) {
+    } else {
+      dataWidgets.add(
+        Positioned(
+          top: 10,
+          right: 160,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              // style: ButtonStyle(
+              fixedSize: const Size(50, 50),
+              shape: const CircleBorder(),
+              shadowColor: Colors.blue,
 
-    //           primary: Colors.white,
-    //           onPrimary: Colors.green,
-    //           onSurface: Colors.red,
-    //           // backgroundColor: getColor(Colors.blueGrey, Colors.blueGrey),
-    //           // overlayColor: getColor(Colors.white60, Colors.white70)
-    //         ),
-    //         onPressed: () {
-    //           bool flag = false;
-    //           for (int c = 0; c < 6; c++) {
-    //             if (settingParams["flagDisplay" + c.toString()] == '1') {
-    //               flag = true;
-    //             }
-    //           }
-    //           if (flag) {
-    //             infoDialog(
-    //               context,
-    //               "Warning",
-    //               "To start recording, please activate a channel first.",
-    //               positiveButtonText: "OK",
-    //               positiveButtonAction: () {},
-    //               negativeButtonText: "",
-    //               negativeButtonAction: null,
-    //               hideNeutralButton: true,
-    //               closeOnBackPress: false,
-    //             );
-    //           }
-    //           if (deviceType == 0) {
-    //             if (isRecording < 10) {
-    //               // isRecording = 10;
-    //               _sendAnalyticsEvent("button_stop_rec", {
-    //                 "deviceType": deviceType,
-    //                 "device": "Audio",
-    //               });
-    //             } else {
-    //               isRecording = 0;
-    //               _sendAnalyticsEvent("button_start_rec", {
-    //                 "deviceType": deviceType,
-    //                 "device": "Audio",
-    //               });
-    //             }
-    //             print("flagDisplay12");
-    //             print(settingParams);
-    //             print(settingParams["flagDisplay1"]);
-    //             print(settingParams["flagDisplay2"]);
-    //             if (kIsWeb) {
-    //               // js.context.callMethod('fileRecordAudio', [
-    //               //   settingParams["flagDisplay1"] as int,
-    //               //   settingParams["flagDisplay2"] as int,
-    //               //   settingParams["defaultMicrophoneLeftColor"] as int,
-    //               //   settingParams['defaultMicrophoneRightColor'] as int
-    //               // ]);
+              primary: Colors.white,
+              onPrimary: Colors.green,
+              onSurface: Colors.red,
+              // backgroundColor: getColor(Colors.blueGrey, Colors.blueGrey),
+              // overlayColor: getColor(Colors.white60, Colors.white70)
+            ),
+            onPressed: () {
+              bool flag = false;
+              for (int c = 0; c < 6; c++) {
+                if (settingParams["flagDisplay" + c.toString()] == '1') {
+                  flag = true;
+                }
+              }
+              if (flag) {
+                infoDialog(
+                  context,
+                  "Warning",
+                  "To start recording, please activate a channel first.",
+                  positiveButtonText: "OK",
+                  positiveButtonAction: () {},
+                  negativeButtonText: "",
+                  negativeButtonAction: null,
+                  hideNeutralButton: true,
+                  closeOnBackPress: false,
+                );
+              }
+              if (deviceType == 0) {
+                if (isRecording < 10) {
+                  // isRecording = 10;
+                  _sendAnalyticsEvent("button_stop_rec", {
+                    "deviceType": deviceType,
+                    "device": "Audio",
+                  });
+                } else {
+                  isRecording = 0;
+                  _sendAnalyticsEvent("button_start_rec", {
+                    "deviceType": deviceType,
+                    "device": "Audio",
+                  });
+                }
+                print("flagDisplay12");
+                print(settingParams);
+                print(settingParams["flagDisplay1"]);
+                print(settingParams["flagDisplay2"]);
+                if (kIsWeb) {
+                  // js.context.callMethod('fileRecordAudio', [
+                  //   settingParams["flagDisplay1"] as int,
+                  //   settingParams["flagDisplay2"] as int,
+                  //   settingParams["defaultMicrophoneLeftColor"] as int,
+                  //   settingParams['defaultMicrophoneRightColor'] as int
+                  // ]);
 
-    //             } else {}
-    //           } else if (deviceType == 1) {
-    //             if (isRecording < 10) {
-    //               // isRecording = 11;
-    //               _sendAnalyticsEvent("button_start_rec", {
-    //                 "deviceType": deviceType,
-    //                 "device": "Serial",
-    //               });
-    //             } else {
-    //               isRecording = 0;
-    //               _sendAnalyticsEvent("button_stop_rec", {
-    //                 "deviceType": deviceType,
-    //                 "device": "Serial",
-    //               });
-    //             }
-    //             if (kIsWeb) {
-    //               // js.context.callMethod('fileRecordSerial', [
-    //               //   settingParams["flagDisplay1"],
-    //               //   settingParams["flagDisplay2"],
-    //               //   settingParams["flagDisplay3"],
-    //               //   settingParams["flagDisplay4"],
-    //               //   settingParams["flagDisplay5"],
-    //               //   settingParams["flagDisplay6"],
-    //               //   settingParams['defaultSerialColor1'] as int,
-    //               //   settingParams['defaultSerialColor2'] as int,
-    //               //   settingParams['defaultSerialColor3'] as int,
-    //               //   settingParams['defaultSerialColor4'] as int,
-    //               //   settingParams['defaultSerialColor5'] as int,
-    //               //   settingParams['defaultSerialColor6'] as int
-    //               // ]);
+                } else {}
+              } else if (deviceType == 1) {
+                if (isRecording < 10) {
+                  // isRecording = 11;
+                  _sendAnalyticsEvent("button_start_rec", {
+                    "deviceType": deviceType,
+                    "device": "Serial",
+                  });
+                } else {
+                  isRecording = 0;
+                  _sendAnalyticsEvent("button_stop_rec", {
+                    "deviceType": deviceType,
+                    "device": "Serial",
+                  });
+                }
+                if (kIsWeb) {
+                  // js.context.callMethod('fileRecordSerial', [
+                  //   settingParams["flagDisplay1"],
+                  //   settingParams["flagDisplay2"],
+                  //   settingParams["flagDisplay3"],
+                  //   settingParams["flagDisplay4"],
+                  //   settingParams["flagDisplay5"],
+                  //   settingParams["flagDisplay6"],
+                  //   settingParams['defaultSerialColor1'] as int,
+                  //   settingParams['defaultSerialColor2'] as int,
+                  //   settingParams['defaultSerialColor3'] as int,
+                  //   settingParams['defaultSerialColor4'] as int,
+                  //   settingParams['defaultSerialColor5'] as int,
+                  //   settingParams['defaultSerialColor6'] as int
+                  // ]);
 
-    //             } else {}
-    //           } else if (deviceType == 2) {
-    //             if (isRecording < 10) {
-    //               // isRecording = 12;
-    //               _sendAnalyticsEvent("button_start_rec", {
-    //                 "deviceType": deviceType,
-    //                 "device": "Audio",
-    //               });
-    //             } else {
-    //               isRecording = 0;
-    //               _sendAnalyticsEvent("button_stop_rec", {
-    //                 "deviceType": deviceType,
-    //                 "device": "Hid",
-    //               });
-    //             }
-    //             if (kIsWeb) {
-    //               // js.context.callMethod('fileRecordSerial', [
-    //               //   settingParams["flagDisplay1"],
-    //               //   settingParams["flagDisplay2"],
-    //               //   settingParams["flagDisplay3"],
-    //               //   settingParams["flagDisplay4"],
-    //               //   settingParams["flagDisplay5"],
-    //               //   settingParams["flagDisplay6"],
-    //               //   settingParams['defaultSerialColor1'] as int,
-    //               //   settingParams['defaultSerialColor2'] as int,
-    //               //   settingParams['defaultSerialColor3'] as int,
-    //               //   settingParams['defaultSerialColor4'] as int,
-    //               //   settingParams['defaultSerialColor5'] as int,
-    //               //   settingParams['defaultSerialColor6'] as int
-    //               // ]);
+                } else {}
+              } else if (deviceType == 2) {
+                if (isRecording < 10) {
+                  // isRecording = 12;
+                  _sendAnalyticsEvent("button_start_rec", {
+                    "deviceType": deviceType,
+                    "device": "Audio",
+                  });
+                } else {
+                  isRecording = 0;
+                  _sendAnalyticsEvent("button_stop_rec", {
+                    "deviceType": deviceType,
+                    "device": "Hid",
+                  });
+                }
+                if (kIsWeb) {
+                  // js.context.callMethod('fileRecordSerial', [
+                  //   settingParams["flagDisplay1"],
+                  //   settingParams["flagDisplay2"],
+                  //   settingParams["flagDisplay3"],
+                  //   settingParams["flagDisplay4"],
+                  //   settingParams["flagDisplay5"],
+                  //   settingParams["flagDisplay6"],
+                  //   settingParams['defaultSerialColor1'] as int,
+                  //   settingParams['defaultSerialColor2'] as int,
+                  //   settingParams['defaultSerialColor3'] as int,
+                  //   settingParams['defaultSerialColor4'] as int,
+                  //   settingParams['defaultSerialColor5'] as int,
+                  //   settingParams['defaultSerialColor6'] as int
+                  // ]);
 
-    //             } else {}
-    //           }
-    //         },
-    //         child: const Icon(
-    //           Icons.fiber_manual_record_rounded,
-    //           color: Color(0xFF800000),
-    //         ),
-    //       ),
-    //     ),
-    //   );
-    // }
+                } else {}
+              }
+            },
+            child: const Icon(
+              Icons.fiber_manual_record_rounded,
+              color: Color(0xFF800000),
+            ),
+          ),
+        ),
+      );
+    }
 
     if (isRecording == 0) {
       dataWidgets.add(feedbackButton);
       // }
 
       // if ( isRecording == 0 ){
-      // dataWidgets.add(openFileButton);
+      dataWidgets.add(openFileButton);
     }
 
     if (isRecording > 0 || isOpeningFile == 1) {

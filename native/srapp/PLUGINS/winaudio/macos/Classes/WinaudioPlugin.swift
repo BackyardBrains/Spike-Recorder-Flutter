@@ -60,7 +60,7 @@ public class WinaudioPlugin: NSObject, FlutterPlugin {
           handleRecord = BASS_RecordStart(sampleRate, UInt32(channelSum), 0, nil, nil);
           //handle = FALSE;
           print("Handle");
-          print( handleRecord );
+          // print( handleRecord );
           print( type(of:handleRecord) );    
           // Handle
           // Optional(2147483649)
