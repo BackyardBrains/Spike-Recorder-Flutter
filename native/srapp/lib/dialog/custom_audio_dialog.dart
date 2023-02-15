@@ -448,7 +448,7 @@ Future showCustomAudioDialog(ctx, params) {
 
                 // Notch FILTER
                 Container(
-                    child: Row(
+                    child: Column(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     Text("Attenuate frequency (notch filter): "),

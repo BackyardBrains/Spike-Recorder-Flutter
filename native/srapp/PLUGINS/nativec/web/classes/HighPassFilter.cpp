@@ -95,21 +95,6 @@ EXTERNC FUNCTION_ATTRIBUTE double initHighPassFilter(short channelCount, double 
     return 1;
 }
 
-// EXTERNC FUNCTION_ATTRIBUTE double applyHighPassFilter(short channelIdx, short *data, int32_t sampleCount){
-//     highPassFilters[channelIdx].filter(data, sampleCount, false);
-//     return 1;
-// }
-// template<typename T> std::vector<T> applyHighPassFilter(int16_t channelIdx,const val& data, int32_t sampleCount){
-//     std::vector<T> vec = vecFromJSArray<T>(data);
-//     if (highPassFilters[channelIdx].omega != 0){
-//         highPassFilters[channelIdx].filter(vec.data(), sampleCount, false);
-//         return vec;
-//     }else{
-//         return vec;
-//     }
-
-//     return vec;    
-// }
 
 EXTERNC FUNCTION_ATTRIBUTE auto applyHighPassFilter(int16_t channelIdx, const val &data, int32_t sampleCount){
     std::vector<short> raw = convertJSArrayToNumberVector<short>(data); 
@@ -129,9 +114,6 @@ EXTERNC FUNCTION_ATTRIBUTE auto applyHighPassFilter(int16_t channelIdx, const va
         return result;
     }
 }
-// EXTERNC double createFilters(){
-//     return 30;
-// }
 #endif
 
 

@@ -5,6 +5,7 @@ import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 // import 'dart:js' as js;
+import 'package:crypto/crypto.dart';
 import 'package:desktop_window/desktop_window.dart';
 import 'package:http/http.dart' as https;
 import 'package:alert_dialog/alert_dialog.dart';
@@ -26,7 +27,9 @@ import 'package:mfi/mfi.dart';
 
 import 'package:mic_stream/mic_stream.dart';
 import 'package:nativec/nativec.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:srmobileapp/firebase_options.dart';
 // import 'package:flutter_wasm/flutter_wasm.dart';
 import 'package:srmobileapp/library.dart';
@@ -41,6 +44,7 @@ import 'package:winaudio/winaudio.dart';
 import 'package:usb_serial/usb_serial.dart';
 
 import 'bloc/main_bloc.dart';
+import 'board-config.dart';
 import 'dialog/custom_audio_dialog.dart';
 import 'dialog/custom_serial_dialog.dart';
 import 'utils/debouncers.dart';
@@ -1043,7 +1047,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   double _lowPassFilter = 44100 / 2;
   double _highPassFilter = 0;
-
+  
   // bool isZoomingWhilePlaying = false;
 
   Future<void> _sendAnalyticsEvent(eventName, params) async {
@@ -2642,12 +2646,67 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   var availablePorts = [];
-
+  static deviceEntryPoint(List<dynamic> data)async{
+      // var response = await https.get('https://www.thecocktaildb.com/api/json/v1/1/search.php?s=margarita');
+    print('localConfig');
+    SendPort sendPort = data[0];
+    // SharedPreferences prefs = data[1];
+    // String? localConfig = prefs.getString('localConfig');
+    // final localPath = await getTemporaryDirectory();
+    final localPath = data[1].path;
+    final localFile = File('$localPath/localConfig.txt');
+    String? localConfig;
+    bool isExist = false;
+    if (localFile.existsSync()){
+      localConfig = (localFile).readAsStringSync();
+      isExist = true;
+    }
+    print(localConfig);
+    if (localConfig == null){
+      localConfig = bundledBoardConfig;
+    }
+    localConfig = bundledBoardConfig;
+    DEVICE_CATALOG = await getDeviceCatalog(localConfig);
+    String internetConfig = json.encode(DEVICE_CATALOG);
+    var internetConfigHash = md5.convert(utf8.encode(internetConfig)).toString();
+    var localConfigHash = md5.convert(utf8.encode(json.encode(localConfig))).toString();
+    print(localConfigHash + ' @ ' + internetConfigHash);
+    print(localConfigHash != internetConfigHash);
+    bool isDifferent = false;
+    if (localConfigHash != internetConfigHash){
+      isDifferent = true;
+      if (!isExist){
+        // localFile.createSync();
+      }
+      localFile.writeAsStringSync(internetConfig);
+    }
+    sendPort.send( DEVICE_CATALOG); //sending data back to main thread's function
+  }
+  static void callGetDeviceEndPoint()async{
+    var recievePort = new ReceivePort(); //creating new port to listen data
+    // final prefs = await SharedPreferences.getInstance();
+    final prefs = await getTemporaryDirectory();
+    await Isolate.spawn<List<dynamic>>(deviceEntryPoint, [recievePort.sendPort, prefs]);//spawing/creating new thread as isolates.
+    recievePort.listen((message) {  //listening data from isolate
+      // print("DEVICE_CATALOG");
+      // print(message);
+      // bool isDifferent = message[0];
+      // DEVICE_CATALOG = message[1];
+      DEVICE_CATALOG = message;
+      // if (isDifferent){
+      //   // prefs.setString('localConfig',json.encode(DEVICE_CATALOG));
+      // }
+      // print(DEVICE_CATALOG);
+    });
+  }  
   void initState() {
     super.initState();
     getCachedWidget();
     calculateArrScaleBar();
-    getDeviceCatalog();
+    // getDeviceCatalog();
+    // Future.delayed(new Duration(seconds: 5), () {
+    callGetDeviceEndPoint();
+    // });
 
     initPorts();
     Future.delayed(new Duration(milliseconds: 10), () {
@@ -5057,17 +5116,32 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  getDeviceCatalog() async {
+  static Future<dynamic> getDeviceCatalog(localData) async {
     String url =
         "https://backyardbrains.com/products/firmwares/devices/board-config.json";
-    final response = (await https.get(Uri.parse(url)));
-    if (response.statusCode == 200) {
-      var catalog = json.decode(response.body);
-      catalog['config']['boards'].forEach((board) {
-        print(board['uniqueName']);
-        DEVICE_CATALOG[board["uniqueName"].toString().trim()] = board;
-      });
+    var config = localData;
+    try{
+      final response = (await https.get(Uri.parse(url)));
+      if (response.statusCode == 200) {
+        config = response.body;
+      }else{
+        config = localData;
+      }
+
+    }catch(err){
+      config = localData;
+      print(err);
     }
+    var catalog = json.decode(config);
+    print('catalog');
+    print(catalog);
+    catalog['config']['boards'].forEach((board) {
+      print(board['uniqueName']);
+      DEVICE_CATALOG[board["uniqueName"].toString().trim()] = board;
+    });
+    // errorOffline = "Error data2";
+    return DEVICE_CATALOG;
+    // return {'errorOffline': errorOffline, 'abc':'','def':'hjklsdjkajds'};
   }
 
   getDeviceInfo() async {

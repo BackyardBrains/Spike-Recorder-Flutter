@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:nativec/allocation.dart';
@@ -54,6 +55,20 @@ typedef ApplyHighPassFilterProcess = double Function(
     int, ffi.Pointer<ffi.Int16>, int);
 
 
+typedef create_threshold_func = ffi.Double Function(
+    ffi.Int, ffi.Double, ffi.Double, ffi.Double);
+typedef CreateThresholdProcess = double Function(
+    int, double, double, double);
+typedef init_threshold_func = ffi.Double Function(
+    ffi.Int, ffi.Double, ffi.Double, ffi.Double);
+typedef InitThresholdProcess = double Function(
+    int, double, double, double);
+typedef apply_threshold_func = ffi.Double Function(
+    ffi.Int16, ffi.Pointer<ffi.Int16>, ffi.Uint32);
+typedef ApplyThresholdProcess = double Function(
+    int, ffi.Pointer<ffi.Int16>, int);
+
+
 
 typedef create_notch_pass_filters_func = ffi.Double Function(
     ffi.Int16, ffi.Int16, ffi.Double, ffi.Double, ffi.Double);
@@ -78,16 +93,37 @@ class Nativec {
   late CreateLowPassFilterProcess _createLowPassFilterProcess;
   late CreateHighPassFilterProcess _createHighPassFilterProcess;
   late CreateNotchPassFilterProcess _createNotchPassFilterProcess;
+  late CreateThresholdProcess _createThresholdProcess;
+
   late GainFilterProcess _gainFilterProcess;
   late ReturnGainFilterProcess _returnGainFilterProcess;
   late SetNotchProcess _setNotchProcess;
+  
   late ApplyLowPassFilterProcess _applyLowPassFilterProcess;
   late ApplyHighPassFilterProcess _applyHighPassFilterProcess;
   late ApplyNotchPassFilterProcess _applyNotchPassFilterProcess;
+  late ApplyThresholdProcess _applyThresholdProcess;
+
   late InitLowPassFilterProcess _initLowPassFilterProcess;
   late InitHighPassFilterProcess _initHighPassFilterProcess;
   late InitNotchPassFilterProcess _initNotchPassFilterProcess;
+  late InitThresholdProcess _initThresholdProcess;
 
+
+  // C++ to Dart
+  late final registerCallback1 = nativeLrsLib.lookupFunction<
+        ffi.Void Function(ffi.Int64 sendPort,
+            ffi.Pointer<ffi.NativeFunction<ffi.IntPtr Function(ffi.IntPtr)>> functionPointer),
+        void Function(int sendPort,
+            ffi.Pointer<ffi.NativeFunction<ffi.IntPtr Function(ffi.IntPtr)>> functionPointer)>(
+    'RegisterMyCallbackBlocking');
+  int callback1(int a) {
+    print("Dart:     callback1($a).");
+    // numCallbacks1++;
+    return a + 3;
+  }
+
+  late callback1FP;
   // late CreateStruct createStructFn;
   // late GetInfo getInfoFn;
 
@@ -116,6 +152,12 @@ class Nativec {
         .lookup<ffi.NativeFunction<create_notch_pass_filters_func>>(
             'createNotchPassFilter')
         .asFunction();
+
+    _createThresholdProcess = nativeLrsLib
+        .lookup<ffi.NativeFunction<create_threshold_func>>(
+            'createThresholdProcess')
+        .asFunction();
+
     _initLowPassFilterProcess = nativeLrsLib
         .lookup<ffi.NativeFunction<init_low_pass_filters_func>>(
             'initLowPassFilter')
@@ -128,6 +170,12 @@ class Nativec {
         .lookup<ffi.NativeFunction<init_notch_pass_filters_func>>(
             'initNotchPassFilter')
         .asFunction();
+    _initThresholdProcess = nativeLrsLib
+        .lookup<ffi.NativeFunction<init_threshold_func>>(
+            'initThresholdProcess')
+        .asFunction();
+
+
     _applyLowPassFilterProcess = nativeLrsLib
         .lookup<ffi.NativeFunction<apply_low_pass_filters_func>>(
             'applyLowPassFilter')
@@ -140,6 +188,10 @@ class Nativec {
         .lookup<ffi.NativeFunction<apply_notch_pass_filters_func>>(
             'applyNotchPassFilter')
         .asFunction();
+    _applyThresholdProcess = nativeLrsLib
+        .lookup<ffi.NativeFunction<apply_threshold_func>>(
+            'applyThresholdProcess')
+        .asFunction();
 
     _gainFilterProcess = nativeLrsLib
         .lookup<ffi.NativeFunction<gain_filter_func>>('GainFilter')
@@ -150,6 +202,16 @@ class Nativec {
     _setNotchProcess = nativeLrsLib
         .lookup<ffi.NativeFunction<set_notch_func>>('setNotch')
         .asFunction();
+
+
+    final initializeApi = nativeLrsLib.lookupFunction<ffi.IntPtr Function(ffi.Pointer<ffi.Void>),
+        int Function(ffi.Pointer<ffi.Void>)>("InitDartApiDL");
+    final interactiveCppRequests = ReceivePort()..listen((message){});
+    final int nativePort = interactiveCppRequests.sendPort.nativePort;
+    callback1FP = ffi.Pointer.fromFunction<ffi.IntPtr Function(ffi.IntPtr)>(callback1, 0);
+    registerCallback1(nativePort, callback1FP);
+    
+
 
     if (_data == null) {
       // _data = allocate<ffi.Int16>(count: totalBytes);
