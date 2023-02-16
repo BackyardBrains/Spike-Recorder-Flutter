@@ -456,6 +456,56 @@ private:
 };
 
 
+
+
+// C++ TO FLUTTER
+static Dart_Port_DL dart_port = 0;
+
+// Ensure that the function is not-mangled; exported as a pure C function
+EXTERNC FUNCTION_ATTRIBUTE void set_dart_port(Dart_Port_DL port)
+{
+    dart_port = port;
+}
+
+// Sample usage of Dart_PostCObject_DL to post message to Flutter side
+char* debug_print(const char *message)
+{
+    if (!dart_port)
+        return (char*) "wrong port"; 
+    // as_array.values = new _Dart_CObject[2];
+    Dart_CObject c_request_arr[2];
+    c_request_arr[0] = Dart_CObject();
+    c_request_arr[0].type = Dart_CObject_kInt32;
+    c_request_arr[0].value.as_int32 = 12;
+
+    c_request_arr[1] = Dart_CObject();
+    c_request_arr[1].type = Dart_CObject_kInt32;
+    c_request_arr[1].value.as_int32 = 1;
+
+    Dart_CObject* requestArr[]={&c_request_arr[0],&c_request_arr[1],&c_request_arr[2],&c_request_arr[3]};
+
+    Dart_CObject msg ;
+    msg.type = Dart_CObject_kArray;
+    msg.value.as_array.values = requestArr;
+    msg.value.as_array.length = sizeof(c_request_arr) / sizeof(c_request_arr[0]);
+
+    // msg.type = Dart_CObject_kString;
+    // msg.value.as_string = (char *) "tessstt print debug";
+    // printf(msg.value.as_string);
+    // The function is thread-safe; you can call it anywhere on your C++ code
+    try{
+        Dart_PostCObject_DL(dart_port, &msg);
+        return (char *) "success";
+    }catch(...){
+        return (char *) "failed";
+    }   
+    
+}
+
+
+
+
+
 // HighPassFilter* highPassFilters;
 ThresholdProcessor thresholdProcessor[6];
 EXTERNC FUNCTION_ATTRIBUTE double createThresholdProcess(short channelCount, double sampleRate, double highCutOff, double q){
@@ -487,30 +537,11 @@ EXTERNC FUNCTION_ATTRIBUTE double initThresholdProcess(short channelCount, doubl
 
 EXTERNC FUNCTION_ATTRIBUTE double applyThresholdProcess(short channelIdx, short *data, int32_t sampleCount){
     // highPassFilters[channelIdx].filter(data, sampleCount, false);
+    debug_print("APPLYING THRESHOLD ");
     return 1;
 }
 
 
-// C++ TO FLUTTER
-static Dart_Port_DL dart_port = 0;
-
-// Ensure that the function is not-mangled; exported as a pure C function
-extern "C" void set_dart_port(Dart_Port_DL port)
-{
-    dart_port = port;
-}
-
-// Sample usage of Dart_PostCObject_DL to post message to Flutter side
-void debug_print(const char *message)
-{
-    if (!dart_port)
-        return;
-    Dart_CObject msg;
-    msg.type = Dart_CObject_kString;
-    msg.value.as_string = (char *)message;
-    // The function is thread-safe; you can call it anywhere on your C++ code
-    Dart_PostCObject_DL(dart_port, &msg);
-}
 //Namespac
 // namespace dart {
 
@@ -523,9 +554,11 @@ void debug_print(const char *message)
 // //   free(value);
 // // }
 
-// DART_EXPORT intptr_t InitDartApiDL(void* data) {
-//   return Dart_InitializeApiDL(data);
-// }
+// EXTERNC FUNCTION_ATTRIBUTE intptr_t InitDartApiDL(void* data) {
+DART_EXPORT intptr_t InitDartApiDL(void* data) {
+  return Dart_InitializeApiDL(data);
+// return 1;
+}
 
 // // void NotifyDart(Dart_Port send_port) {
 // // //   printf("C   :  Posting message (port: %" Px64 ", work: %" Px ").\n",

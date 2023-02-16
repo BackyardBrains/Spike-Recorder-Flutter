@@ -5,8 +5,10 @@ import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 // import 'dart:js' as js;
+import 'package:another_xlider/another_xlider.dart';
 import 'package:crypto/crypto.dart';
 import 'package:desktop_window/desktop_window.dart';
+import 'package:dotted_line/dotted_line.dart';
 import 'package:http/http.dart' as https;
 import 'package:alert_dialog/alert_dialog.dart';
 import 'package:async/async.dart';
@@ -1047,6 +1049,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
   double _lowPassFilter = 44100 / 2;
   double _highPassFilter = 0;
+  
+  bool isThresholding = false;
+  
+  double thresholdMarkerTop = -10000;
   
   // bool isZoomingWhilePlaying = false;
 
@@ -2396,6 +2402,10 @@ class _MyHomePageState extends State<MyHomePage> {
       FocusScope.of(context).requestFocus(keyboardFocusNode);
     }
 
+    if (thresholdMarkerTop == -10000){
+      thresholdMarkerTop = (MediaQuery.of(context).size.height/4)-25;
+    }
+
     if (Platform.isAndroid || Platform.isIOS) {
       return Scaffold(
         backgroundColor: Colors.black,
@@ -2661,25 +2671,34 @@ class _MyHomePageState extends State<MyHomePage> {
       localConfig = (localFile).readAsStringSync();
       isExist = true;
     }
-    print(localConfig);
     if (localConfig == null){
+      print(localConfig);
       localConfig = bundledBoardConfig;
     }
-    localConfig = bundledBoardConfig;
-    DEVICE_CATALOG = await getDeviceCatalog(localConfig);
-    String internetConfig = json.encode(DEVICE_CATALOG);
+    // localConfig = bundledBoardConfig;
+    final temp = await getDeviceCatalog(localConfig);
+    // to ensure it get the latest one
+    DEVICE_CATALOG = temp[0];
+    // String internetConfig = json.encode(DEVICE_CATALOG);
+    String internetConfig = temp[1];
     var internetConfigHash = md5.convert(utf8.encode(internetConfig)).toString();
-    var localConfigHash = md5.convert(utf8.encode(json.encode(localConfig))).toString();
+    var localConfigHash = md5.convert(utf8.encode(localConfig)).toString();
     print(localConfigHash + ' @ ' + internetConfigHash);
     print(localConfigHash != internetConfigHash);
     bool isDifferent = false;
     if (localConfigHash != internetConfigHash){
       isDifferent = true;
+      print('exist?');
+      print(localConfig.substring(0,100));
+      print(internetConfig.substring(0,100));
       if (!isExist){
         // localFile.createSync();
-      }
-      localFile.writeAsStringSync(internetConfig);
+        // print('isExist');
+        // print(localFile.existsSync());
+      }//53165b35e95bd1a4cdf4b82d8b6218e0 @ a640abecf8cbcfc79239780491aeae54
+      localFile.writeAsStringSync(internetConfig, flush:true);
     }
+    // localFile.deleteSync();
     sendPort.send( DEVICE_CATALOG); //sending data back to main thread's function
   }
   static void callGetDeviceEndPoint()async{
@@ -4207,6 +4226,105 @@ class _MyHomePageState extends State<MyHomePage> {
       dataWidgets.add(settingDialogButton);
     }
 
+    dataWidgets.add(Positioned(
+      top:10,
+      left: 200,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          fixedSize: const Size(50, 50),
+          shape: const CircleBorder(),
+          shadowColor: Colors.blue,
+          primary: Colors.white,
+          onPrimary: Colors.green,
+          onSurface: Colors.red,
+        ),
+        child: Icon(
+          Icons.sign_language_outlined,
+          color: deviceType == 1 && isPlaying == 1
+              ? Colors.amber.shade900
+              : Color(0xFF800000),
+        ),
+        onPressed: () {
+          isThresholding = true;
+        }
+      )
+    ));
+    if (isThresholding){
+      dataWidgets.add(
+        Positioned(
+          top: 10,
+          left: 220,
+          child: Text("123")
+        )
+      );
+      dataWidgets.add(
+        Positioned(
+          top: thresholdMarkerTop,
+          right: 20,
+          child: GestureDetector(
+            onVerticalDragUpdate: (dragUpdateVerticalDetails){
+              thresholdMarkerTop = dragUpdateVerticalDetails.globalPosition.dy;
+            },
+            child: Transform.rotate(
+              angle: -90 * pi / 180,
+              child: Icon(
+                Icons.water_drop,
+                  // key: keyTutorialAudioLevel,
+                  color: Colors.green
+                ),
+              ),
+          ),
+        )
+      );      
+      dataWidgets.add(
+        Positioned(
+          top: thresholdMarkerTop + 12.5,
+          right: 20,
+          child:Container(
+            width:MediaQuery.of(context).size.width,
+            child: DottedLine(
+              direction: Axis.horizontal,
+              lineLength: double.infinity,
+              lineThickness: 1.0,
+              dashLength: 4.0,
+              dashColor: Colors.green,
+              dashRadius: 0.0,
+              dashGapLength: 4.0,
+              dashGapColor: Colors.transparent,
+              dashGapRadius: 0.0,
+            ),
+          )
+        )
+      );      
+
+      dataWidgets.add(
+        Positioned(
+          top: 10,
+          left: 250,
+          child: Container(
+            width:100,
+            height:50,
+            child: FlutterSlider(
+              trackBar: FlutterSliderTrackBar(
+                inactiveTrackBar: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  color: Colors.black12,
+                  border: Border.all(width: 3, color: Colors.blue),
+                ),
+                activeTrackBar: BoxDecoration(
+                  borderRadius: BorderRadius.circular(4),
+                  color: Colors.blue.withOpacity(0.5)
+                ),
+              ), 
+              values: [30],
+              max:50,
+              min:1,
+            ),
+          )
+        )
+      );
+    }
+
     if (isRecording > 0 || isOpeningFile == 1) {
     } else {
       if (DEVICE_CATALOG.keys.length > 0) {
@@ -4479,6 +4597,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
       dataWidgets.add(lastPositionButton);
     }
+
 
     if (isOpeningFile == 1 && isShowingResetButton) {
       dataWidgets.add(Positioned(
@@ -5134,13 +5253,13 @@ class _MyHomePageState extends State<MyHomePage> {
     }
     var catalog = json.decode(config);
     print('catalog');
-    print(catalog);
+    print(config.substring(0,100));
     catalog['config']['boards'].forEach((board) {
       print(board['uniqueName']);
       DEVICE_CATALOG[board["uniqueName"].toString().trim()] = board;
     });
     // errorOffline = "Error data2";
-    return DEVICE_CATALOG;
+    return [DEVICE_CATALOG, config];
     // return {'errorOffline': errorOffline, 'abc':'','def':'hjklsdjkajds'};
   }
 

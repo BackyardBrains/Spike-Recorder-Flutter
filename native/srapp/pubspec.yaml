@@ -28,6 +28,7 @@ dependencies:
 
   alert_dialog: 1.0.1
   another_xlider: 1.1.2
+  dotted_line: 3.1.0
   
   
   # quick_usb: ^0.4.0  

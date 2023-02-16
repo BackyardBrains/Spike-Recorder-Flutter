@@ -54,21 +54,19 @@ typedef apply_high_pass_filters_func = ffi.Double Function(
 typedef ApplyHighPassFilterProcess = double Function(
     int, ffi.Pointer<ffi.Int16>, int);
 
-
 typedef create_threshold_func = ffi.Double Function(
     ffi.Int, ffi.Double, ffi.Double, ffi.Double);
-typedef CreateThresholdProcess = double Function(
-    int, double, double, double);
+typedef CreateThresholdProcess = double Function(int, double, double, double);
 typedef init_threshold_func = ffi.Double Function(
     ffi.Int, ffi.Double, ffi.Double, ffi.Double);
-typedef InitThresholdProcess = double Function(
-    int, double, double, double);
+typedef InitThresholdProcess = double Function(int, double, double, double);
 typedef apply_threshold_func = ffi.Double Function(
     ffi.Int16, ffi.Pointer<ffi.Int16>, ffi.Uint32);
 typedef ApplyThresholdProcess = double Function(
     int, ffi.Pointer<ffi.Int16>, int);
 
-
+typedef set_threshold_dart_port_func = ffi.Double Function(ffi.Int64);
+typedef SetThresholdDartPortFunc = double Function(int);
 
 typedef create_notch_pass_filters_func = ffi.Double Function(
     ffi.Int16, ffi.Int16, ffi.Double, ffi.Double, ffi.Double);
@@ -76,12 +74,12 @@ typedef CreateNotchPassFilterProcess = double Function(
     int, int, double, double, double);
 typedef init_notch_pass_filters_func = ffi.Double Function(
     ffi.Int16, ffi.Int16, ffi.Double, ffi.Double, ffi.Double);
-typedef InitNotchPassFilterProcess = double Function(int, int, double, double, double);
+typedef InitNotchPassFilterProcess = double Function(
+    int, int, double, double, double);
 typedef apply_notch_pass_filters_func = ffi.Double Function(
     ffi.Int16, ffi.Int16, ffi.Pointer<ffi.Int16>, ffi.Uint32);
 typedef ApplyNotchPassFilterProcess = double Function(
     int, int, ffi.Pointer<ffi.Int16>, int);
-
 
 // Low Pass filter sample https://www.youtube.com/watch?v=X8JD8hHkBMc
 class Nativec {
@@ -98,7 +96,7 @@ class Nativec {
   late GainFilterProcess _gainFilterProcess;
   late ReturnGainFilterProcess _returnGainFilterProcess;
   late SetNotchProcess _setNotchProcess;
-  
+
   late ApplyLowPassFilterProcess _applyLowPassFilterProcess;
   late ApplyHighPassFilterProcess _applyHighPassFilterProcess;
   late ApplyNotchPassFilterProcess _applyNotchPassFilterProcess;
@@ -108,22 +106,22 @@ class Nativec {
   late InitHighPassFilterProcess _initHighPassFilterProcess;
   late InitNotchPassFilterProcess _initNotchPassFilterProcess;
   late InitThresholdProcess _initThresholdProcess;
-
+  late SetThresholdDartPortFunc _setThresholdDartPortFunc;
 
   // C++ to Dart
-  late final registerCallback1 = nativeLrsLib.lookupFunction<
-        ffi.Void Function(ffi.Int64 sendPort,
-            ffi.Pointer<ffi.NativeFunction<ffi.IntPtr Function(ffi.IntPtr)>> functionPointer),
-        void Function(int sendPort,
-            ffi.Pointer<ffi.NativeFunction<ffi.IntPtr Function(ffi.IntPtr)>> functionPointer)>(
-    'RegisterMyCallbackBlocking');
-  int callback1(int a) {
-    print("Dart:     callback1($a).");
-    // numCallbacks1++;
-    return a + 3;
-  }
+  // late final registerCallback1 = nativeLrsLib.lookupFunction<
+  //       ffi.Void Function(ffi.Int64 sendPort,
+  //           ffi.Pointer<ffi.NativeFunction<ffi.IntPtr Function(ffi.IntPtr)>> functionPointer),
+  //       void Function(int sendPort,
+  //           ffi.Pointer<ffi.NativeFunction<ffi.IntPtr Function(ffi.IntPtr)>> functionPointer)>(
+  //   'RegisterMyCallbackBlocking');
+  // int callback1(int a) {
+  //   print("Dart:     callback1($a).");
+  //   // numCallbacks1++;
+  //   return a + 3;
+  // }
 
-  late callback1FP;
+  // late callback1FP;
   // late CreateStruct createStructFn;
   // late GetInfo getInfoFn;
 
@@ -136,6 +134,8 @@ class Nativec {
     //https://docs.flutter.dev/development/platform-integration/macos/c-interop
     return NativecPlatform.instance.getPlatformVersion();
   }
+
+  static ffi.Pointer<ffi.Void>? cookie;
 
   Nativec() {
     print("nativeLrsLib");
@@ -171,10 +171,8 @@ class Nativec {
             'initNotchPassFilter')
         .asFunction();
     _initThresholdProcess = nativeLrsLib
-        .lookup<ffi.NativeFunction<init_threshold_func>>(
-            'initThresholdProcess')
+        .lookup<ffi.NativeFunction<init_threshold_func>>('initThresholdProcess')
         .asFunction();
-
 
     _applyLowPassFilterProcess = nativeLrsLib
         .lookup<ffi.NativeFunction<apply_low_pass_filters_func>>(
@@ -203,15 +201,36 @@ class Nativec {
         .lookup<ffi.NativeFunction<set_notch_func>>('setNotch')
         .asFunction();
 
-
-    final initializeApi = nativeLrsLib.lookupFunction<ffi.IntPtr Function(ffi.Pointer<ffi.Void>),
+    // C++ to Flutter
+    final initializeApi = nativeLrsLib.lookupFunction<
+        ffi.IntPtr Function(ffi.Pointer<ffi.Void>),
         int Function(ffi.Pointer<ffi.Void>)>("InitDartApiDL");
-    final interactiveCppRequests = ReceivePort()..listen((message){});
-    final int nativePort = interactiveCppRequests.sendPort.nativePort;
-    callback1FP = ffi.Pointer.fromFunction<ffi.IntPtr Function(ffi.IntPtr)>(callback1, 0);
-    registerCallback1(nativePort, callback1FP);
-    
+    final SetThresholdDartPortFunc _setDartPort = nativeLrsLib
+        .lookup<ffi.NativeFunction<set_threshold_dart_port_func>>(
+            "set_dart_port")
+        .asFunction();
 
+    // cookie = _Dart_InitializeApiDL(ffi.NativeApi.initializeApiDLData);
+    initializeApi(ffi.NativeApi.initializeApiDLData);
+    final pub = ReceivePort()
+      ..listen((message) {
+        // TODO: processing messages from C++ code
+        print("PRINT C++ MESSAGE : ");
+        print(message);
+      });
+
+    // // Pass NativePort value (int) to C++ code
+    print("pub.sendPort.nativePort");
+    print(pub.sendPort.nativePort);
+    _setDartPort(pub.sendPort.nativePort);
+    Future.delayed(Duration(seconds: 5), () {
+      _applyThresholdProcess(1, _data, 2);
+    });
+
+    // final interactiveCppRequests = ReceivePort()..listen((message){});
+    // final int nativePort = interactiveCppRequests.sendPort.nativePort;
+    // callback1FP = ffi.Pointer.fromFunction<ffi.IntPtr Function(ffi.IntPtr)>(callback1, 0);
+    // registerCallback1(nativePort, callback1FP);
 
     if (_data == null) {
       // _data = allocate<ffi.Int16>(count: totalBytes);
@@ -255,15 +274,18 @@ class Nativec {
     // print(_returnGainFilterProcess(1));
   }
 
-  double setNotchFilter(isNotch50,isNotch60){
-    return _setNotchProcess(isNotch50,isNotch60);
+  double setNotchFilter(isNotch50, isNotch60) {
+    return _setNotchProcess(isNotch50, isNotch60);
   }
+
   double createNotchPassFilter(isNotch50, channelCount, sampleRate, cutOff, q) {
-    return _createNotchPassFilterProcess(isNotch50, channelCount, sampleRate, cutOff, q);
+    return _createNotchPassFilterProcess(
+        isNotch50, channelCount, sampleRate, cutOff, q);
   }
 
   double initNotchPassFilter(isNotch50, channelCount, sampleRate, cutOff, q) {
-    return _initNotchPassFilterProcess(isNotch50, channelCount, sampleRate, cutOff, q);
+    return _initNotchPassFilterProcess(
+        isNotch50, channelCount, sampleRate, cutOff, q);
   }
 
   List<int> notchPassFilter(isNotch50, channelIdx, List<int> data, totalBytes) {
@@ -277,7 +299,6 @@ class Nativec {
         _applyLowPassFilterProcess(channelIdx, _data, totalBytes);
     data = _bytes.sublist(0, totalBytes);
     return data;
-
   }
 
   double createLowPassFilter(channelCount, sampleRate, cutOff, q) {
