@@ -18,6 +18,8 @@ unitInitializeEnvelope(int totalChannel, List<List<List<double>>> allEnvelopes,
       // print(envelopes[i].length);
       size /= 2;
     }
+    print("envelopeSizes");
+    print(envelopeSizes);
     allEnvelopes.add(envelopes);
   }
 }

@@ -24,9 +24,10 @@ generateArray(size, initialValue) {
   return array;
 }
 
-envelopingSamples(_head, sample, _envelopes, SIZE_LOGS2, skipCounts) {
+envelopingSamples(_head, sample, _envelopes, SIZE_LOGS2, skipCounts, forceLevel) {
   try {
     for (var j = 0; j < SIZE_LOGS2; j++) {
+      if (forceLevel > -1 && j!=forceLevel) continue;
       var skipCount = skipCounts[j];
       var envelopeSampleIndex = floor(_head / skipCount);
       var interleavedSignalIdx = envelopeSampleIndex * 2;
@@ -853,7 +854,7 @@ serialParsing(
                 sample.toDouble(),
                 allEnvelopes[numberOfParsedChannels - 1],
                 SIZE_LOGS2,
-                skipCounts);
+                skipCounts, -1);
 
             cBuffIdx++;
             if (cBuffIdx == surfaceSize - 1) {

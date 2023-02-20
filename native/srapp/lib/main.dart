@@ -310,6 +310,25 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
       List<int>.generate(max_markers, (index) => 0);
   List<int> arrGlobalIdx = List<int>.generate(6, (index) => 0);
   int tempPrevSegment = 0;
+
+  List<List<List<double>>> allThresholdEnvelopes = [];
+  List<int> allThresholdEnvelopesSize = [];
+  int SEGMENT_SIZE_THRESHOLD = 44100;
+  int NUMBER_OF_SEGMENTS_THRESHOLD = 2;
+  int SIZE = NUMBER_OF_SEGMENTS_THRESHOLD * SEGMENT_SIZE_THRESHOLD;
+  double size = SIZE.toDouble() * 2;
+  int SIZE_LOGS_THRESHOLD = 10;
+  int THRESHOLD_CHANNEL_COUNT = 1;
+
+  unitInitializeEnvelope(THRESHOLD_CHANNEL_COUNT,allThresholdEnvelopes, allThresholdEnvelopesSize, size, SIZE, SIZE_LOGS_THRESHOLD);
+
+  nativec.createThresholdProcess(
+    1, SEGMENT_SIZE_THRESHOLD.toDouble(), 3.0, 13.0);
+  bool isThresholding = true;
+  if (isThresholding){
+    cBufferSize = SIZE;
+  }
+
   // List<List<List<double>>> allEnvelopes = [];
   // int level = 8;
   // int divider = 6;
@@ -327,6 +346,11 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
     var level = arr[1];
     var divider = arr[2];
     var numberOfChannels = arr[3];
+    if (isThresholding){
+      numberOfChannels = 1;
+    }
+
+    // var numberOfChannels = 1;
     int CUR_START = arr[4];
     bool isPaused = arr[5];
     String curKey = arr[6];
@@ -342,7 +366,7 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
     int globalPositionCap = (globalIdx * maxSize / 2).floor();
 
     List<List<int>> samples =
-        getAllChannelsSample(rawSamples, numberOfChannels);
+        getAllChannelsSample(rawSamples, 2);
 
     // print("!=======");
     // print(level);
@@ -394,19 +418,41 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
           samples[c] =
               nativec.notchPassFilter(false, c, samples[c], samples[c].length);
         }
+
+        List<int> curSamples = List<int>.from(samples[c]);
+        if (isThresholding){
+          cBuffIdx = 0;
+          try{
+            curSamples = List<int>.from(nativec.appendSamplesThresholdProcess(3, 13, 0, samples[c], samples[c].length));
+            // print(curSamples.length);
+          }catch(err){
+            print("isThresholding Error");
+          }
+        }
+        
         // print("lowPassFilter2");
         // if (temp != samples[c]){
         //   print("Error");
         //   print(temp);
         //   print(samples[c]);
         // }
-        samples[c].forEach((tmp) {
+        curSamples.forEach((tmp) {
           // print("allEnvelopes 3");
           // print(tmp);
           // print(nativec.gain(tmp.toDouble(), 10.0));
           try {
-            envelopingSamples(cBuffIdx, tmp.toDouble(), allEnvelopes[c],
-                SIZE_LOGS2, skipCounts);
+            if (isThresholding){
+              try{
+                envelopingSamples(cBuffIdx, tmp.toDouble(), allThresholdEnvelopes[c],
+                    SIZE_LOGS2, skipCounts, level);
+
+              }catch(err){
+                print('error enveloping');
+              }
+            }else{
+              envelopingSamples(cBuffIdx, tmp.toDouble(), allEnvelopes[c],
+                  SIZE_LOGS2, skipCounts, -1);
+            }
 
             cBuffIdx++;
             if (cBuffIdx >= cBufferSize - 1) {
@@ -442,8 +488,38 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
     // // print(level);
     // print("samples");
     // print(samples);
+
     List<List<double>> buffers = [];
     const maxMinMultiplier = 2;
+    if (isThresholding){
+
+      level =
+          calculateLevel(10000, 44100, surfaceWidth, skipCounts);
+
+      for (int c = 0; c < numberOfChannels; c++) {
+        List<double> envelopeSamples = allThresholdEnvelopes[c][level];
+        // int prevSegment = (envelopeSamples.length / divider).floor();
+        int prevSegment = (envelopeSamples.length / 1).floor();
+        // print('allThresholdEnvelopes[c][level]');
+        // print(allThresholdEnvelopesSize);
+        // print(level);
+        // print(allThresholdEnvelopes[c][level].length);
+        // List<double> cBuff = List<double>.generate(prevSegment, (i) => 0, growable: false);
+        int drawSamplesCount = prevSegment;
+        int from = ((envelopeSamples.length - drawSamplesCount) * .5).floor();
+        int to = ((envelopeSamples.length + drawSamplesCount) * .5).floor();
+        // if (to> envelopeSamples.length){
+        // }
+          from = 0;
+          to= envelopeSamples.length;
+
+        List<double> cBuff = List<double>.from(envelopeSamples.sublist(from,to));
+        buffers.add(cBuff);
+      }
+      sendPort.send([buffers, arrHeads[0], eventPositionResultInt]);
+
+      return;
+    }
     const excess = 0;
     int halfwayCap =
         // globalPositionCap - ((globalPositionCap * 0.2) / currentCap).floor();
