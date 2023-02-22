@@ -40,11 +40,11 @@ public:
     // void setBandFilter(float lowCutOffFreq, float highCutOffFreq);
 
     // void setNotchFilter(float centerFreq);
-
-protected:
     float getSampleRate() {
         return sampleRate;
     }
+
+protected:
 
     int getChannelCount() {
         return channelCount;

@@ -1,16 +1,17 @@
 import 'dart:typed_data';
 
-unitInitializeEnvelope(int totalChannel, List<List<List<double>>> allEnvelopes,
+unitInitializeEnvelope(int totalChannel, List<List<Int16List>> allEnvelopes,
     List<int> envelopeSizes, double _size, int SIZE, int SIZE_LOGS2) {
   // size = size * 2;
   for (int c = 0; c < totalChannel; c++) {
-    List<List<double>> envelopes = [];
+    List<Int16List> envelopes = [];
     double size = _size;
     for (int i = 0; i < SIZE_LOGS2; i++) {
       int sz = (size).ceil();
       if (sz % 2 == 1) sz++;
       envelopeSizes.add(sz);
-      List<double> buffer = List.generate(sz, (index) => 0);
+      // List<double> buffer = List.generate(sz, (index) => 0);
+      Int16List buffer = Int16List(sz);
 
       envelopes.add(buffer);
       // print("index : " + i.toString());

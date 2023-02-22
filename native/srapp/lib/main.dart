@@ -76,7 +76,7 @@ int numberOfFrames = 0;
 int numberOfZeros = 0;
 int lastWasZero = 0;
 
-List<List<List<double>>> allEnvelopes = [];
+List<List<Int16List>> allEnvelopes = [];
 int level = 6;
 double divider = 6;
 int globalIdx = 0;
@@ -146,149 +146,149 @@ void main() async {
   // readFileAsync();
 }
 
-getScreenBuffers(
-    c,
-    globalIdx,
-    int start,
-    int to,
-    int prevSegment,
-    int surfaceWidth,
-    head,
-    offsetHead,
-    globalPositionCap,
-    halfwayCap,
-    skipCount,
-    int excess,
-    cBuff,
-    eventPositionResultInt,
-    eventPositionInt,
-    eventGlobalPositionInt,
-    arrMarkers,
-    List<double> envelopeSamples) {
-  int bufferCount = 0;
-  if (globalIdx == 0) {
-    if (to - prevSegment < 0) {
-      List<double> arr = allEnvelopes[c][level].sublist(0, to);
-      // print(arr);
-      bufferCount = arr.length;
-      cBuff.setAll(prevSegment - arr.length, arr);
-    } else {
-      start = to - prevSegment;
+// getScreenBuffers(
+//     c,
+//     globalIdx,
+//     int start,
+//     int to,
+//     int prevSegment,
+//     int surfaceWidth,
+//     head,
+//     offsetHead,
+//     globalPositionCap,
+//     halfwayCap,
+//     skipCount,
+//     int excess,
+//     cBuff,
+//     eventPositionResultInt,
+//     eventPositionInt,
+//     eventGlobalPositionInt,
+//     arrMarkers,
+//     List<double> envelopeSamples) {
+//   int bufferCount = 0;
+//   if (globalIdx == 0) {
+//     if (to - prevSegment < 0) {
+//       List<double> arr = allEnvelopes[c][level].sublist(0, to);
+//       // print(arr);
+//       bufferCount = arr.length;
+//       cBuff.setAll(prevSegment - arr.length, arr);
+//     } else {
+//       start = to - prevSegment;
 
-      List<double> arr = allEnvelopes[c][level].sublist(start, to);
-      bufferCount = arr.length;
-      cBuff.setAll(prevSegment - arr.length, arr);
-    }
+//       List<double> arr = allEnvelopes[c][level].sublist(start, to);
+//       bufferCount = arr.length;
+//       cBuff.setAll(prevSegment - arr.length, arr);
+//     }
 
-    if (c == 0) {
-      int bufferLength = prevSegment;
-      int evtCounter = arrMarkers.length;
-      eventPositionResultInt.fillRange(0, max_markers, 0);
-      double offsetTail = offsetHead - bufferLength / 2 * skipCount;
+//     if (c == 0) {
+//       int bufferLength = prevSegment;
+//       int evtCounter = arrMarkers.length;
+//       eventPositionResultInt.fillRange(0, max_markers, 0);
+//       double offsetTail = offsetHead - bufferLength / 2 * skipCount;
 
-      for (int ctr = 0; ctr < evtCounter; ctr++) {
-        if (eventGlobalPositionInt[ctr] >= globalPositionCap) {
-          int headPosition = (eventPositionInt[ctr] / skipCount * 2)
-              .floor(); // headPosition in envelope realm
-          if (headPosition < start) {
-            eventPositionResultInt[ctr] = 0;
-          } else //{
-          if (headPosition >= start && headPosition <= to) {
-            eventPositionResultInt[ctr] =
-                (bufferLength - excess - (to - (headPosition))) /
-                    bufferLength *
-                    surfaceWidth;
-          }
-        }
-      }
-    }
-  } else {
-    if (start < 0) {
-      int processedHead = head * 2;
-      int segmentCount = prevSegment;
-      int bufferLength = prevSegment;
+//       for (int ctr = 0; ctr < evtCounter; ctr++) {
+//         if (eventGlobalPositionInt[ctr] >= globalPositionCap) {
+//           int headPosition = (eventPositionInt[ctr] / skipCount * 2)
+//               .floor(); // headPosition in envelope realm
+//           if (headPosition < start) {
+//             eventPositionResultInt[ctr] = 0;
+//           } else //{
+//           if (headPosition >= start && headPosition <= to) {
+//             eventPositionResultInt[ctr] =
+//                 (bufferLength - excess - (to - (headPosition))) /
+//                     bufferLength *
+//                     surfaceWidth;
+//           }
+//         }
+//       }
+//     }
+//   } else {
+//     if (start < 0) {
+//       int processedHead = head * 2;
+//       int segmentCount = prevSegment;
+//       int bufferLength = prevSegment;
 
-      segmentCount = segmentCount - processedHead - 1;
-      start = envelopeSamples.length - segmentCount;
-      List<double> firstPartOfData = envelopeSamples.sublist(start);
-      List<double> secondPartOfData =
-          envelopeSamples.sublist(0, processedHead + 1);
-      if (secondPartOfData.length > 0) {
-        try {
-          cBuff.setAll(0, firstPartOfData);
-          cBuff.setAll(firstPartOfData.length, secondPartOfData);
-        } catch (err) {
-          print("err signal dividing");
-          print(err);
-        }
-        bufferCount = firstPartOfData.length + secondPartOfData.length;
-      } else {
-        cBuff.setAll(
-            bufferLength - firstPartOfData.length - 1, firstPartOfData);
-        bufferCount = firstPartOfData.length;
-      }
+//       segmentCount = segmentCount - processedHead - 1;
+//       start = envelopeSamples.length - segmentCount;
+//       List<double> firstPartOfData = envelopeSamples.sublist(start);
+//       List<double> secondPartOfData =
+//           envelopeSamples.sublist(0, processedHead + 1);
+//       if (secondPartOfData.length > 0) {
+//         try {
+//           cBuff.setAll(0, firstPartOfData);
+//           cBuff.setAll(firstPartOfData.length, secondPartOfData);
+//         } catch (err) {
+//           print("err signal dividing");
+//           print(err);
+//         }
+//         bufferCount = firstPartOfData.length + secondPartOfData.length;
+//       } else {
+//         cBuff.setAll(
+//             bufferLength - firstPartOfData.length - 1, firstPartOfData);
+//         bufferCount = firstPartOfData.length;
+//       }
 
-      if (c == 0) {
-        int evtCounter = arrMarkers.length;
+//       if (c == 0) {
+//         int evtCounter = arrMarkers.length;
 
-        for (int ctr = 0; ctr < evtCounter; ctr++) {
-          int headPosition = (eventPositionInt[ctr] / skipCount * 2)
-              .floor(); // headPosition in envelope realm
+//         for (int ctr = 0; ctr < evtCounter; ctr++) {
+//           int headPosition = (eventPositionInt[ctr] / skipCount * 2)
+//               .floor(); // headPosition in envelope realm
 
-          if (eventGlobalPositionInt[ctr] >= halfwayCap) {
-            if (headPosition < start && headPosition > to) {
-              eventPositionResultInt[ctr] = 0;
-            } else {
-              if (headPosition <= envelopeSamples.length &&
-                  headPosition >= start) {
-                // upper
-                int counter = bufferLength -
-                    (envelopeSamples.length -
-                        headPosition +
-                        secondPartOfData.length);
-                eventPositionResultInt[ctr] =
-                    counter / bufferLength * surfaceWidth;
-                // console.log("upper ", eventPositionResultInt[ctr].toString());
-              } else //{ // headPosition < to // below
-              if (headPosition <= to && headPosition >= 0) {
-                // console.log("below");
-                int counter = bufferLength - excess - (to - (headPosition));
-                eventPositionResultInt[ctr] =
-                    counter / bufferLength * surfaceWidth;
-              }
-            }
-          }
-        }
-      }
-    } else {
-      // print("start > 0");
-      cBuff = List<double>.from(allEnvelopes[c][level].sublist(start, to));
-      bufferCount = cBuff.length;
+//           if (eventGlobalPositionInt[ctr] >= halfwayCap) {
+//             if (headPosition < start && headPosition > to) {
+//               eventPositionResultInt[ctr] = 0;
+//             } else {
+//               if (headPosition <= envelopeSamples.length &&
+//                   headPosition >= start) {
+//                 // upper
+//                 int counter = bufferLength -
+//                     (envelopeSamples.length -
+//                         headPosition +
+//                         secondPartOfData.length);
+//                 eventPositionResultInt[ctr] =
+//                     counter / bufferLength * surfaceWidth;
+//                 // console.log("upper ", eventPositionResultInt[ctr].toString());
+//               } else //{ // headPosition < to // below
+//               if (headPosition <= to && headPosition >= 0) {
+//                 // console.log("below");
+//                 int counter = bufferLength - excess - (to - (headPosition));
+//                 eventPositionResultInt[ctr] =
+//                     counter / bufferLength * surfaceWidth;
+//               }
+//             }
+//           }
+//         }
+//       }
+//     } else {
+//       // print("start > 0");
+//       cBuff = List<double>.from(allEnvelopes[c][level].sublist(start, to));
+//       bufferCount = cBuff.length;
 
-      if (c == 0) {
-        int bufferLength = prevSegment;
-        int evtCounter = arrMarkers.length;
+//       if (c == 0) {
+//         int bufferLength = prevSegment;
+//         int evtCounter = arrMarkers.length;
 
-        for (int ctr = 0; ctr < evtCounter; ctr++) {
-          if (eventGlobalPositionInt[ctr] >= globalPositionCap) {
-            int headPosition = (eventPositionInt[ctr] / skipCount * 2)
-                .floor(); // headPosition in envelope realm
-            if (headPosition < start) {
-              eventPositionResultInt[ctr] = 0;
-            } else if (headPosition >= start && headPosition <= to) {
-              // eventPositionResultInt[ctr] = prevSegment - excess - ( to - (headPosition) );
-              eventPositionResultInt[ctr] =
-                  (bufferLength - excess - (to - (headPosition))) /
-                      bufferLength *
-                      surfaceWidth;
-            }
-          }
-        }
-      }
-    }
-  }
-  return bufferCount;
-}
+//         for (int ctr = 0; ctr < evtCounter; ctr++) {
+//           if (eventGlobalPositionInt[ctr] >= globalPositionCap) {
+//             int headPosition = (eventPositionInt[ctr] / skipCount * 2)
+//                 .floor(); // headPosition in envelope realm
+//             if (headPosition < start) {
+//               eventPositionResultInt[ctr] = 0;
+//             } else if (headPosition >= start && headPosition <= to) {
+//               // eventPositionResultInt[ctr] = prevSegment - excess - ( to - (headPosition) );
+//               eventPositionResultInt[ctr] =
+//                   (bufferLength - excess - (to - (headPosition))) /
+//                       bufferLength *
+//                       surfaceWidth;
+//             }
+//           }
+//         }
+//       }
+//     }
+//   }
+//   return bufferCount;
+// }
 
 void sampleBufferingEntryPoint(List<dynamic> values) {
   final iReceivePort = ReceivePort();
@@ -311,7 +311,7 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
   List<int> arrGlobalIdx = List<int>.generate(6, (index) => 0);
   int tempPrevSegment = 0;
 
-  List<List<List<double>>> allThresholdEnvelopes = [];
+  List<List<Int16List>> allThresholdEnvelopes = [];
   List<int> allThresholdEnvelopesSize = [];
   int SEGMENT_SIZE_THRESHOLD = 44100;
   int NUMBER_OF_SEGMENTS_THRESHOLD = 2;
@@ -323,12 +323,11 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
   unitInitializeEnvelope(THRESHOLD_CHANNEL_COUNT,allThresholdEnvelopes, allThresholdEnvelopesSize, size, SIZE, SIZE_LOGS_THRESHOLD);
 
   nativec.createThresholdProcess(
-    1, SEGMENT_SIZE_THRESHOLD.toDouble(), 3.0, 13.0);
+    1, SEGMENT_SIZE_THRESHOLD, 2, 10000);
   bool isThresholding = true;
   if (isThresholding){
     cBufferSize = SIZE;
   }
-
   // List<List<List<double>>> allEnvelopes = [];
   // int level = 8;
   // int divider = 6;
@@ -349,6 +348,7 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
     if (isThresholding){
       numberOfChannels = 1;
     }
+    // print(numberOfChannels);
 
     // var numberOfChannels = 1;
     int CUR_START = arr[4];
@@ -361,6 +361,8 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
     bool isHighPass = arr[11];
     bool isNotch50 = arr[12];
     bool isNotch60 = arr[13];
+    List<double> snapshotAveragedSamples= arr[14];
+    List<int> thresholdValue = arr[15];
 
     int maxSize = (allEnvelopes[0][0]).length;
     int globalPositionCap = (globalIdx * maxSize / 2).floor();
@@ -393,6 +395,7 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
     // print(allEnvelopes[0][8].sublist(0, 100));
     // print(samples);
 
+    Int16List curSamples = new Int16List(0);
     if (!isPaused) {
       for (int c = 0; c < numberOfChannels; c++) {
         cBuffIdx = arrHeads[c];
@@ -419,15 +422,24 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
               nativec.notchPassFilter(false, c, samples[c], samples[c].length);
         }
 
-        List<int> curSamples = List<int>.from(samples[c]);
+        // curSamples = Int16List.from(samples[c]);
         if (isThresholding){
           cBuffIdx = 0;
           try{
-            curSamples = List<int>.from(nativec.appendSamplesThresholdProcess(3, 13, 0, samples[c], samples[c].length));
+            curSamples = (nativec.appendSamplesThresholdProcess(snapshotAveragedSamples[0].floor(), thresholdValue[0] * 2, 0, samples[c], samples[c].length));
             // print(curSamples.length);
           }catch(err){
             print("isThresholding Error");
+            print(err);
           }
+          level =
+              calculateLevel(2000, 44100, surfaceWidth, skipCounts);
+
+          // cBuffIdx = curSamples.length-1;
+          cBuffIdx = 0;
+          globalIdx = 0;
+        }else{
+          curSamples = Int16List.fromList(samples[c]);          
         }
         
         // print("lowPassFilter2");
@@ -436,21 +448,26 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
         //   print(temp);
         //   print(samples[c]);
         // }
+        final int forceLevel = level;
         curSamples.forEach((tmp) {
           // print("allEnvelopes 3");
           // print(tmp);
-          // print(nativec.gain(tmp.toDouble(), 10.0));
+          // print(nativec.gain(seri(), 10.0));
           try {
             if (isThresholding){
               try{
-                envelopingSamples(cBuffIdx, tmp.toDouble(), allThresholdEnvelopes[c],
-                    SIZE_LOGS2, skipCounts, level);
+                // envelopingSamples(cBuffIdx, tmp.toDouble(), allThresholdEnvelopes[c],
+                //     SIZE_LOGS2, skipCounts, forceLevel);
+                envelopingSamples(cBuffIdx, tmp, allThresholdEnvelopes[c],
+                    SIZE_LOGS2, skipCounts, forceLevel);
 
               }catch(err){
                 print('error enveloping');
+                print(curSamples.length);
+                print(allThresholdEnvelopes[c].length);
               }
             }else{
-              envelopingSamples(cBuffIdx, tmp.toDouble(), allEnvelopes[c],
+              envelopingSamples(cBuffIdx, tmp, allEnvelopes[c],
                   SIZE_LOGS2, skipCounts, -1);
             }
 
@@ -489,15 +506,20 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
     // print("samples");
     // print(samples);
 
-    List<List<double>> buffers = [];
+    List<Int16List> buffers = [];
     const maxMinMultiplier = 2;
     if (isThresholding){
 
+      // level =
+      //     calculateLevel(10000, 44100, surfaceWidth, skipCounts);
       level =
-          calculateLevel(10000, 44100, surfaceWidth, skipCounts);
+          calculateLevel(2000, 44100, surfaceWidth, skipCounts);
 
       for (int c = 0; c < numberOfChannels; c++) {
-        List<double> envelopeSamples = allThresholdEnvelopes[c][level];
+        // List<double> envelopeSamples = allThresholdEnvelopes[c][level];
+        Int16List envelopeSamples = (allThresholdEnvelopes[c][level]);
+        // Int16List envelopeSamples = curSamples;
+        
         // int prevSegment = (envelopeSamples.length / divider).floor();
         int prevSegment = (envelopeSamples.length / 1).floor();
         // print('allThresholdEnvelopes[c][level]');
@@ -513,7 +535,14 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
           from = 0;
           to= envelopeSamples.length;
 
-        List<double> cBuff = List<double>.from(envelopeSamples.sublist(from,to));
+        // List<double> cBuff = List<double>.from( ( envelopeSamples.map((val)=> val.toDouble()) ).toList(growable:false));
+        Int16List cBuff = envelopeSamples;
+        // int sumInt =  envelopeSamples.sublist(from,to).reduce((value, element) => value+element);
+        // double sumDouble = ( Float32List.sublistView( envelopeSamples, from,to ) ).reduce((value, element) => value+element);
+        // print("SUMS");
+        // print(sumInt);
+        // print(sumDouble);
+        // List<double> cBuff =  List<double>.from(( envelopeSamples.sublist(from,to) ).buffer.asFloat32List().toList(growable:false));
         buffers.add(cBuff);
       }
       sendPort.send([buffers, arrHeads[0], eventPositionResultInt]);
@@ -526,7 +555,7 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
         globalPositionCap - (globalPositionCap * 0.2).floor();
 
     for (int c = 0; c < numberOfChannels; c++) {
-      List<double> envelopeSamples = allEnvelopes[c][level];
+      Int16List envelopeSamples = allEnvelopes[c][level];
       int prevSegment = (envelopeSamples.length / divider).floor();
       if (tempPrevSegment != prevSegment) {
         print("prevSegment " + level.toString());
@@ -535,8 +564,8 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
       }
       // print(envelopeSamples.length);
       // print(divider);
-      List<double> cBuff =
-          List<double>.generate(prevSegment, (i) => 0, growable: false);
+      Int16List cBuff = Int16List(prevSegment);
+          // List<double>.generate(prevSegment, (i) => 0, growable: false);
       int rawHead = arrHeads[c];
       int rawOffsetHead = arrOffsetHeads[c];
       // print("CUR_START");
@@ -572,7 +601,7 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
 
       if (globalIdx == 0) {
         if (to - prevSegment < 0) {
-          List<double> arr = allEnvelopes[c][level].sublist(0, to);
+          Int16List arr = allEnvelopes[c][level].sublist(0, to);
           // print(arr);
           cBuff.setAll(prevSegment - arr.length, arr);
         } else {
@@ -582,7 +611,7 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
           // print(to);
           // print(prevSegment);
 
-          List<double> arr = allEnvelopes[c][level].sublist(start, to);
+          Int16List arr = allEnvelopes[c][level].sublist(start, to);
           cBuff.setAll(prevSegment - arr.length, arr);
         }
 
@@ -645,8 +674,8 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
 
           segmentCount = segmentCount - processedHead - 1;
           start = envelopeSamples.length - segmentCount;
-          List<double> firstPartOfData = envelopeSamples.sublist(start);
-          List<double> secondPartOfData =
+          Int16List firstPartOfData = envelopeSamples.sublist(start);
+          Int16List secondPartOfData =
               envelopeSamples.sublist(0, processedHead + 1);
           if (secondPartOfData.length > 0) {
             try {
@@ -695,7 +724,8 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
           }
         } else {
           // print("start > 0");
-          cBuff = List<double>.from(allEnvelopes[c][level].sublist(start, to));
+          // cBuff = List<double>.from(allEnvelopes[c][level].sublist(start, to));
+          cBuff = allEnvelopes[c][level].sublist(start, to);
 
           if (c == 0) {
             int bufferLength = prevSegment;
@@ -721,7 +751,7 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
       }
       buffers.add(cBuff);
       // print("cBuff.length " + c.toString());
-      // print(cBuff.length);
+      // print(cBuff);
     }
 
     // print("cBuff.length");
@@ -742,7 +772,7 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
 void serialBufferingEntryPoint(List<dynamic> values) {
   final iReceivePort = ReceivePort();
   SendPort sendPort = values[0];
-  List<List<List<double>>> allEnvelopes = values[1];
+  List<List<Int16List>> allEnvelopes = values[1];
   int cBufferSize = values[2];
   Uint8List rawCircularBuffer = values[3];
   String deviceType = values[4];
@@ -750,6 +780,26 @@ void serialBufferingEntryPoint(List<dynamic> values) {
   DEVICE_CATALOG = values[5];
   // iReceiveDeviceInfoPort = values[6];
   deviceInfoPort = values[6];
+
+
+  List<List<Int16List>> allThresholdEnvelopes = [];
+  List<int> allThresholdEnvelopesSize = [];
+  int SEGMENT_SIZE_THRESHOLD = 10000;
+  int NUMBER_OF_SEGMENTS_THRESHOLD = 2;
+  int SIZE = NUMBER_OF_SEGMENTS_THRESHOLD * SEGMENT_SIZE_THRESHOLD;
+  double size = SIZE.toDouble() * 2;
+  int SIZE_LOGS_THRESHOLD = 10;
+  int THRESHOLD_CHANNEL_COUNT = 1;
+
+  unitInitializeEnvelope(THRESHOLD_CHANNEL_COUNT,allThresholdEnvelopes, allThresholdEnvelopesSize, size, SIZE, SIZE_LOGS_THRESHOLD);
+
+  nativec.createThresholdProcess(
+    1, SEGMENT_SIZE_THRESHOLD, 2, 10000);
+  bool isThresholding = true;
+  if (isThresholding){
+    cBufferSize = SIZE;
+  }
+
 
   Uint8List messagesBuffer = Uint8List(SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER);
 
@@ -801,10 +851,22 @@ void serialBufferingEntryPoint(List<dynamic> values) {
       print(err);
       // arr[9];
     }
+
+    bool isLowPass = arr[10];
+    bool isHighPass = arr[11];
+    bool isNotch50 = arr[12];
+    bool isNotch60 = arr[13];
+    List<double> snapshotAveragedSamples= arr[14];
+    List<int> thresholdValue = arr[15];
+
     int maxSize = (allEnvelopes[0][0]).length;
     int globalPositionCap = (globalIdx * maxSize / 2).floor();
 
     numberOfChannels = deviceChannel;
+    if (isThresholding){
+      numberOfChannels = 1;
+    }
+
     if (cBuffIdx == -1) {
       cBuffIdx = 0;
       // print("reset CBUFFIDX");
@@ -897,7 +959,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
       };
 
       serialParsing(rawCircularBuffer, allEnvelopes, map, cBufferSize,
-          SIZE_LOGS2, skipCounts);
+          SIZE_LOGS2, skipCounts, isThresholding, snapshotAveragedSamples, thresholdValue);
       cBufTail = map['cBufTail'];
       numberOfParsedChannels = map['numberOfParsedChannels'];
       numberOfChannels = map['numberOfChannels'];
@@ -907,6 +969,59 @@ void serialBufferingEntryPoint(List<dynamic> values) {
       // cBuffIdx = map['cBuffIdx'];
       globalIdx = map['globalIdx'];
       arrHeads = map['arrHeads'];
+
+      Int16List curSamples = new Int16List(0);
+      List<List<int>> zamples = map['processedSamples'];
+      int c = 0;
+      if (isThresholding){
+        cBuffIdx = 0;
+        try{
+          curSamples = (nativec.appendSamplesThresholdProcess(snapshotAveragedSamples[0].floor(), thresholdValue[0] * 2, 0, zamples[c], zamples[c].length));
+          // print(curSamples.length);
+        }catch(err){
+          print("isThresholding Error");
+          print(err);
+        }
+        level =
+            calculateLevel(2000, _sampleRate, surfaceWidth, skipCounts);
+
+        cBuffIdx = curSamples.length-1;
+        globalIdx = 0;
+
+
+        //ENVELOPING
+        final int forceLevel = level;
+        cBuffIdx = 0;
+        curSamples.forEach((tmp) {  
+          // print("allEnvelopes 3");
+          // print(tmp);
+          // print(nativec.gain(seri(), 10.0));
+          try {
+              try{
+                // envelopingSamples(cBuffIdx, tmp.toDouble(), allThresholdEnvelopes[c],
+                //     SIZE_LOGS2, skipCounts, forceLevel);
+                envelopingSamples(cBuffIdx, tmp, allThresholdEnvelopes[c],
+                    SIZE_LOGS2, skipCounts, forceLevel);
+
+              }catch(err){
+                print('error enveloping');
+                print(curSamples.length);
+                print(allThresholdEnvelopes[c].length);
+              }
+            cBuffIdx++;
+            if (cBuffIdx >= cBufferSize - 1) {
+              cBuffIdx = 0;
+              globalIdx++;
+            }
+          } catch (err) {
+            print("err");
+            print(err);
+          }
+        });
+      }else{
+        // curSamples = Int16List.fromList(samples[c]);          
+      }
+
 
       if (curKey != "") {
         cBuffIdx = arrHeads[0];
@@ -922,17 +1037,43 @@ void serialBufferingEntryPoint(List<dynamic> values) {
 
     // level = 7;
     // int deviceChannel = 2;
-    List<dynamic> buffers = [];
+    List<Int16List> buffers = [];
+
+
+    if (isThresholding){
+      level =
+          calculateLevel(2000, _sampleRate, surfaceWidth, skipCounts);
+
+      for (int c = 0; c < numberOfChannels; c++) {
+        Int16List envelopeSamples = (allThresholdEnvelopes[c][level]);
+        
+        int prevSegment = (envelopeSamples.length / 1).floor();
+        int drawSamplesCount = prevSegment;
+        int from = ((envelopeSamples.length - drawSamplesCount) * .5).floor();
+        int to = ((envelopeSamples.length + drawSamplesCount) * .5).floor();
+        // if (to> envelopeSamples.length){
+        // }
+          from = 0;
+          to= envelopeSamples.length;
+
+        Int16List cBuff = envelopeSamples;
+        buffers.add(cBuff);
+      }
+      sendPort.send([buffers, arrHeads[0], eventPositionResultInt]);
+
+      return;
+    }
+
     const excess = 0;
     int halfwayCap =
         // globalPositionCap - ((globalPositionCap * 0.2) / currentCap).floor();
         globalPositionCap - (globalPositionCap * 0.2).floor();
     for (int c = 0; c < deviceChannel; c++) {
-      List<double> envelopeSamples = allEnvelopes[c][level];
+      Int16List envelopeSamples = allEnvelopes[c][level];
       double factor = _sampleRate / _maxSampleRate;
       int bufferLength =
           (_sampleRate * 60 / divider * 2 / skipCounts[level]).floor();
-      List<double> cBuff = List<double>.generate(bufferLength, (i) => 0);
+      Int16List cBuff = Int16List(bufferLength);
       int prevSegment = (envelopeSamples.length / divider * factor).floor();
       // print(bufferLength.toString() + " VS " + (prevSegment).toString());
       int rawHead = arrHeads[c];
@@ -959,7 +1100,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
 
       if (globalIdx == 0) {
         if (start < 0) start = 0;
-        List<double> arr = allEnvelopes[c][level].sublist(start, to);
+        Int16List arr = allEnvelopes[c][level].sublist(start, to);
 
         if (arr.length < bufferLength) {
           // if (to-prevSegment < bufferLength) {
@@ -1001,8 +1142,8 @@ void serialBufferingEntryPoint(List<dynamic> values) {
 
           segmentCount = segmentCount - processedHead - 1;
           start = envelopeSamples.length - segmentCount;
-          List<double> firstPartOfData = envelopeSamples.sublist(start);
-          List<double> secondPartOfData =
+          Int16List firstPartOfData = envelopeSamples.sublist(start);
+          Int16List secondPartOfData =
               envelopeSamples.sublist(0, processedHead + 1);
           if (secondPartOfData.length > 0) {
             try {
@@ -1048,7 +1189,8 @@ void serialBufferingEntryPoint(List<dynamic> values) {
           }
         } else {
           // print("start > 0");
-          cBuff = List<double>.from(allEnvelopes[c][level].sublist(start, to));
+          // cBuff = List<double>.from(allEnvelopes[c][level].sublist(start, to));
+          cBuff = allEnvelopes[c][level].sublist(start, to);
           if (c == 0) {
             int bufferLength = prevSegment;
             int evtCounter = arrMarkers.length;
@@ -1126,9 +1268,14 @@ class _MyHomePageState extends State<MyHomePage> {
   double _lowPassFilter = 44100 / 2;
   double _highPassFilter = 0;
   
-  bool isThresholding = false;
+  bool isThreshold = true;
   
-  double thresholdMarkerTop = -10000;
+  // List<double> thresholdMarkerTop = [-10000,-10000,-10000,-10000,-10000,-10000];
+  List<double> thresholdMarkerTop = [-10000,-10000,-10000,-10000,-10000,-10000];
+  
+  List<double> snapshotAveragedSamples = [2];
+  
+  List<int> thresholdValue = [25,25,25,25,25,25];
   
   // bool isZoomingWhilePlaying = false;
 
@@ -2052,7 +2199,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
       int skipCount = skipCounts[level];
 
-      List<double> envelopeSamples = allEnvelopes[0][level];
+      Int16List envelopeSamples = allEnvelopes[0][level];
       int prevSegment = (envelopeSamples.length / divider).floor();
 
       cBuffDouble = List<double>.generate(prevSegment, (i) => 0);
@@ -2076,8 +2223,28 @@ class _MyHomePageState extends State<MyHomePage> {
       print("start Recording - end");
 
       _receiveAudioQueue.rest.listen((curSamples) {
-        // cBuffDouble = List<double>.from(curSamples);
-        channelsData = List<List<double>>.from(curSamples[0]);
+        // print('curSamples[0].runTimeType');
+        // print(curSamples[0][0].runTimeType);
+        // if (isThreshold){
+          // Int16List convSamples = curSamples[0][0] as Int16List;
+          // // cBuffDouble = List<double>.from(curSamples);
+          // // channelsData = List<List<double>>.from(curSamples[0]);
+          // // channelsData = List<List<double>>.from(convSamples.map((e) => (e.toDouble())));
+          // List<double> list = convSamples.map( (e) => e.toDouble() ).toList(growable: false);
+          // channelsData=[list];
+        // }else{
+        //   channelsData = [];
+        //   List<Int16List> convSamples = curSamples[0];
+        //   for (int i = 0; i<convSamples.length ; i++){
+        //     channelsData.add(convSamples[i].map( (e) => e.toDouble() ).toList(growable: false));
+        //   }
+        // }
+        channelsData = [];
+        List<Int16List> convSamples = curSamples[0];
+        for (int i = 0; i<convSamples.length ; i++){
+          channelsData.add(convSamples[i].map( (e) => e.toDouble() ).toList(growable: false));
+        }
+
         cBuffIdx = curSamples[1];
         markersData = curSamples[2];
         // if (markersData.length> 0){
@@ -2116,6 +2283,8 @@ class _MyHomePageState extends State<MyHomePage> {
             isHighPass,
             isNotch50,
             isNotch60,
+            snapshotAveragedSamples,
+            thresholdValue,
             // DISPLAY_CHANNEL_FIX,
           ]);
           currentKey = "";
@@ -2140,6 +2309,8 @@ class _MyHomePageState extends State<MyHomePage> {
           isHighPass,
           isNotch50,
           isNotch60,
+          snapshotAveragedSamples,
+          thresholdValue,
 
           // DISPLAY_CHANNEL_FIX,
         ]);
@@ -2241,7 +2412,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     int skipCount = skipCounts[level];
 
-    List<double> envelopeSamples = allEnvelopes[0][level];
+    Int16List envelopeSamples = allEnvelopes[0][level];
     int prevSegment = (envelopeSamples.length / divider).floor();
 
     cBuffDouble = List<double>.generate(prevSegment, (i) => 0);
@@ -2269,6 +2440,8 @@ class _MyHomePageState extends State<MyHomePage> {
           isHighPass,
           isNotch50,
           isNotch60,
+          snapshotAveragedSamples,
+          thresholdValue,
 
           // DISPLAY_CHANNEL_FIX,
         ]);
@@ -2288,6 +2461,8 @@ class _MyHomePageState extends State<MyHomePage> {
           isHighPass,
           isNotch50,
           isNotch60,
+          snapshotAveragedSamples,
+          thresholdValue,
 
           // DISPLAY_CHANNEL_FIX,
         ]);
@@ -2478,8 +2653,8 @@ class _MyHomePageState extends State<MyHomePage> {
       FocusScope.of(context).requestFocus(keyboardFocusNode);
     }
 
-    if (thresholdMarkerTop == -10000){
-      thresholdMarkerTop = (MediaQuery.of(context).size.height/4)-25;
+    if (thresholdMarkerTop[0] == -10000){
+      thresholdMarkerTop[0] = (MediaQuery.of(context).size.height/2)-37;
     }
 
     if (Platform.isAndroid || Platform.isIOS) {
@@ -2970,7 +3145,7 @@ class _MyHomePageState extends State<MyHomePage> {
       callbackGetDeviceInfo([maxExpansionChannels, minChannels, maxChannels]);
     });
 
-    List<double> envelopeSamples = allEnvelopes[0][level];
+    Int16List envelopeSamples = allEnvelopes[0][level];
     int divider = 60;
     int prevSegment = (envelopeSamples.length / divider).floor();
 
@@ -3026,13 +3201,26 @@ class _MyHomePageState extends State<MyHomePage> {
           isPaused,
           currentKey,
           MediaQuery.of(context).size.width,
+          isLowPass,
+          isHighPass,
+          isNotch50,
+          isNotch60,
+          snapshotAveragedSamples,
+          thresholdValue,
+
         ]);
         currentKey = "";
       });
 
       _receiveQueue.rest.listen((curSamples) {
         // cBuffDouble
-        channelsData = List<List<double>>.from(curSamples[0]);
+        // channelsData = List<Int16List>.from(curSamples[0]);
+        channelsData = [];
+        List<Int16List> convSamples = curSamples[0];
+        for (int i = 0; i<convSamples.length ; i++){
+          channelsData.add(convSamples[i].map( (e) => e.toDouble() ).toList(growable: false));
+        }
+
         cBuffIdx = curSamples[1];
         markersData = curSamples[2];
 
@@ -3080,6 +3268,13 @@ class _MyHomePageState extends State<MyHomePage> {
           isPaused,
           currentKey,
           MediaQuery.of(context).size.width,
+          isLowPass,
+          isHighPass,
+          isNotch50,
+          isNotch60,
+          snapshotAveragedSamples,
+          thresholdValue,
+
         ]);
         currentKey = "";
       });
@@ -3152,6 +3347,13 @@ class _MyHomePageState extends State<MyHomePage> {
         isPaused,
         currentKey,
         MediaQuery.of(context).size.width,
+        isLowPass,
+        isHighPass,
+        isNotch50,
+        isNotch60,
+        snapshotAveragedSamples,
+        thresholdValue,
+
       ]);
       currentKey = "";
     });
@@ -3163,7 +3365,13 @@ class _MyHomePageState extends State<MyHomePage> {
       //   var tempBuffDouble = List<double>.from(curSamples[0][i]);
       //   channelsData.add(tempBuffDouble);
       // }
-      channelsData = List<List<double>>.from(curSamples[0]);
+      // channelsData = List<Int16List>.from(curSamples[0]);
+        channelsData = [];
+        List<Int16List> convSamples = curSamples[0];
+        for (int i = 0; i<convSamples.length ; i++){
+          channelsData.add(convSamples[i].map( (e) => e.toDouble() ).toList(growable: false));
+        }
+
       cBuffIdx = curSamples[1];
       markersData = curSamples[2];
       // var cBuffDouble2 = List<double>.generate(
@@ -3198,7 +3406,7 @@ class _MyHomePageState extends State<MyHomePage> {
     level = calculateLevel(10000, _sampleRate.toInt(), innerWidth, skipCounts);
     int skipCount = skipCounts[level];
 
-    List<double> envelopeSamples = allEnvelopes[0][level];
+    Int16List envelopeSamples = allEnvelopes[0][level];
     int divider = 60;
     int prevSegment = (envelopeSamples.length / divider).floor();
 
@@ -4315,36 +4523,37 @@ class _MyHomePageState extends State<MyHomePage> {
           onSurface: Colors.red,
         ),
         child: Icon(
-          Icons.sign_language_outlined,
+          Icons.stacked_line_chart,
           color: deviceType == 1 && isPlaying == 1
               ? Colors.amber.shade900
               : Color(0xFF800000),
         ),
         onPressed: () {
-          isThresholding = true;
+          isThreshold = true;
         }
       )
     ));
-    if (isThresholding){
+    if (isThreshold){
+      // dataWidgets.add(
+      //   Positioned(
+      //     top: 10,
+      //     left: 220,
+      //     child: Text("123")
+      //   )
+      // );
       dataWidgets.add(
         Positioned(
-          top: 10,
-          left: 220,
-          child: Text("123")
-        )
-      );
-      dataWidgets.add(
-        Positioned(
-          top: thresholdMarkerTop,
+          top: thresholdMarkerTop[0],
           right: 20,
           child: GestureDetector(
             onVerticalDragUpdate: (dragUpdateVerticalDetails){
-              thresholdMarkerTop = dragUpdateVerticalDetails.globalPosition.dy;
+              thresholdMarkerTop[0] = dragUpdateVerticalDetails.globalPosition.dy;
+              thresholdValue[0] = -(thresholdMarkerTop[0] - (MediaQuery.of(context).size.height/2)).floor();
             },
             child: Transform.rotate(
               angle: -90 * pi / 180,
               child: Icon(
-                Icons.water_drop,
+                Icons.water_drop_rounded,
                   // key: keyTutorialAudioLevel,
                   color: Colors.green
                 ),
@@ -4354,7 +4563,7 @@ class _MyHomePageState extends State<MyHomePage> {
       );      
       dataWidgets.add(
         Positioned(
-          top: thresholdMarkerTop + 12.5,
+          top: thresholdMarkerTop[0] + 12,
           right: 20,
           child:Container(
             width:MediaQuery.of(context).size.width,
@@ -4378,24 +4587,61 @@ class _MyHomePageState extends State<MyHomePage> {
           top: 10,
           left: 250,
           child: Container(
-            width:100,
+            width:200,
             height:50,
             child: FlutterSlider(
+              tooltip: FlutterSliderTooltip(
+                disabled: true,
+                
+                // positionOffset: FlutterSliderTooltipPositionOffset(
+                //   top: 30,
+                //   left:50,
+                // ),
+              ),
+              handler: FlutterSliderHandler(
+                decoration: BoxDecoration(),
+                child: Container(
+                  width:20,
+                  height:20,
+                  decoration: BoxDecoration(
+                    color: Colors.grey,
+                    shape: BoxShape.rectangle,
+                    borderRadius: BorderRadius.all(Radius.circular(3.0)),
+                  ),
+                ),
+              ),              
               trackBar: FlutterSliderTrackBar(
+                inactiveTrackBarHeight: 10,
+                activeTrackBarHeight: 10,
                 inactiveTrackBar: BoxDecoration(
                   borderRadius: BorderRadius.circular(20),
                   color: Colors.black12,
-                  border: Border.all(width: 3, color: Colors.blue),
+                  border: Border.all(width: 3, color: Colors.grey),
                 ),
                 activeTrackBar: BoxDecoration(
                   borderRadius: BorderRadius.circular(4),
-                  color: Colors.blue.withOpacity(0.5)
+                  color: Colors.grey.withOpacity(0.5)
                 ),
               ), 
-              values: [30],
+              values: snapshotAveragedSamples,
               max:50,
               min:1,
+              onDragging: (handlerIndex, lowerValue, upperValue) {
+                snapshotAveragedSamples = [lowerValue];
+                setState(() {});
+              },            
+
             ),
+          )
+        )
+      );
+      dataWidgets.add(
+        Positioned(
+          top: 25,
+          left: 455,
+          child: Text(
+            snapshotAveragedSamples[0].floor().toString(),
+            style:const TextStyle(color: Colors.white)
           )
         )
       );

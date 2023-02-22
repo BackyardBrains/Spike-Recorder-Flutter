@@ -878,14 +878,17 @@ char* transferArray(int* arr, int sampleCount)
 
 // HighPassFilter* highPassFilters;
 ThresholdProcessor thresholdProcessor[6];
+// double gSampleRate = 44100.0;
 EXTERNC FUNCTION_ATTRIBUTE double createThresholdProcess(short channelCount, double sampleRate, double averagedSampleCount, double threshold){
     // highPassFilters = new HighPassFilter[channelCount];
     for( int32_t i = 0; i < channelCount; i++ )
     {
         HeartbeatListener* hb = (new HeartbeatListener());
         thresholdProcessor[i] = ThresholdProcessor( hb );
+        // thresholdProcessor[i].setSampleRate((float) sampleRate);
         thresholdProcessor[i].setAveragedSampleCount(averagedSampleCount);
         thresholdProcessor[i].setThreshold(threshold);
+        // gSampleRate = sampleRate;
         // HighPassFilter highPassFilter = HighPassFilter();
         // highPassFilters[i].initWithSamplingRate(sampleRate);
         // if (highCutOff > sampleRate / 2.0f) highCutOff = sampleRate / 2.0f;
@@ -893,6 +896,7 @@ EXTERNC FUNCTION_ATTRIBUTE double createThresholdProcess(short channelCount, dou
         // highPassFilters[i].setQ(q);
         // highPassFilters[i] = highPassFilter;
     }
+    // thresholdProcessor[0].setSampleRate((float) sampleRate);
     return 1;
 }
 
@@ -913,6 +917,8 @@ int* nullData;
 
 EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedSampleCount, short _threshold, short channelIdx, short *data, int32_t sampleCount){
     int count = (int) 2.0f * 44100.0f;
+    // int count = (int) 2.0f * thresholdProcessor[0].getSampleRate();
+    // int count = (int) 2.0f * gSampleRate;
     short **outSamplesPtr = new short*[1];
     int *outSampleCounts = new int[1];
     short *outEventIndicesPtr = new short[1];
@@ -921,7 +927,7 @@ EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedS
 
     outSamplesPtr[0] = new short[count];
     // outSamplesPtr[1] = new short[count];
-    outSampleCounts[0]=0;
+    outSampleCounts[0]=count;
     // outSampleCounts[1]=0;
 
     thresholdProcessor[0].setThreshold(_threshold);

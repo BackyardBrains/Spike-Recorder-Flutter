@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:isolate';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:srmobileapp/main.dart';
@@ -734,7 +735,7 @@ areWeAtTheEndOfFrame(circularBuffer, cBufTail) {
 }
 
 serialParsing(
-    rawCircularBuffer, allEnvelopes, map, surfaceSize, SIZE_LOGS2, skipCounts) {
+    rawCircularBuffer, allEnvelopes, map, surfaceSize, SIZE_LOGS2, skipCounts, isThresholding, snapshotAveragedSamples, thresholdValue) {
   var LSB;
   var MSB;
   var haveData = true;
@@ -750,6 +751,8 @@ serialParsing(
   var globalIdx = map['globalIdx'];
   var arrHeads = map['arrHeads'];
   var writeInteger = 0;
+
+  List<List<int>> processedSamples = List.generate(6, (index) => []);
 
   while (haveData) {
     MSB = (rawCircularBuffer[cBufTail]) & 0xFF;
@@ -847,28 +850,35 @@ serialParsing(
           // _head = _arrHeadsInt[numberOfParsedChannels - 1];
           // envelopingSamples(_head, sample, envelopes);
           // print(sample.toDouble());
-          try {
-            cBuffIdx = arrHeads[numberOfParsedChannels - 1];
-            envelopingSamples(
-                cBuffIdx,
-                sample.toDouble(),
-                allEnvelopes[numberOfParsedChannels - 1],
-                SIZE_LOGS2,
-                skipCounts, -1);
+          if (!isThresholding){
 
-            cBuffIdx++;
-            if (cBuffIdx == surfaceSize - 1) {
-              cBuffIdx = 0;
-              // _arrIsFullInt[numberOfParsedChannels-1]++;
-              if (numberOfParsedChannels == 1) {
-                // globalPositionCap[0]++;
-                globalIdx++;
+            try {
+
+              cBuffIdx = arrHeads[numberOfParsedChannels - 1];
+              envelopingSamples(
+                  cBuffIdx,
+                  // sample.toDouble(),
+                  sample,
+                  allEnvelopes[numberOfParsedChannels - 1],
+                  SIZE_LOGS2,
+                  skipCounts, -1);
+
+              cBuffIdx++;
+              if (cBuffIdx == surfaceSize - 1) {
+                cBuffIdx = 0;
+                // _arrIsFullInt[numberOfParsedChannels-1]++;
+                if (numberOfParsedChannels == 1) {
+                  // globalPositionCap[0]++;
+                  globalIdx++;
+                }
+
+                // isFull = true;
               }
-
-              // isFull = true;
-            }
-            arrHeads[numberOfParsedChannels - 1] = cBuffIdx;
-          } catch (err) {}
+              arrHeads[numberOfParsedChannels - 1] = cBuffIdx;
+            } catch (err) {}
+          }else{
+            processedSamples[numberOfParsedChannels - 1].add(sample);
+          }
           // const interleavedHeadSignalIdx = _head * 2;
           // arrMaxInt[interleavedHeadSignalIdx] = sample;
           // arrMaxInt[interleavedHeadSignalIdx + 1] = sample;
@@ -953,4 +963,6 @@ serialParsing(
   // map['cBuffIdx'] = cBuffIdx;
   map['globalIdx'] = globalIdx;
   map['arrHeads'] = arrHeads;
+  if (isThresholding)
+    map['processedSamples'] = processedSamples;
 }
