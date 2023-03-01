@@ -142,29 +142,30 @@ abstract class AudioWaveformState<T extends AudioWaveform> extends State<T> {
   /// the waveform properly.
   @protected
   void processSamples() {
-    final rawSamples = widget.samples;
+    _processedSamples = widget.samples;
+    // final rawSamples = widget.samples;
 
-    _processedSamples = rawSamples
-        .map((e) => absolute ? e.abs() * widget.height : e * widget.height)
-        .toList();
+    // _processedSamples = rawSamples
+    //     .map((e) => absolute ? e.abs() * widget.height : e * widget.height)
+    //     .toList();
 
-    // final maxNum =
-    //     _processedSamples.reduce((a, b) => math.max(a.abs(), b.abs()));
+    // // final maxNum =
+    // //     _processedSamples.reduce((a, b) => math.max(a.abs(), b.abs()));
 
-    //STEVANUS CHANGES
-    final maxNum = 300;
+    // //STEVANUS CHANGES
+    // final maxNum = 300;
 
-    if (maxNum > 0) {
-      final multiplier = math.pow(maxNum, -1).toDouble();
-      final finalHeight = absolute ? widget.height : widget.height / 2;
-      final finalMultiplier = multiplier * finalHeight;
+    // if (maxNum > 0) {
+    //   final multiplier = math.pow(maxNum, -1).toDouble();
+    //   final finalHeight = absolute ? widget.height : widget.height / 2;
+    //   final finalMultiplier = multiplier * finalHeight;
 
-      _processedSamples = _processedSamples
-          .map(
-            (e) => invert ? -e * finalMultiplier : e * finalMultiplier,
-          )
-          .toList();
-    }
+    //   _processedSamples = _processedSamples
+    //       .map(
+    //         (e) => invert ? -e * finalMultiplier : e * finalMultiplier,
+    //       )
+    //       .toList();
+    // }
   }
 
   /// Calculates the width that each sample would take.

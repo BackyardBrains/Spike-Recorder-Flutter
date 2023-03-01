@@ -5,7 +5,7 @@
 #include <climits>
 #include "Processor.cpp"
 #include "HeartbeatHelper.cpp"
-
+#include <string>
 
 // #include "include/dart_api.h"
 // #include "include/dart_native_api.h"
@@ -84,7 +84,7 @@ public:
     static constexpr int DEFAULT_SAMPLE_COUNT = static_cast<const int>(2.0f * 44100.0f);
     ThresholdProcessor(){}
     ThresholdProcessor(OnHeartbeatListener *listener){
-        heartbeatHelper = new HeartbeatHelper(getSampleRate(), listener);
+        // heartbeatHelper = new HeartbeatHelper(getSampleRate(), listener);
 
         // we need to initialize initial trigger values and local buffer because they depend on channel count
         triggerValue = new float[getChannelCount()];
@@ -370,6 +370,9 @@ public:
         // reset buffers if threshold changed
         if (lastTriggeredValue[selectedChannel] != triggerValue[selectedChannel]) {
             debug_print("1");
+            debug_print(std::to_string(lastTriggeredValue[selectedChannel]).c_str() );
+            debug_print(std::to_string(triggerValue[selectedChannel]).c_str() );
+            debug_print("--------------");
             //__android_log_print(ANDROID_LOG_DEBUG, TAG, "Resetting because trigger value has changed");
             lastTriggeredValue[selectedChannel] = triggerValue[selectedChannel];
             shouldReset = true;
@@ -377,13 +380,16 @@ public:
         // reset buffers if averages sample count changed
         if (lastAveragedSampleCount != averagedSampleCount) {
             debug_print("2");            
+            debug_print(std::to_string(lastAveragedSampleCount).c_str() );
+            debug_print(std::to_string(averagedSampleCount).c_str() );
+            debug_print("--------------");
             //__android_log_print(ANDROID_LOG_DEBUG, TAG, "Resetting because last averaged sample count has changed");
             lastAveragedSampleCount = averagedSampleCount;
             shouldReset = true;
         }
         // reset buffers if sample rate changed
         if (lastSampleRate != getSampleRate()) {
-            debug_print("3");
+            debug_print("PRINT 3");
             //__android_log_print(ANDROID_LOG_DEBUG, TAG, "Resetting because sample rate has changed");
             lastSampleRate = getSampleRate();
             shouldReset = true;
@@ -401,7 +407,7 @@ public:
             shouldResetLocalBuffer = true;
         }
         if (shouldReset || resetOnNextBatch) {
-            debug_print("5");
+            debug_print("PRINT  5");
             // reset rest of the data
             clean(tmpLastChannelCount, shouldResetLocalBuffer);
             init(shouldResetLocalBuffer);
@@ -485,7 +491,7 @@ public:
                         // heartbeat processingA
                         if (processBpm) {
                             // pass data to heartbeat helper
-                            heartbeatHelper->beat(sampleCounter);
+                            // heartbeatHelper->beat(sampleCounter);
                             // reset the last triggered sample counter
                             // and start counting for next heartbeat reset period
                             lastTriggerSampleCounter = 0;
@@ -725,8 +731,8 @@ private:
 
         prevSample = 0;
 
-        heartbeatHelper->reset();
-        heartbeatHelper->setSampleRate(sampleRate);
+        // heartbeatHelper->reset();
+        // heartbeatHelper->setSampleRate(sampleRate);
         minBpmResetPeriodCount = (int) (sampleRate * DEFAULT_MIN_BPM_RESET_PERIOD_SECONDS);
         lastTriggerSampleCounter = 0;
         sampleCounter = 0;
@@ -758,7 +764,7 @@ private:
     }
     // Resets all local variables used for the heartbeat processing
     void resetBpm(){
-        heartbeatHelper->reset();
+        // heartbeatHelper->reset();
         sampleCounter = 0;
         lastTriggerSampleCounter = 0;
             
@@ -879,13 +885,21 @@ char* transferArray(int* arr, int sampleCount)
 // HighPassFilter* highPassFilters;
 ThresholdProcessor thresholdProcessor[6];
 // double gSampleRate = 44100.0;
-EXTERNC FUNCTION_ATTRIBUTE double createThresholdProcess(short channelCount, double sampleRate, double averagedSampleCount, double threshold){
+EXTERNC FUNCTION_ATTRIBUTE double createThresholdProcess(short channelCount, uint32_t sampleRate, short averagedSampleCount, short threshold){
     // highPassFilters = new HighPassFilter[channelCount];
     for( int32_t i = 0; i < channelCount; i++ )
     {
         HeartbeatListener* hb = (new HeartbeatListener());
         thresholdProcessor[i] = ThresholdProcessor( hb );
-        // thresholdProcessor[i].setSampleRate((float) sampleRate);
+        float sr = (float) sampleRate;
+        // std::string dbg = "test sample rate";
+        // debug_print(dbg.c_str());
+        // debug_print(std::to_string(sampleRate).c_str());
+        // debug_print(dbg.c_str());
+        // debug_print(std::to_string(averagedSampleCount).c_str());
+        // debug_print(dbg.c_str());
+        // debug_print(std::to_string(threshold).c_str());
+        thresholdProcessor[i].setSampleRate(sr);
         thresholdProcessor[i].setAveragedSampleCount(averagedSampleCount);
         thresholdProcessor[i].setThreshold(threshold);
         // gSampleRate = sampleRate;
@@ -915,8 +929,10 @@ EXTERNC FUNCTION_ATTRIBUTE double initThresholdProcess(short channelCount, doubl
 int* nullData;
 
 
-EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedSampleCount, short _threshold, short channelIdx, short *data, int32_t sampleCount){
-    int count = (int) 2.0f * 44100.0f;
+EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedSampleCount, short _threshold, short channelIdx, short *data, uint32_t sampleCount){
+    int count = (int) 2.0f * thresholdProcessor[0].getSampleRate();
+    // debug_print( "count!!" );
+    // debug_print(std::to_string(count).c_str() );
     // int count = (int) 2.0f * thresholdProcessor[0].getSampleRate();
     // int count = (int) 2.0f * gSampleRate;
     short **outSamplesPtr = new short*[1];

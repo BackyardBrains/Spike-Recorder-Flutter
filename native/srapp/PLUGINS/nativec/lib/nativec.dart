@@ -55,7 +55,7 @@ typedef ApplyHighPassFilterProcess = double Function(
     int, ffi.Pointer<ffi.Int16>, int);
 
 typedef create_threshold_func = ffi.Double Function(
-    ffi.Int, ffi.Int16, ffi.Int16, ffi.Int16);
+    ffi.Int, ffi.Uint32, ffi.Int16, ffi.Int16);
 typedef CreateThresholdProcess = double Function(int, int, int, int);
 typedef init_threshold_func = ffi.Double Function(
     ffi.Int, ffi.Double, ffi.Double, ffi.Double);
@@ -243,7 +243,6 @@ class Nativec {
     }
     // int byteCount = Nativec.totalBytes;
     _bytes = _data.asTypedList(Nativec.totalBytes);
-    _thresholdBytes = _dataThreshold.asTypedList( Nativec.totalThresholdBytes );
     // _bytes.fillRange(0, Nativec.totalBytes, 55);
 
     // createStructFn =
@@ -376,15 +375,21 @@ class Nativec {
 
 
   void createThresholdProcess(channelCount, sampleRate, threshold, averagedSampleCount) {
+    Nativec.totalThresholdBytes = (2.0 * sampleRate).floor();
+    _thresholdBytes = _dataThreshold.asTypedList( Nativec.totalThresholdBytes );
+
     _createThresholdProcess(channelCount, sampleRate, threshold, averagedSampleCount);
   }
 
   double initThresholdProcess(channelCount, sampleRate, cutOff, q) {
     return _initHighPassFilterProcess(channelCount, sampleRate, cutOff, q);
   }  
+
+  
   Int16List appendSamplesThresholdProcess(averagedSampleCount, threshold, channelIdx, samples, sampleCount) {
     // _thresholdBytes.fillRange(0, Nativec.totalThresholdBytes, 0);
-    int len = samples.length;
+    // int len = samples.length;
+    int len = sampleCount;
     for (int i = 0; i < len; i++) {
       _thresholdBytes[i] = samples[i];
     }
@@ -394,6 +399,7 @@ class Nativec {
 
 
     _appendSamplesThresholdProcess(averagedSampleCount, threshold,channelIdx, _dataThreshold, sampleCount);
+    // print(_thresholdBytes.length);
     return _thresholdBytes;
 
   }

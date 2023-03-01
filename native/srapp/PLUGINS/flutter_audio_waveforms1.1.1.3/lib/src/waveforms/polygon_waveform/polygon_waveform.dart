@@ -97,7 +97,9 @@ class _PolygonWaveformState extends AudioWaveformState<PolygonWaveform> {
     // final waveformAlignment = this.waveformAlignment;
     final waveformAlignment = WaveformAlignment.center;
     final sampleWidth = this.sampleWidth;
-
+    // final testSamples = List<double>.from(processedSamples);
+    // testSamples.sort();
+    // print(testSamples[testSamples.length-1]);
     return Stack(
       children: [
         RepaintBoundary(

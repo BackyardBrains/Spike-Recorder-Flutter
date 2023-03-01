@@ -33,7 +33,7 @@ envelopingSamples(_head, sample, _envelopes, SIZE_LOGS2, skipCounts, forceLevel)
       var envelopeSampleIndex = floor(_head / skipCount);
       var interleavedSignalIdx = envelopeSampleIndex * 2;
       if (_head % skipCount == 0) {
-        _envelopes[j][interleavedSignalIdx] = sample; //20967 * 2  =40k
+        _envelopes[j][interleavedSignalIdx] = sample; 
         _envelopes[j][interleavedSignalIdx + 1] = sample;
       } else {
         if (sample < _envelopes[j][interleavedSignalIdx]) {
@@ -963,6 +963,11 @@ serialParsing(
   // map['cBuffIdx'] = cBuffIdx;
   map['globalIdx'] = globalIdx;
   map['arrHeads'] = arrHeads;
-  if (isThresholding)
-    map['processedSamples'] = processedSamples;
+  if (isThresholding){
+    List<Int16List> newSamples = List<Int16List>.generate(6, (index) => Int16List(processedSamples[index].length));
+    for (int i = 0 ; i < 6 ; i++){
+      newSamples[i] = Int16List.fromList(processedSamples[i]);
+    }
+    map['processedSamples'] = newSamples;
+  }
 }

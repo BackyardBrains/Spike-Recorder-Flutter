@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_audio_waveforms/src/core/waveform_painters_ab.dart';
 import 'package:flutter_audio_waveforms/src/util/waveform_alignment.dart';
@@ -13,6 +15,9 @@ class PolygonInActiveWaveformPainter extends InActiveWaveformPainter {
   final double strokeWidth;
   final List<int> eventMarkersNumber;
   final List<double> eventMarkersPosition;
+
+  double prevMax =0;
+  double curMax = 0;
 
   List<TextPainter> textPainters = [];
   late Paint mypaint;
@@ -89,15 +94,26 @@ class PolygonInActiveWaveformPainter extends InActiveWaveformPainter {
       for (; i < samples.length - 1; i++) {
         final x = sampleWidth * i;
         // final y = samples[i]/10000; //
-        final y = samples[i] / gain;
+        final y = samples[i] / (gain/100);
         // print(y);
         // if (i == samples.length - 1) {
         //   path.lineTo(x, y);
         //   path.moveTo(x, y);
         // } else {
         path.lineTo(x, y);
+        // if (y>0)print(y);
+        // }
+        // curMax = y;
+        // if (curMax > prevMax){
+        //   prevMax = curMax;
+        //   // print(curMax);
+        //   // print(prevMax);
+        //   print(samples[i]);
         // }
       }
+      // print('gain');
+      // print(gain);
+      //END TAIL
       final sLen = samples.length - 1;
       final x = sampleWidth * sLen;
       final y = samples[sLen] / gain;
@@ -106,6 +122,11 @@ class PolygonInActiveWaveformPainter extends InActiveWaveformPainter {
       path.moveTo(x, y);
       // EVENT KEY PRESS
       //path.moveTo(x, y)
+      // final xx = x;
+      // final yy = -285.0; //negative Up, positive Down
+      // path.moveTo(xx, yy);
+      // path.lineTo(0, yy);
+      // path.moveTo(x, y);
 
       //Gets the [alignPosition] depending on [waveformAlignment]
       // final alignPosition = waveformAlignment.getAlignPosition(size.height);
@@ -114,9 +135,10 @@ class PolygonInActiveWaveformPainter extends InActiveWaveformPainter {
       //Shifts the path along y-axis by amount of [alignPosition]
       final shiftedPath = path.shift(Offset(0, levelMedian));
       canvas.drawPath(shiftedPath, mypaint);
+      // print(shiftedPath);
 
-      // final offsetLeft = new Offset(0, levelMedian);
-      // final offsetRight = new Offset(x, levelMedian);
+      // final offsetLeft = new Offset(0, 2);
+      // final offsetRight = new Offset(x, 2);
       // canvas.drawLine(offsetLeft, offsetRight, mypaint);
 
       // print("Channels : " + channelIdx.toString() + "_ "+ channelActive.toString());
