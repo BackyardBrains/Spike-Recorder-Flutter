@@ -963,11 +963,13 @@ serialParsing(
   // map['cBuffIdx'] = cBuffIdx;
   map['globalIdx'] = globalIdx;
   map['arrHeads'] = arrHeads;
-  if (isThresholding){
-    List<Int16List> newSamples = List<Int16List>.generate(6, (index) => Int16List(processedSamples[index].length));
+  // if (isThresholding){
+    // List<Int16List> newSamples = List<Int16List>.generate(6, (index) => Int16List(processedSamples[index].length));
+    List<List<int>> newSamples = List<List<int>>.generate(6, (index) => []);    
     for (int i = 0 ; i < 6 ; i++){
-      newSamples[i] = Int16List.fromList(processedSamples[i]);
+      // newSamples[i] = Int16List.fromList(processedSamples[i]);
+      newSamples[i] = List<int>.from(processedSamples[i]);
     }
     map['processedSamples'] = newSamples;
-  }
+  // }
 }

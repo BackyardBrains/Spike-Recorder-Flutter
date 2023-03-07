@@ -319,15 +319,14 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
   double size = SIZE.toDouble() * 2;
   int SIZE_LOGS_THRESHOLD = 10;
   int THRESHOLD_CHANNEL_COUNT = 1;
+  int samplesLength = SIZE;
+  bool isPrevThresholdingStatus = true;
 
   unitInitializeEnvelope(THRESHOLD_CHANNEL_COUNT,allThresholdEnvelopes, allThresholdEnvelopesSize, size, SIZE, SIZE_LOGS_THRESHOLD);
 
   nativec.createThresholdProcess(
     1, SEGMENT_SIZE_THRESHOLD, 2, 10000);
   bool isThresholding = true;
-  if (isThresholding){
-    cBufferSize = SIZE;
-  }
   // List<List<List<double>>> allEnvelopes = [];
   // int level = 8;
   // int divider = 6;
@@ -348,6 +347,22 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
     if (isThresholding){
       numberOfChannels = 1;
     }
+    if (isPrevThresholdingStatus != isThresholding){
+      isPrevThresholdingStatus = isThresholding;
+      if (isThresholding){
+        cBufferSize = SIZE;
+        // threshold will be filled with c++
+      }else{
+        cBufferSize = (sampleRate * 60).floor();
+        allEnvelopes.forEach((element) { 
+          element.forEach((envelope){
+            envelope.fillRange(0, envelope.length,0);
+          });
+        });
+      }
+
+      cBuffIdx = 0;
+    }
     // print(numberOfChannels);
 
     // var numberOfChannels = 1;
@@ -361,8 +376,9 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
     bool isHighPass = arr[11];
     bool isNotch50 = arr[12];
     bool isNotch60 = arr[13];
-    List<double> snapshotAveragedSamples= arr[14];
-    List<int> thresholdValue = arr[15];
+    isThresholding = arr[14];
+    List<double> snapshotAveragedSamples= arr[15];
+    List<int> thresholdValue = arr[16];
 
     int maxSize = (allEnvelopes[0][0]).length;
     int globalPositionCap = (globalIdx * maxSize / 2).floor();
@@ -439,8 +455,13 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
           // cBuffIdx = curSamples.length-1;
           cBuffIdx = 0;
           globalIdx = 0;
+          samplesLength = SIZE;
+
         }else{
+          level =
+              calculateLevel(10000, sampleRate.floor(), surfaceWidth, skipCounts);
           curSamples = Int16List.fromList(samples[c]);          
+          samplesLength = curSamples.length;
         }
         
         // print("lowPassFilter2");
@@ -449,11 +470,18 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
         //   print(temp);
         //   print(samples[c]);
         // }
+        // final int forceLevel = 8;
         final int forceLevel = level;
         // curSamples.forEach((tmp) {
-
-        allThresholdEnvelopes[c][forceLevel].fillRange(0, allThresholdEnvelopes[c].length,0);
-        for (int i = 0; i < SIZE; i++){
+        if (isThresholding){
+          if (allThresholdEnvelopes.length < c+1){
+            print('numberOfChannels');
+            print(numberOfChannels);
+            return;
+          }
+          allThresholdEnvelopes[c][level].fillRange(0, allThresholdEnvelopes[c][level].length,0);
+        }
+        for (int i = 0; i < samplesLength; i++){
           int tmp = curSamples[i];
           // print("allEnvelopes 3");
           // print(tmp);
@@ -461,6 +489,7 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
           try {
             if (isThresholding){
               try{
+              // allThresholdEnvelopes[c][forceLevel].fillRange(0, allThresholdEnvelopes[c].length,0);
                 // envelopingSamples(cBuffIdx, tmp.toDouble(), allThresholdEnvelopes[c],
                 //     SIZE_LOGS2, skipCounts, forceLevel);
                 envelopingSamples(cBuffIdx, tmp, allThresholdEnvelopes[c],
@@ -519,8 +548,9 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
 
       // level =
       //     calculateLevel(10000, 44100, surfaceWidth, skipCounts);
-      level =
-          calculateLevel(2000, sampleRate.floor(), surfaceWidth, skipCounts);
+      // level =
+      //     calculateLevel(2000, sampleRate.floor(), surfaceWidth, skipCounts);
+      // level = 8;
 
       for (int c = 0; c < numberOfChannels; c++) {
         Int16List envelopeSamples = (allThresholdEnvelopes[c][level]);
@@ -787,6 +817,8 @@ void serialBufferingEntryPoint(List<dynamic> values) {
   double size = SIZE.toDouble() * 2;
   int SIZE_LOGS_THRESHOLD = 10;
   int THRESHOLD_CHANNEL_COUNT = 1;
+  int samplesLength = SIZE;
+  bool isPrevThresholdingStatus = true;
 
   unitInitializeEnvelope(THRESHOLD_CHANNEL_COUNT,allThresholdEnvelopes, allThresholdEnvelopesSize, size, SIZE, SIZE_LOGS_THRESHOLD);
 
@@ -853,8 +885,10 @@ void serialBufferingEntryPoint(List<dynamic> values) {
     bool isHighPass = arr[11];
     bool isNotch50 = arr[12];
     bool isNotch60 = arr[13];
-    List<double> snapshotAveragedSamples= arr[14];
-    List<int> thresholdValue = arr[15];
+    
+    isThresholding = arr[14];
+    List<double> snapshotAveragedSamples= arr[15];
+    List<int> thresholdValue = arr[16];
 
     int maxSize = (allEnvelopes[0][0]).length;
     int globalPositionCap = (globalIdx * maxSize / 2).floor();
@@ -862,6 +896,22 @@ void serialBufferingEntryPoint(List<dynamic> values) {
     numberOfChannels = deviceChannel;
     if (isThresholding){
       numberOfChannels = 1;
+    }
+    if (isPrevThresholdingStatus != isThresholding){
+      isPrevThresholdingStatus = isThresholding;
+      if (isThresholding){
+        cBufferSize = SIZE;
+        // threshold will be filled with c++
+      }else{
+        cBufferSize = (_sampleRate * 60).floor();
+        allEnvelopes.forEach((element) { 
+          element.forEach((envelope){
+            envelope.fillRange(0, envelope.length,0);
+          });
+        });
+      }
+
+      cBuffIdx = 0;
     }
 
     if (cBuffIdx == -1) {
@@ -968,14 +1018,15 @@ void serialBufferingEntryPoint(List<dynamic> values) {
       arrHeads = map['arrHeads'];
 
       Int16List curSamples = new Int16List(0);
-      List<Int16List> zamples = map['processedSamples'];
+      // List<Int16List> zamples = map['processedSamples'];
+      List<List<int>> zamples = map['processedSamples'];
       int c = 0;
       if (isThresholding){
         cBuffIdx = 0;
         try{
           // curSamples = (nativec.appendSamplesThresholdProcess(snapshotAveragedSamples[0].floor(), thresholdValue[0] * 2, 0, zamples[c], zamples[c].length));
           // curSamples = (nativec.appendSamplesThresholdProcess(2, 30000, 0, zamples[c], zamples[c].length));
-          curSamples = (nativec.appendSamplesThresholdProcess(1, 0, 0, zamples[c], zamples[c].length));
+          curSamples = (nativec.appendSamplesThresholdProcess(snapshotAveragedSamples[0].floor(), thresholdValue[0], 0, zamples[c], zamples[c].length));
           // print(curSamples.length);
         }catch(err){
           print("isThresholding Error");
@@ -983,42 +1034,50 @@ void serialBufferingEntryPoint(List<dynamic> values) {
         }
         level =
             calculateLevel(2000, _sampleRate, surfaceWidth, skipCounts);
-
-        cBuffIdx = curSamples.length-1;
+        cBuffIdx = 0;
         globalIdx = 0;
+        samplesLength = SIZE;
+        allThresholdEnvelopes[c][level].fillRange(0, allThresholdEnvelopes[c].length,0);
 
+
+      }else{
+        level =
+            calculateLevel(10000, _sampleRate.floor(), surfaceWidth, skipCounts);
+        curSamples = Int16List.fromList(zamples[c]);          
+        samplesLength = curSamples.length;
+        
+      }
 
         //ENVELOPING
         final int forceLevel = level;
-        // print('forceLevel');
-        // print(forceLevel);
-        cBuffIdx = 0;
-        // print('curSamples');
-        // print(zamples[c].length);
-        // print('cBufferSize');
-        // print(cBufferSize);
-        // curSamples.forEach((tmp) {  
-        // SIZE = _sampleRate * NUMBER_OF_SEGMENTS_THRESHOLD;
-        allThresholdEnvelopes[c][forceLevel].fillRange(0, allThresholdEnvelopes[c].length,0);
-        for(int i = 0; i < SIZE ; i++) {  
+        if (isThresholding){
+          if (allThresholdEnvelopes.length < c+1){
+            print('numberOfChannels');
+            print(numberOfChannels);
+            return;
+          }
+          allThresholdEnvelopes[c][level].fillRange(0, allThresholdEnvelopes[c][level].length,0);
+        }
+
+        // cBuffIdx = 0;
+        for(int i = 0; i < samplesLength ; i++) {  
           int tmp = curSamples[i];
-          // print("allEnvelopes 3");
-          // print(tmp);
-          // print(nativec.gain(seri(), 10.0));
+
           try {
+            if (isThresholding){
               try{
                 envelopingSamples(cBuffIdx, tmp, allThresholdEnvelopes[c],
                     SIZE_LOGS2, skipCounts, forceLevel);
-
-                // allThresholdEnvelopes[0][0][cBuffIdx] = tmp;
-                // envelopingSamples(cBuffIdx, tmp, allThresholdEnvelopes[c],
-                //     SIZE_LOGS2, skipCounts, -1);
-
               }catch(err){
                 print('error enveloping');
                 print(curSamples.length);
                 print(allThresholdEnvelopes[c].length);
               }
+            }else{
+              envelopingSamples(cBuffIdx, tmp, allEnvelopes[c],
+                  SIZE_LOGS2, skipCounts, -1);
+            }
+            
             cBuffIdx++;
             if (cBuffIdx >= cBufferSize - 1) {
               cBuffIdx = 0;
@@ -1028,13 +1087,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
             print("err");
             print(err);
           }
-        };
-      
-        // int sum = allThresholdEnvelopes[c][forceLevel].reduce((value, element) => value+element);
-      
-      }else{
-        // curSamples = Int16List.fromList(samples[c]);          
-      }
+        };      
 
 
       if (curKey != "") {
@@ -1295,7 +1348,7 @@ class _MyHomePageState extends State<MyHomePage> {
   // List<double> thresholdMarkerTop = [-10000,-10000,-10000,-10000,-10000,-10000];
   List<double> thresholdMarkerTop = [-10000,-10000,-10000,-10000,-10000,-10000];
   
-  List<double> snapshotAveragedSamples = [2];
+  List<double> snapshotAveragedSamples = [1];
   
   List<int> thresholdValue = [10,25,25,25,25,25];
   
@@ -2314,6 +2367,7 @@ class _MyHomePageState extends State<MyHomePage> {
             isHighPass,
             isNotch50,
             isNotch60,
+            isThreshold,
             snapshotAveragedSamples,
             thresholdValue,
             // DISPLAY_CHANNEL_FIX,
@@ -2340,6 +2394,7 @@ class _MyHomePageState extends State<MyHomePage> {
           isHighPass,
           isNotch50,
           isNotch60,
+          isThreshold,
           snapshotAveragedSamples,
           thresholdValue,
 
@@ -2471,6 +2526,7 @@ class _MyHomePageState extends State<MyHomePage> {
           isHighPass,
           isNotch50,
           isNotch60,
+          isThreshold,
           snapshotAveragedSamples,
           thresholdValue,
 
@@ -2492,6 +2548,7 @@ class _MyHomePageState extends State<MyHomePage> {
           isHighPass,
           isNotch50,
           isNotch60,
+          isThreshold,
           snapshotAveragedSamples,
           thresholdValue,
 
@@ -2689,10 +2746,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
     if (thresholdMarkerTop[0] == -10000){
       thresholdMarkerTop[0] = (MediaQuery.of(context).size.height/2)-37;
-      double heightFactor = (channelGains[0]/100);
-      thresholdValue[0] = -((thresholdMarkerTop[0] - (MediaQuery.of(context).size.height/2)).floor() * heightFactor).floor();
+      double heightFactor = (channelGains[0]/10000/100);
+      thresholdValue[0] = ((thresholdMarkerTop[0] +12 - (MediaQuery.of(context).size.height/2)).floor() * heightFactor).floor();
       print('channelGains[0]');
-      // print(channelGains[0]);
+      print(channelGains[0]);
       print(heightFactor);
       print(thresholdValue[0]);
     }
@@ -3245,6 +3302,7 @@ class _MyHomePageState extends State<MyHomePage> {
           isHighPass,
           isNotch50,
           isNotch60,
+          isThreshold,
           snapshotAveragedSamples,
           thresholdValue,
 
@@ -3312,6 +3370,7 @@ class _MyHomePageState extends State<MyHomePage> {
           isHighPass,
           isNotch50,
           isNotch60,
+          isThreshold,
           snapshotAveragedSamples,
           thresholdValue,
 
@@ -3391,6 +3450,7 @@ class _MyHomePageState extends State<MyHomePage> {
         isHighPass,
         isNotch50,
         isNotch60,
+        isThreshold,
         snapshotAveragedSamples,
         thresholdValue,
 
@@ -4570,7 +4630,7 @@ class _MyHomePageState extends State<MyHomePage> {
               : Color(0xFF800000),
         ),
         onPressed: () {
-          isThreshold = true;
+          isThreshold = !isThreshold;
         }
       )
     ));
@@ -4588,24 +4648,29 @@ class _MyHomePageState extends State<MyHomePage> {
           right: 20,
           child: GestureDetector(
             onVerticalDragUpdate: (dragUpdateVerticalDetails){
-              thresholdMarkerTop[0] = dragUpdateVerticalDetails.globalPosition.dy;
+              thresholdMarkerTop[0] = dragUpdateVerticalDetails.globalPosition.dy -12;
               // double heightFactor = 32767 / (MediaQuery.of(context).size.height/2);
               double heightFactor = (channelGains[0]/100);
-              thresholdValue[0] = -((thresholdMarkerTop[0] - (MediaQuery.of(context).size.height/2)).floor() * heightFactor).floor();
+              thresholdValue[0] = ((thresholdMarkerTop[0] +12 - (MediaQuery.of(context).size.height/2)).floor() * heightFactor).floor();
               print('channelGains[0]2222');
               // print(channelGains[0]);
               print(heightFactor);
               print(thresholdValue[0]);
               
             },
-            child: Transform.rotate(
-              angle: -90 * pi / 180,
-              child: Icon(
-                Icons.water_drop_rounded,
-                  // key: keyTutorialAudioLevel,
-                  color: Colors.green
+            child: Container(
+              width:35,
+              height:25,
+              color:Colors.black,
+              child: Transform.rotate(
+                angle: -90 * pi / 180,
+                child: Icon(
+                  Icons.water_drop_rounded,
+                    // key: keyTutorialAudioLevel,
+                    color: Colors.green
+                  ),
                 ),
-              ),
+            ),
           ),
         )
       );      

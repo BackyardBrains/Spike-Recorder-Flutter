@@ -361,7 +361,7 @@ public:
         int selectedChannel = getSelectedChannel();
         // reset buffers if selected channel has changed
         if (lastSelectedChannel != selectedChannel) {
-            debug_print("Resetting because channel has changed");
+            // debug_print("Resetting because channel has changed");
 
             // //__android_log_print(ANDROID_LOG_DEBUG, TAG, "Resetting because channel has changed");
             lastSelectedChannel = selectedChannel;
@@ -369,27 +369,27 @@ public:
         }
         // reset buffers if threshold changed
         if (lastTriggeredValue[selectedChannel] != triggerValue[selectedChannel]) {
-            debug_print("1");
-            debug_print(std::to_string(lastTriggeredValue[selectedChannel]).c_str() );
-            debug_print(std::to_string(triggerValue[selectedChannel]).c_str() );
-            debug_print("--------------");
+            // debug_print("1");
+            // debug_print(std::to_string(lastTriggeredValue[selectedChannel]).c_str() );
+            // debug_print(std::to_string(triggerValue[selectedChannel]).c_str() );
+            // debug_print("--------------");
             //__android_log_print(ANDROID_LOG_DEBUG, TAG, "Resetting because trigger value has changed");
             lastTriggeredValue[selectedChannel] = triggerValue[selectedChannel];
             shouldReset = true;
         }
         // reset buffers if averages sample count changed
         if (lastAveragedSampleCount != averagedSampleCount) {
-            debug_print("2");            
-            debug_print(std::to_string(lastAveragedSampleCount).c_str() );
-            debug_print(std::to_string(averagedSampleCount).c_str() );
-            debug_print("--------------");
+            // debug_print("2");            
+            // debug_print(std::to_string(lastAveragedSampleCount).c_str() );
+            // debug_print(std::to_string(averagedSampleCount).c_str() );
+            // debug_print("--------------");
             //__android_log_print(ANDROID_LOG_DEBUG, TAG, "Resetting because last averaged sample count has changed");
             lastAveragedSampleCount = averagedSampleCount;
             shouldReset = true;
         }
         // reset buffers if sample rate changed
         if (lastSampleRate != getSampleRate()) {
-            debug_print("PRINT 3");
+            // debug_print("PRINT 3");
             //__android_log_print(ANDROID_LOG_DEBUG, TAG, "Resetting because sample rate has changed");
             lastSampleRate = getSampleRate();
             shouldReset = true;
@@ -400,14 +400,14 @@ public:
 
         int tmpLastChannelCount = lastChannelCount;
         if (lastChannelCount != channelCount) {
-            debug_print("4");
+            // debug_print("4");
             //__android_log_print(ANDROID_LOG_DEBUG, TAG, "Resetting because channel count has changed");
             lastChannelCount = channelCount;
             shouldReset = true;
             shouldResetLocalBuffer = true;
         }
         if (shouldReset || resetOnNextBatch) {
-            debug_print("PRINT  5");
+            // debug_print("PRINT  5");
             // reset rest of the data
             clean(tmpLastChannelCount, shouldResetLocalBuffer);
             init(shouldResetLocalBuffer);
@@ -505,7 +505,7 @@ public:
                     }
                 }
             } else if (inEventCount > 0) { // triggering on events
-                debug_print("Event Trigger");
+                // debug_print("Event Trigger");
 
                 for (j = 0; j < inEventCount; j++) {
                     if (triggerType == TRIGGER_ON_EVENTS) {
