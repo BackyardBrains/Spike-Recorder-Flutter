@@ -885,8 +885,48 @@ char* transferArray(int* arr, int sampleCount)
 // HighPassFilter* highPassFilters;
 ThresholdProcessor thresholdProcessor[6];
 // double gSampleRate = 44100.0;
+
+
+// int count = (int) 2.0f * thresholdProcessor[0].getSampleRate();
+// // debug_print( "count!!" );
+// // debug_print(std::to_string(count).c_str() );
+// // int count = (int) 2.0f * thresholdProcessor[0].getSampleRate();
+// // int count = (int) 2.0f * gSampleRate;
+// short **outSamplesPtr = new short*[1];
+// int *outSampleCounts = new int[1];
+// short *outEventIndicesPtr = new short[1];
+// std::string *outEventNamesPtr = new std::string[1];
+
+
+// outSamplesPtr[0] = new short[count];
+// // outSamplesPtr[1] = new short[count];
+// outSampleCounts[0]=count;
+// // outSampleCounts[1]=0;
+
+// thresholdProcessor[0].setThreshold(_threshold);
+// thresholdProcessor[0].setAveragedSampleCount(_averagedSampleCount);
+// // thresholdProcessor[0].appendIncomingSamples(data, sampleCount, channelIdx);
+// int layers = ((int)_averagedSampleCount);
+
+
+// short **inSamplesPtr = new short*[1];
+// int *inSampleCounts = new int[1];
+
+int count;
+short **outSamplesPtr = new short*[1];
+int *outSampleCounts = new int[1];
+short *outEventIndicesPtr = new short[1];
+std::string *outEventNamesPtr = new std::string[1];
+
+short **inSamplesPtr = new short*[1];
+int *inSampleCounts = new int[1];
+
 EXTERNC FUNCTION_ATTRIBUTE double createThresholdProcess(short channelCount, uint32_t sampleRate, short averagedSampleCount, short threshold){
     // highPassFilters = new HighPassFilter[channelCount];
+    count = (int) 2.0f * thresholdProcessor[0].getSampleRate();
+    outSamplesPtr[0] = new short[count];
+    outSampleCounts[0]=count;
+
     for( int32_t i = 0; i < channelCount; i++ )
     {
         HeartbeatListener* hb = (new HeartbeatListener());
@@ -910,6 +950,10 @@ EXTERNC FUNCTION_ATTRIBUTE double createThresholdProcess(short channelCount, uin
         // highPassFilters[i].setQ(q);
         // highPassFilters[i] = highPassFilter;
     }
+    thresholdProcessor[0].setThreshold(threshold);
+    thresholdProcessor[0].setAveragedSampleCount(averagedSampleCount);
+    // thresholdProcessor[0].appendIncomingSamples(data, sampleCount, channelIdx);
+    
     // thresholdProcessor[0].setSampleRate((float) sampleRate);
     return 1;
 }
@@ -930,30 +974,8 @@ int* nullData;
 
 
 EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedSampleCount, short _threshold, short channelIdx, short *data, uint32_t sampleCount){
-    int count = (int) 2.0f * thresholdProcessor[0].getSampleRate();
-    // debug_print( "count!!" );
-    // debug_print(std::to_string(count).c_str() );
-    // int count = (int) 2.0f * thresholdProcessor[0].getSampleRate();
-    // int count = (int) 2.0f * gSampleRate;
-    short **outSamplesPtr = new short*[1];
-    int *outSampleCounts = new int[1];
-    short *outEventIndicesPtr = new short[1];
-    std::string *outEventNamesPtr = new std::string[1];
-
-
-    outSamplesPtr[0] = new short[count];
-    // outSamplesPtr[1] = new short[count];
-    outSampleCounts[0]=count;
-    // outSampleCounts[1]=0;
-
-    thresholdProcessor[0].setThreshold(_threshold);
-    thresholdProcessor[0].setAveragedSampleCount(_averagedSampleCount);
-    // thresholdProcessor[0].appendIncomingSamples(data, sampleCount, channelIdx);
     int layers = ((int)_averagedSampleCount);
 
-
-    short **inSamplesPtr = new short*[1];
-    int *inSampleCounts = new int[1];
     inSamplesPtr[0] = new short[sampleCount];
     // inSamplesPtr[1] = new short[sampleCount];
     inSampleCounts[0] = sampleCount;
@@ -974,13 +996,13 @@ EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedS
     std::copy(outSamplesPtr[channelIdx], outSamplesPtr[channelIdx] + count, data);
     // std::copy(inSamplesPtr[0], inSamplesPtr[0] + sampleCount, data);
 
-    delete[] outSamplesPtr[0];
-    // delete[] outSamplesPtr[1];
-    delete[] outSampleCounts;
+    // delete[] outSamplesPtr[0];
+    // // delete[] outSamplesPtr[1];
+    // delete[] outSampleCounts;
 
-    delete[] inSamplesPtr[0];
-    // delete[] inSamplesPtr[1];
-    delete[] inSampleCounts;
+    // delete[] inSamplesPtr[0];
+    // // delete[] inSamplesPtr[1];
+    // delete[] inSampleCounts;
 
     // return results;
     // highPassFilters[channelIdx].filter(data, sampleCount, false);
