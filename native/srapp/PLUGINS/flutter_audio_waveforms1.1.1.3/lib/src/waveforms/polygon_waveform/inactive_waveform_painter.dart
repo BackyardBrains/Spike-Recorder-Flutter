@@ -16,7 +16,7 @@ class PolygonInActiveWaveformPainter extends InActiveWaveformPainter {
   final List<int> eventMarkersNumber;
   final List<double> eventMarkersPosition;
 
-  double prevMax =0;
+  double prevMax = 0;
   double curMax = 0;
 
   List<TextPainter> textPainters = [];
@@ -94,7 +94,7 @@ class PolygonInActiveWaveformPainter extends InActiveWaveformPainter {
       for (; i < samples.length - 1; i++) {
         final x = sampleWidth * i;
         // final y = samples[i]/10000; //
-        final y = samples[i] / (gain/100);
+        final y = samples[i] / (gain / 150);
         // print(y);
         // if (i == samples.length - 1) {
         //   path.lineTo(x, y);
