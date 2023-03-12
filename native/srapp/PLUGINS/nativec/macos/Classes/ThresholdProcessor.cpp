@@ -2,6 +2,7 @@
 #define SPIKE_RECORDER_ANDROID_THRESHOLDPROCESSOR_H
 
 #include <algorithm>
+#include <cmath>
 #include <climits>
 #include "Processor.cpp"
 #include "HeartbeatHelper.cpp"
@@ -77,11 +78,11 @@ public:
     }
 };
 
-
+const float timeSpan = 10.0f;
 class ThresholdProcessor : public Processor {
 public:
     // const char *TAG = "ThresholdProcessor";
-    static constexpr int DEFAULT_SAMPLE_COUNT = static_cast<const int>(2.0f * 44100.0f);
+    // static constexpr int DEFAULT_SAMPLE_COUNT = static_cast<const int>(timeSpan * 44100.0f);
     ThresholdProcessor(){}
     ThresholdProcessor(OnHeartbeatListener *listener){
         // heartbeatHelper = new HeartbeatHelper(getSampleRate(), listener);
@@ -635,7 +636,8 @@ private:
     static const char *TAG;
 
     // We shouldn't process more than 2.4 seconds of samples in any given moment
-    static constexpr float MAX_PROCESSED_SECONDS = 2.0f;
+    // static constexpr float MAX_PROCESSED_SECONDS = 2.0f;
+    // static constexpr float MAX_PROCESSED_SECONDS = timeSpan;
     // When threshold is hit we should have a dead period of 5ms before checking for next threshold hit
     static constexpr float DEAD_PERIOD_SECONDS = 0.005f;
     // Default number of samples that needs to be summed to get the averaged sample
@@ -706,7 +708,8 @@ private:
         float sampleRate = getSampleRate();
         int channelCount = getChannelCount();
 
-        sampleCount = static_cast<int>(sampleRate * MAX_PROCESSED_SECONDS);
+        // sampleCount = static_cast<int>(sampleRate * MAX_PROCESSED_SECONDS);
+        sampleCount = static_cast<int>(sampleRate * timeSpan);
         bufferSampleCount = sampleCount / 2;
 
         if (resetLocalBuffer)buffer = new short *[channelCount];
@@ -913,7 +916,9 @@ ThresholdProcessor thresholdProcessor[6];
 // int *inSampleCounts = new int[1];
 
 int count;
+short ***envelopes = new short**[6];
 short **outSamplesPtr = new short*[1];
+short **tempSamplesPtr = new short*[1];
 int *outSampleCounts = new int[1];
 short *outEventIndicesPtr = new short[1];
 std::string *outEventNamesPtr = new std::string[1];
@@ -921,11 +926,29 @@ std::string *outEventNamesPtr = new std::string[1];
 short **inSamplesPtr = new short*[1];
 int *inSampleCounts = new int[1];
 
-EXTERNC FUNCTION_ATTRIBUTE double createThresholdProcess(short channelCount, uint32_t sampleRate, short averagedSampleCount, short threshold){
+const int SIZE_LOGS2 = 10;
+float envelopeSizes[SIZE_LOGS2];
+int forceLevel = 9;
+short channelCount;
+double sampleRate;
+const int skipCounts[10] = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512};
+double divider = 6;
+int current_start = 0;
+
+EXTERNC FUNCTION_ATTRIBUTE double createThresholdProcess(short _channelCount, uint32_t _sampleRate, short averagedSampleCount, short threshold){
     // highPassFilters = new HighPassFilter[channelCount];
-    count = (int) 2.0f * thresholdProcessor[0].getSampleRate();
+    // count = (int) 2.0f * sampleRate;
+    // debug_print("create1");
+    sampleRate = (double) _sampleRate;
+
+    channelCount = _channelCount;
+
+    count = (int) timeSpan * sampleRate;
     outSamplesPtr[0] = new short[count];
+    tempSamplesPtr[0] = new short[count*2];
     outSampleCounts[0]=count;
+
+    // debug_print("create2");
 
     for( int32_t i = 0; i < channelCount; i++ )
     {
@@ -950,11 +973,34 @@ EXTERNC FUNCTION_ATTRIBUTE double createThresholdProcess(short channelCount, uin
         // highPassFilters[i].setQ(q);
         // highPassFilters[i] = highPassFilter;
     }
-    thresholdProcessor[0].setThreshold(threshold);
-    thresholdProcessor[0].setAveragedSampleCount(averagedSampleCount);
+
+    sampleRate = _sampleRate;
+
+    for (int i = 0; i < _channelCount; i++){
+        envelopes[i] = new short*[10];
+    }
+
+    const int NUMBER_OF_SEGMENTS = timeSpan;
+    double SEGMENT_SIZE = sampleRate;
+    double SIZE = (NUMBER_OF_SEGMENTS * SEGMENT_SIZE);
+
+    double size = SIZE * 4;
+    for (int i = 0; i < SIZE_LOGS2; i++) {
+        for (int j = 0 ; j < channelCount ; j++){
+
+            envelopes[j][i] = new short[size];
+        }
+        size /= 2;
+        envelopeSizes[i] = (size);
+    }
+
+    // inSamplesPtr[0] = new short[500];
+
     // thresholdProcessor[0].appendIncomingSamples(data, sampleCount, channelIdx);
     
     // thresholdProcessor[0].setSampleRate((float) sampleRate);
+    // debug_print("create3");
+
     return 1;
 }
 
@@ -970,44 +1016,303 @@ EXTERNC FUNCTION_ATTRIBUTE double initThresholdProcess(short channelCount, doubl
     return 1;
 }
 
+
+EXTERNC FUNCTION_ATTRIBUTE double setThresholdParametersProcess(short _channelCount, short _forceLevel, double _sampleRate, int _divider, int _current_start){
+    channelCount = _channelCount;
+    forceLevel = _forceLevel;
+    divider = _divider;
+    current_start = _current_start;
+    // debug_print("setThresholdParameters");
+    if (sampleRate != _sampleRate){
+        sampleRate = _sampleRate;
+
+        // debug_print("setThresholdParameters 1");
+        for (int i = 0; i < _channelCount; i++){
+            envelopes[i] = new short*[10];
+        }
+        // debug_print("setThresholdParameters 2");
+
+        const int NUMBER_OF_SEGMENTS = timeSpan;
+        double SEGMENT_SIZE = sampleRate;
+        double SIZE = (NUMBER_OF_SEGMENTS * SEGMENT_SIZE);
+        // debug_print("setThresholdParameters 3");
+
+        double size = SIZE * 2;
+        for (int i = 0; i < SIZE_LOGS2; i++) {
+            envelopeSizes[i] = (size);
+            for (int j = 0 ; j < channelCount ; j++){
+
+                envelopes[j][i] = new short[size];
+            }
+            size /= 2;
+        }
+
+    }
+    // debug_print("setThresholdParameters 4");
+
+    return 1;
+}
+
 int* nullData;
+void resetEnvelope(short channelIdx, short **envelopes, int forceLevel){
+    int sizeOfEnvelope = floor(2*envelopeSizes[forceLevel]);
+    std::fill(envelopes[forceLevel], envelopes[forceLevel] + sizeOfEnvelope, 0);
+    // memset(envelopes[forceLevel],0,sizeOfEnvelope*sizeof(envelopes[forceLevel]));
+}
+
+// void envelopingSamples2(int _head, int sample, short **_envelopes, int SIZE_LOGS2, int forceLevel) {
+//     int j = forceLevel;
+//     short skipCount = skipCounts[j];
+//     int envelopeSampleIndex = floor(_head / skipCount);
+//     int interleavedSignalIdx = envelopeSampleIndex * 2;
+//     if (_head % skipCount == 0) {
+//     } else {
+//         if (sample < _envelopes[j][interleavedSignalIdx]) {
+//         }
+        
+//         if (sample > _envelopes[j][interleavedSignalIdx + 1]) {
+//         }
+//     }
+// }
+
+void envelopingSamples(int _head, int sample, short **_envelopes, int SIZE_LOGS2, int forceLevel) {
+    // for (int j = 0; j < SIZE_LOGS2; j++) {
+        // if (forceLevel > -1 && j!=forceLevel) continue;
+        int j = forceLevel;
+        short skipCount = skipCounts[j];
+        int envelopeSampleIndex = floor(_head / skipCount);
+        int interleavedSignalIdx = envelopeSampleIndex * 2;
+        
+        if (_head % skipCount == 0) {
+            _envelopes[j][interleavedSignalIdx] = sample; 
+            _envelopes[j][interleavedSignalIdx + 1] = sample;
+        } else {
+            if (sample < _envelopes[j][interleavedSignalIdx]) {
+                _envelopes[j][interleavedSignalIdx] = sample;
+            }
+            
+            if (sample > _envelopes[j][interleavedSignalIdx + 1]) {
+                _envelopes[j][interleavedSignalIdx + 1] = sample;
+            }
+        }
+    // }  
+}
+
+/*
+    This function called when it is paused
+    Copy the current threshold buffer so it won't overwritten
+    C++ envelope sizes is defaulted to 10s
+    Dart envelope sizes is defaulted to 60s
+*/
+EXTERNC FUNCTION_ATTRIBUTE double getSamplesThresholdProcess(short channelIdx, short *data, short forceLevel,double _divider, int currentStart, int sampleNeeded){
+
+    divider = _divider;
+    current_start = floor(currentStart);
+    int sizeOfEnvelope = sampleNeeded;
+    int rawSizeOfEnvelope = floor(sampleNeeded/2) * skipCounts[forceLevel];
+    int maxEnvelopeSize = floor(envelopeSizes[0]/2);
+    int samplesLength = rawSizeOfEnvelope;
+    int sampleStart = 0;
+    int sampleEnd = samplesLength;
+
+    // int sizeOfEnvelope = floor(envelopeSizes[forceLevel]/(divider / 6));
+    // int rawSizeOfEnvelope = floor(envelopeSizes[forceLevel]/2/(divider / 6) * skipCounts[forceLevel]);
+    // int maxEnvelopeSize = floor(envelopeSizes[0]/2);
+    std::copy(outSamplesPtr[channelIdx], outSamplesPtr[channelIdx] + maxEnvelopeSize, tempSamplesPtr[channelIdx]);
+
+    // if (current_start != 0){
+    //     int sampleStart = floor(envelopeSizes[0]/2) - current_start;
+    //     if (sampleStart > floor(envelopeSizes[0]/2)) {
+    //         sampleStart = floor(envelopeSizes[0]/2);
+    //     }
 
 
-EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedSampleCount, short _threshold, short channelIdx, short *data, uint32_t sampleCount){
-    int layers = ((int)_averagedSampleCount);
+    // }
 
+    // return 0;
+
+    try{
+        for( int32_t i = 0; i < channelCount; i++ )
+        {
+            if (i == channelIdx){
+                // int samplesLength = outSampleCounts[i];
+                // for( int32_t j = 0; j < samplesLength; j++ ){
+                // int samplesLength = current_start + rawSizeOfEnvelope;
+                // for( int32_t j = current_start; j < samplesLength; j++ ){
+                    
+                sampleStart = 0;
+                sampleEnd = samplesLength;
+                if (current_start != 0){
+                    sampleStart = abs(current_start);
+                    if (sampleStart <0) {
+                        sampleStart = 0;
+                    }
+                    sampleEnd = sampleStart + samplesLength;
+                    if (sampleEnd > maxEnvelopeSize){
+                    //     sampleEnd = maxEnvelopeSize;
+                        // debug_print("sampleNeeded");
+                        // debug_print(std::to_string(floor(sampleNeeded)).c_str());
+                        // debug_print("sampleStart");
+                        // debug_print(std::to_string(floor(sampleStart)).c_str());
+                        // debug_print("sampleEnd");
+                        // debug_print(std::to_string(floor(sampleEnd)).c_str());
+                        // debug_print("sampleLength");
+                        // debug_print(std::to_string(floor(samplesLength)).c_str());
+                    //     debug_print("currentStart");
+                    }
+                }
+                int j = 0;
+                for( int32_t jj = sampleStart; jj < sampleEnd; jj++ ){
+                    envelopingSamples(j,tempSamplesPtr[i][jj], envelopes[i], SIZE_LOGS2, forceLevel);
+                    j++;
+                }                
+
+                // debug_print("forceLevel");
+                // debug_print(std::to_string(floor(forceLevel)).c_str());
+                // debug_print("forceLevel");
+                // debug_print(std::to_string(floor(envelopeSizes[forceLevel])).c_str());
+                // debug_print("sampleStart");
+                // debug_print(std::to_string(floor(sampleStart)).c_str());
+                // debug_print("sampleEnd");
+                // debug_print(std::to_string(floor(sampleEnd)).c_str());
+                // debug_print("sampleLength");
+                // debug_print(std::to_string(floor(samplesLength)).c_str());
+                // debug_print("currentStart");
+                // debug_print(std::to_string(floor(current_start)).c_str());
+
+                // for( int j = 0; j < rawSizeOfEnvelope; j++ ){
+                //     // envelopingSamples(j,outSamplesPtr[i][j], envelopes[i], SIZE_LOGS2, forceLevel);
+                //     int sample = envelopes[0][0][j];
+                //     // debug_print(std::to_string(sample).c_str());
+                //     if (forceLevel != 0){
+                //         // envelopingSamples(int _head, int sample, short **_envelopes, int SIZE_LOGS2, int forceLevel) {
+                //         envelopingSamples(j,sample,envelopes[0],  SIZE_LOGS2, forceLevel);
+                //     }
+                // }
+            }
+        }
+        // int envelopeCurrentStart = floor(current_start / skipCounts[forceLevel]);
+        std::copy(envelopes[channelIdx][forceLevel], envelopes[channelIdx][forceLevel] + sizeOfEnvelope, data);    
+        resetEnvelope(channelIdx, envelopes[channelIdx], forceLevel);
+        return sizeOfEnvelope;
+
+    }catch(...){
+        debug_print("errror");
+        return 0;
+    }   
+
+}
+
+EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedSampleCount, short _threshold, short channelIdx, short *data, uint32_t sampleCount, short divider, int currentStart){
+    current_start = currentStart;
+    // int layers = ((int)_averagedSampleCount);
     inSamplesPtr[0] = new short[sampleCount];
     // inSamplesPtr[1] = new short[sampleCount];
     inSampleCounts[0] = sampleCount;
     // inSampleCounts[1] = sampleCount;
+    thresholdProcessor[0].setThreshold(_threshold);
+    thresholdProcessor[0].setAveragedSampleCount(_averagedSampleCount);
+
+// ****
     std::copy(data, data + sampleCount, inSamplesPtr[0]);
+    // debug_print("trying to envelope5");
+
+// ****
+    // std::copy(data, data + sampleCount, outSamplesPtr[0] + 10000);
+
     // std::copy(data, data + sampleCount, inSamplesPtr[1]);
 
     // debug_print((char *)"!!! inSamples");
 
     // debug_print("Threshold Process2 ");
     // thresholdProcessor[0].process(outSamplesPtr, layers, data, sampleCount, channelIdx, nullData,nullData,0);
+    
+// ****
     thresholdProcessor[0].process(outSamplesPtr,outSampleCounts, inSamplesPtr, inSampleCounts, nullData, nullData, 0);
+// ****
+
     // for (short i = 0;i<count ; i++){
     //     data[i] = i;
     // }
     // debug_print((char *)"!!! end process");
     // short results[sampleCount];
-    std::copy(outSamplesPtr[channelIdx], outSamplesPtr[channelIdx] + count, data);
+    // for( int32_t i = 0; i < channelCount; i++ )
+    // debug_print("trying to envelope");
+
+    int rawSizeOfEnvelope = floor(envelopeSizes[forceLevel]/2/(divider / 6) * skipCounts[forceLevel]);
+    int maxEnvelopeSize = floor(envelopeSizes[0]/2);
+    int samplesLength = rawSizeOfEnvelope;
+    int sampleStart = 0;
+    int sampleEnd = samplesLength;
+    // debug_print("sampleLength");
+    // debug_print(std::to_string(floor(samplesLength)).c_str());
+
+    for( int32_t i = 0; i < channelCount; i++ )
+    {
+        if (i == channelIdx){
+            // debug_print("trying to envelope2");
+            samplesLength = outSampleCounts[i];
+            sampleStart = 0;
+            sampleEnd = samplesLength;
+            // debug_print("sampleLength2");
+            // debug_print(std::to_string(floor(samplesLength)).c_str());
+
+            if (current_start != 0){
+                sampleStart = abs(current_start);
+                if (sampleStart <0) {
+                    sampleStart = 0;
+                }
+                sampleEnd = sampleStart + samplesLength;
+                if (sampleEnd > maxEnvelopeSize){
+                }
+            }
+            int j = 0;
+            for( int32_t jj = sampleStart; jj < sampleEnd; jj++ ){
+                envelopingSamples(j,outSamplesPtr[i][jj], envelopes[i], SIZE_LOGS2, forceLevel);
+                j++;
+            }                
+
+            // int samplesLength = outSampleCounts[i];
+            // for( int32_t j = 0; j < samplesLength; j++ ){
+            //     // void envelopingSamples(int _head, int sample, short **_envelopes, int SIZE_LOGS2, int forceLevel) {
+            //     envelopingSamples(j,outSamplesPtr[i][j], envelopes[i], SIZE_LOGS2, forceLevel);
+            // }
+
+    //         //envelopingSamples(int _head, int sample, short **_envelopes, int SIZE_LOGS2, int forceLevel) {
+
+    
+        }
+    }
+    // debug_print(std::to_string(outSampleCounts[0]).c_str());
+    // debug_print("trying to envelope2");
+    
+//  ****
+    // std::copy(outSamplesPtr[channelIdx], outSamplesPtr[channelIdx] + count, data);   
+    int sizeOfEnvelope = floor(envelopeSizes[forceLevel]/(divider/6));
+    int envelopeCurrentStart = 0;
+    // debug_print(std::to_string(sizeOfEnvelope).c_str() );
+    std::copy(envelopes[channelIdx][forceLevel]-envelopeCurrentStart, envelopes[channelIdx][forceLevel] - envelopeCurrentStart + sizeOfEnvelope, data);
+    resetEnvelope(channelIdx, envelopes[0], forceLevel);
+//  ****
+
+    // std::copy(outSamplesPtr[channelIdx], outSamplesPtr[channelIdx] + count, data);
+
+
+
     // std::copy(inSamplesPtr[0], inSamplesPtr[0] + sampleCount, data);
 
     // delete[] outSamplesPtr[0];
     // // delete[] outSamplesPtr[1];
     // delete[] outSampleCounts;
 
-    // delete[] inSamplesPtr[0];
+    delete[] inSamplesPtr[0];
     // // delete[] inSamplesPtr[1];
     // delete[] inSampleCounts;
 
     // return results;
     // highPassFilters[channelIdx].filter(data, sampleCount, false);
     // debug_print("APPLYING THRESHOLD ");
-    return 1;
+    return sizeOfEnvelope;
 }
 
 
@@ -1083,7 +1388,78 @@ DART_EXPORT intptr_t InitDartApiDL(void* data) {
 
 // }
 //Namespac
+    // void envelope(short **outSamples, int *outSampleCount, float *outEventIndices,
+    //                             int &outEventIndicesCount, short **inSamples, int channelCount,
+    //                             const int *inEventIndices, int inEventIndicesCount, int fromSample, int toSample,
+    //                             int drawSurfaceWidth) {
+    //     int drawSamplesCount = toSample - fromSample;
+    //     if (drawSamplesCount < drawSurfaceWidth) drawSurfaceWidth = drawSamplesCount;
 
+    //     short sample;
+    //     short min = SHRT_MAX, max = SHRT_MIN;
+    //     int samplesPerPixel = drawSamplesCount / drawSurfaceWidth;
+    //     int samplesPerPixelRest = drawSamplesCount % drawSurfaceWidth;
+    //     int samplesPerEnvelope = samplesPerPixel * 2; // multiply by 2 because we save min and max
+    //     int envelopeCounter = 0, sampleIndex = 0, eventCounter = 0, eventIndex = 0;
+    //     bool eventsProcessed = false;
+
+    //     int from = fromSample;
+    //     int to = fromSample + drawSamplesCount;
+    //     for (int i = 0; i < channelCount; i++) {
+    //         for (int j = from; j < to; j++) {
+    //             sample = inSamples[i][j];
+    //             if (!eventsProcessed) {
+    //                 for (int k = 0; k < inEventIndicesCount; k++) {
+    //                     if (j == inEventIndices[k]) {
+    //                         eventCounter++;
+    //                     } else {
+    //                         if (j < inEventIndices[k]) break;
+    //                     }
+    //                 }
+    //             }
+
+    //             // if (samplesPerPixel == 1 && samplesPerPixelRest == 0) {
+    //             //     if (eventCounter > 0) {
+    //             //         for (int k = 0; k < eventCounter; k++) {
+    //             //             outEventIndices[eventIndex++] = sampleIndex;
+    //             //         }
+    //             //     }
+    //             //     outSamples[i][sampleIndex++] = sample;
+
+    //             //     eventCounter = 0;
+    //             // } else {
+    //                 if (sample > max) max = sample;
+    //                 if (sample < min) min = sample;
+    //                 if (envelopeCounter == samplesPerEnvelope) {
+    //                     if (eventCounter > 0) {
+    //                         for (int k = 0; k < eventCounter; k++) {
+    //                             outEventIndices[eventIndex++] = sampleIndex;
+    //                         }
+    //                     }
+    //                     outSamples[i][sampleIndex++] = max;
+    //                     outSamples[i][sampleIndex++] = min;
+
+    //                     envelopeCounter = 0;
+    //                     min = SHRT_MAX;
+    //                     max = SHRT_MIN;
+    //                     eventCounter = 0;
+    //                 }
+
+    //                 envelopeCounter++;
+    //             // }
+    //         }
+
+    //         outSampleCount[i] = sampleIndex;
+    //         if (!eventsProcessed) outEventIndicesCount = eventIndex;
+
+    //         eventsProcessed = true;
+    //         sampleIndex = 0;
+    //         eventIndex = 0;
+    //         envelopeCounter = 0;
+    //         min = SHRT_MAX;
+    //         max = SHRT_MIN;
+    //     }
+    // }
 
 #endif
 

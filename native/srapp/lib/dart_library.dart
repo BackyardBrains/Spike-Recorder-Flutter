@@ -54,11 +54,14 @@ differentInScreenPosition(posX, part, level, skipCounts, int envelopeSize,
 }
 
 screenPositionToElementPosition(posX, part, level, skipCount,
-    double envelopeSize, int cBuffIdx, double divider, double innerWidth) {
+    double envelopeSize, int cBuffIdx, double divider, double innerWidth, isThreshold, maxEnvelopeSize) {
   int head = cBuffIdx;
   int prevSegment = (envelopeSize / divider).floor();
 
   double samplesPerPixel = prevSegment / innerWidth;
+  /*
+    Division left right & skipCount
+  */
   int division = 2;
   // if (level == 0) {
   //   division = 1;
@@ -66,8 +69,21 @@ screenPositionToElementPosition(posX, part, level, skipCount,
   int elementLength =
       ((innerWidth - posX) * samplesPerPixel / division * skipCount).floor();
 
-  int curStart = head - (elementLength).floor();
-  // print("INNER WIDTH : " + innerWidth.toString() + " POS X  : "+ posX.toString() + " prev Segment : " + prevSegment.toString()+" LEVEL : " + level.toString() + " DIVIDER " + divider.toString() + " Samples per pixel : " + samplesPerPixel.toString() + "Skip Counts : " + skipCount.toString()+ "Element Length "+ elementLength.toString()+ "cur Start : "+ curStart.toString()+ "head : "+ head.toString()+ "Envelope Size : " + envelopeSize.toString());
+  int curStart;
+  if (isThreshold){
+    // int thresholdSamplesCanvas = (innerWidth * samplesPerPixel /division * skipCount).floor();
+    // curStart = thresholdSamplesCanvas - (elementLength).floor();
+
+    // curStart = (maxEnvelopeSize/6).floor() - (elementLength).floor();
+    // curStart = (envelopeSize).floor() - (elementLength).floor();
+    // curStart = (cBuffIdx).floor() - (elementLength).floor();
+    // curStart = (curStart).floor();
+    curStart = ((posX) * samplesPerPixel / division * skipCount).floor();
+    curStart = (curStart).floor();
+  }else{
+    curStart = head - (elementLength).floor();
+  }
+  print("INNER WIDTH : " + innerWidth.toString() + " POS X  : "+ posX.toString() + " prev Segment : " + prevSegment.toString()+" LEVEL : " + level.toString() + " DIVIDER " + divider.toString() + " Samples per pixel : " + samplesPerPixel.toString() + "Skip Counts : " + skipCount.toString()+ "Element Length "+ elementLength.toString()+ "cur Start : "+ curStart.toString()+ "head : "+ head.toString()+ "Envelope Size : " + envelopeSize.toString());
   print(" POS X  : " +
       posX.toString() +
       " prev Segment : " +
