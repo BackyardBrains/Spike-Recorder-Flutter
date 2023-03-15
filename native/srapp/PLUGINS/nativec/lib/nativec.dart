@@ -63,15 +63,24 @@ typedef InitThresholdProcess = double Function(int, double, double, double);
 
 typedef set_threshold_parameters_func = ffi.Double Function(
     ffi.Int, ffi.Int, ffi.Double, ffi.Int, ffi.Int);
-typedef SetThresholdParametersProcess = double Function(int, int, double, int, int);
+typedef SetThresholdParametersProcess = double Function(
+    int, int, double, int, int);
 typedef get_samples_threshold_func = ffi.Double Function(
     ffi.Int, ffi.Pointer<ffi.Int16>, ffi.Int, ffi.Double, ffi.Int, ffi.Int);
-typedef GetSamplesThresholdProcess = double Function(int, ffi.Pointer<ffi.Int16>, int, double, int, int);
+typedef GetSamplesThresholdProcess = double Function(
+    int, ffi.Pointer<ffi.Int16>, int, double, int, int);
 
 typedef append_samples_threshold_func = ffi.Double Function(
-    ffi.Int16,ffi.Int16,ffi.Int16, ffi.Pointer<ffi.Int16>, ffi.Uint32, ffi.Int16, ffi.Int32);
+    ffi.Int16,
+    ffi.Int16,
+    ffi.Int16,
+    ffi.Pointer<ffi.Int16>,
+    ffi.Uint32,
+    ffi.Int16,
+    ffi.Int32,
+    ffi.Uint32);
 typedef AppendSamplesThresholdProcess = double Function(
-    int, int ,int, ffi.Pointer<ffi.Int16>, int , int, int);
+    int, int, int, ffi.Pointer<ffi.Int16>, int, int, int, int);
 
 typedef set_threshold_dart_port_func = ffi.Double Function(ffi.Int64);
 typedef SetThresholdDartPortFunc = double Function(int);
@@ -144,7 +153,7 @@ class Nativec {
       count: totalThresholdBytes, sizeOfType: ffi.sizeOf<ffi.Int16>());
   late Int16List _bytes;
   late Int16List _thresholdBytes;
-  
+
   late ReceivePort thresholdPublication;
 
   Future<String?> getPlatformVersion() {
@@ -191,10 +200,12 @@ class Nativec {
         .lookup<ffi.NativeFunction<init_threshold_func>>('initThresholdProcess')
         .asFunction();
     _setThresholdParametersProcess = nativeLrsLib
-        .lookup<ffi.NativeFunction<set_threshold_parameters_func>>('setThresholdParametersProcess')
+        .lookup<ffi.NativeFunction<set_threshold_parameters_func>>(
+            'setThresholdParametersProcess')
         .asFunction();
     _getSamplesThresholdProcess = nativeLrsLib
-        .lookup<ffi.NativeFunction<get_samples_threshold_func>>('getSamplesThresholdProcess')
+        .lookup<ffi.NativeFunction<get_samples_threshold_func>>(
+            'getSamplesThresholdProcess')
         .asFunction();
 
     _applyLowPassFilterProcess = nativeLrsLib
@@ -225,27 +236,27 @@ class Nativec {
         .asFunction();
 
     // C++ to Flutter
-    final initializeApi = nativeLrsLib.lookupFunction<
-        ffi.IntPtr Function(ffi.Pointer<ffi.Void>),
-        int Function(ffi.Pointer<ffi.Void>)>("InitDartApiDL");
-    final SetThresholdDartPortFunc _setDartPort = nativeLrsLib
-        .lookup<ffi.NativeFunction<set_threshold_dart_port_func>>(
-            "set_dart_port")
-        .asFunction();
+    // final initializeApi = nativeLrsLib.lookupFunction<
+    //     ffi.IntPtr Function(ffi.Pointer<ffi.Void>),
+    //     int Function(ffi.Pointer<ffi.Void>)>("InitDartApiDL");
+    // final SetThresholdDartPortFunc _setDartPort = nativeLrsLib
+    //     .lookup<ffi.NativeFunction<set_threshold_dart_port_func>>(
+    //         "set_dart_port")
+    //     .asFunction();
 
     // cookie = _Dart_InitializeApiDL(ffi.NativeApi.initializeApiDLData);
-    initializeApi(ffi.NativeApi.initializeApiDLData);
-    thresholdPublication = ReceivePort()
-      ..listen((message) {
-        // TODO: processing messages from C++ code
-        print("PRINT C++ MESSAGE : ");
-        print(message);
-      });
+    // initializeApi(ffi.NativeApi.initializeApiDLData);
+    // thresholdPublication = ReceivePort()
+    //   ..listen((message) {
+    //     // TODO: processing messages from C++ code
+    //     // print("PRINT C++ MESSAGE : ");
+    //     // print(message);
+    //   });
+    // _setDartPort(thresholdPublication.sendPort.nativePort);
 
     // // Pass NativePort value (int) to C++ code
     // print("pub.sendPort.nativePort");
     // print(pub.sendPort.nativePort);
-    _setDartPort(thresholdPublication.sendPort.nativePort);
     // Future.delayed(Duration(seconds: 5), () {
     //   _applyThresholdProcess(1, _data, 2);
     // });
@@ -390,26 +401,29 @@ class Nativec {
     // print(_returnGainFilterProcess(1));
   }
 
-
-  void createThresholdProcess(channelCount, sampleRate, threshold, averagedSampleCount, dataThreshold) {
+  void createThresholdProcess(
+      channelCount, sampleRate, threshold, averagedSampleCount, dataThreshold) {
     Nativec.totalThresholdBytes = (timeSpan * sampleRate).floor();
     _dataThreshold = dataThreshold;
-    _thresholdBytes = _dataThreshold.asTypedList( Nativec.totalThresholdBytes );
+    _thresholdBytes = _dataThreshold.asTypedList(Nativec.totalThresholdBytes);
     // _thresholdBytes.fillRange(0, Nativec.totalThresholdBytes, 0);
 
-    _createThresholdProcess(channelCount, sampleRate, threshold, averagedSampleCount);
-
+    _createThresholdProcess(
+        channelCount, sampleRate, threshold, averagedSampleCount);
   }
 
   double initThresholdProcess(channelCount, sampleRate, cutOff, q) {
     return _initHighPassFilterProcess(channelCount, sampleRate, cutOff, q);
-  }  
+  }
 
-  double setThresholdParametersProcess(channelCount, forceLevel, sampleRate, divider, current_start) {
-    return _setThresholdParametersProcess(channelCount, forceLevel, sampleRate.toDouble(), divider.floor(), current_start.floor());
-  }  
-  
-  double appendSamplesThresholdProcess(averagedSampleCount, threshold, channelIdx, samples, sampleCount, divider, currentStart) {
+  double setThresholdParametersProcess(
+      channelCount, forceLevel, sampleRate, divider, current_start) {
+    return _setThresholdParametersProcess(channelCount, forceLevel,
+        sampleRate.toDouble(), divider.floor(), current_start.floor());
+  }
+
+  double appendSamplesThresholdProcess(averagedSampleCount, threshold,
+      channelIdx, samples, sampleCount, divider, currentStart, sampleNeeded) {
     _thresholdBytes.fillRange(0, Nativec.totalThresholdBytes, 0);
     // int len = samples.length;
     // int len = sampleCount;
@@ -417,28 +431,40 @@ class Nativec {
     // for (int i = 0; i < len; i++) {
     //   _thresholdBytes[i] = samples[i];
     // }
-    _thresholdBytes.setAll(0,samples);
-    
+    _thresholdBytes.setAll(0, samples);
+
     // for (int i = 0; i < Nativec.totalThresholdBytes; i++) {
     //   _thresholdBytes[i] = i;
     // }
 
-
     // print('processedSample');
-    double processedSample = _appendSamplesThresholdProcess(averagedSampleCount, threshold,channelIdx, _dataThreshold, sampleCount, divider.floor(), currentStart.floor());
+    double processedSample = _appendSamplesThresholdProcess(
+        averagedSampleCount,
+        threshold,
+        channelIdx,
+        _dataThreshold,
+        sampleCount,
+        divider.floor(),
+        currentStart.floor(),
+        sampleNeeded);
     // print(processedSample);
     return processedSample;
     // print(_thresholdBytes.length);
     // refBytes.setAll(0,_thresholdBytes);
     // return 0;
-
   }
 
-  double getSamplesThresholdProcess(channelIdx, forceLevel, divider, currentStart, sampleNeeded) {
+  double getSamplesThresholdProcess(
+      channelIdx, forceLevel, divider, currentStart, sampleNeeded) {
     _thresholdBytes.fillRange(0, Nativec.totalThresholdBytes, 0);
-    double processedSample = _getSamplesThresholdProcess(channelIdx, _dataThreshold, forceLevel.floor(), divider, currentStart,sampleNeeded);
+    double processedSample = _getSamplesThresholdProcess(
+        channelIdx,
+        _dataThreshold,
+        forceLevel.floor(),
+        divider,
+        currentStart,
+        sampleNeeded);
     // print(processedSample);
     return processedSample;
   }
-
 }

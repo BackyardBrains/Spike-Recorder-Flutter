@@ -25,15 +25,16 @@ generateArray(size, initialValue) {
   return array;
 }
 
-envelopingSamples(_head, sample, _envelopes, SIZE_LOGS2, skipCounts, forceLevel) {
+envelopingSamples(
+    _head, sample, _envelopes, SIZE_LOGS2, skipCounts, forceLevel) {
   try {
     for (var j = 0; j < SIZE_LOGS2; j++) {
-      if (forceLevel > -1 && j!=forceLevel) continue;
+      if (forceLevel > -1 && j != forceLevel) continue;
       var skipCount = skipCounts[j];
       var envelopeSampleIndex = floor(_head / skipCount);
       var interleavedSignalIdx = envelopeSampleIndex * 2;
       if (_head % skipCount == 0) {
-        _envelopes[j][interleavedSignalIdx] = sample; 
+        _envelopes[j][interleavedSignalIdx] = sample;
         _envelopes[j][interleavedSignalIdx + 1] = sample;
       } else {
         if (sample < _envelopes[j][interleavedSignalIdx]) {
@@ -734,8 +735,8 @@ areWeAtTheEndOfFrame(circularBuffer, cBufTail) {
   return false;
 }
 
-serialParsing(
-    rawCircularBuffer, allEnvelopes, map, surfaceSize, SIZE_LOGS2, skipCounts, isThresholding, snapshotAveragedSamples, thresholdValue) {
+serialParsing(rawCircularBuffer, allEnvelopes, map, surfaceSize, SIZE_LOGS2,
+    skipCounts, isThresholding, snapshotAveragedSamples, thresholdValue) {
   var LSB;
   var MSB;
   var haveData = true;
@@ -824,7 +825,6 @@ serialParsing(
             sample = -((writeInteger - 512)); // SpikeDesktop 448
             // sample = -((writeInteger)); // SpikeDesktop 448
             // }
-
           }
           //
           // put function postProcessing or additionalProcessing();
@@ -850,10 +850,8 @@ serialParsing(
           // _head = _arrHeadsInt[numberOfParsedChannels - 1];
           // envelopingSamples(_head, sample, envelopes);
           // print(sample.toDouble());
-          if (!isThresholding){
-
+          if (!isThresholding) {
             try {
-
               cBuffIdx = arrHeads[numberOfParsedChannels - 1];
               envelopingSamples(
                   cBuffIdx,
@@ -861,7 +859,8 @@ serialParsing(
                   sample,
                   allEnvelopes[numberOfParsedChannels - 1],
                   SIZE_LOGS2,
-                  skipCounts, -1);
+                  skipCounts,
+                  -1);
 
               cBuffIdx++;
               if (cBuffIdx == surfaceSize - 1) {
@@ -876,7 +875,7 @@ serialParsing(
               }
               arrHeads[numberOfParsedChannels - 1] = cBuffIdx;
             } catch (err) {}
-          }else{
+          } else {
             processedSamples[numberOfParsedChannels - 1].add(sample);
           }
           // const interleavedHeadSignalIdx = _head * 2;
@@ -964,12 +963,12 @@ serialParsing(
   map['globalIdx'] = globalIdx;
   map['arrHeads'] = arrHeads;
   // if (isThresholding){
-    // List<Int16List> newSamples = List<Int16List>.generate(6, (index) => Int16List(processedSamples[index].length));
-    List<List<int>> newSamples = List<List<int>>.generate(6, (index) => []);    
-    for (int i = 0 ; i < 6 ; i++){
-      // newSamples[i] = Int16List.fromList(processedSamples[i]);
-      newSamples[i] = List<int>.from(processedSamples[i]);
-    }
-    map['processedSamples'] = newSamples;
+  // List<Int16List> newSamples = List<Int16List>.generate(6, (index) => Int16List(processedSamples[index].length));
+  List<List<int>> newSamples = List<List<int>>.generate(6, (index) => []);
+  for (int i = 0; i < 6; i++) {
+    // newSamples[i] = Int16List.fromList(processedSamples[i]);
+    newSamples[i] = List<int>.from(processedSamples[i]);
+  }
+  map['processedSamples'] = newSamples;
   // }
 }
