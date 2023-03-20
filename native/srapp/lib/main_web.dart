@@ -1133,6 +1133,7 @@ class _MyHomePageState extends State<MyHomePage> {
       js.context['callbackIsOpeningWavFile'] = callbackIsOpeningWavFile;
       js.context['changeResetPlayback'] = changeResetPlayback;
       js.context['resetToAudio'] = resetToAudio;
+      js.context['callbackHorizontalDiff'] = (params){};
       js.context['changeSampleRate'] = (params) {
         print("changeSampleRate dart side");
         sampleRate = params[0];

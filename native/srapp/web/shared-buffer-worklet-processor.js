@@ -75,6 +75,10 @@ const DRAW_STATE = {
   'IS_HIGH_PASS_FILTER' : 52,
   'LOW_PASS_FILTER' : 53,
   'HIGH_PASS_FILTER' : 54,
+  'IS_THRESHOLDING' : 55,
+  'AVERAGE_SNAPSHOT_THRESHOLDING' : 56,
+  'VALUE_THRESHOLDING' : 57,
+  'SELECTED_CHANNEL_THRESHOLDING' : 58,
 
 };
 
@@ -106,7 +110,7 @@ class SharedBufferWorkletProcessor extends AudioWorkletProcessor {
 
     //serial
     this.isSerial = false;
-    if (eventFromWorker.data.deviceType == 'audio'){
+    if (eventFromWorker.data.deviceType === undefined || eventFromWorker.data.deviceType == 'audio'){
     } else {
       this.isSerial = true;
     }

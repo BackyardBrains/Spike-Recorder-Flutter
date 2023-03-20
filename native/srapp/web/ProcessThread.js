@@ -4,6 +4,8 @@ var isHighPass;
 self.importScripts("a.out.js"); 
 self.Module.onRuntimeInitialized = _ => {
   // console.log("LOW PASS FILTER", Module);
+  // console.log('Module');
+  // console.log(Module);
   // functions = new Module.LowPassFilter();
   //SEGMENT_SIZE 1964
   // functions.setCornerFrequency(1/2);
@@ -144,6 +146,12 @@ const DRAW_STATE = {
   'LOW_PASS_FILTER' : 53,
   'HIGH_PASS_FILTER' : 54,
  
+  'IS_THRESHOLDING' : 55,
+  'AVERAGE_SNAPSHOT_THRESHOLDING' : 56,
+  'VALUE_THRESHOLDING' : 57,
+  'SELECTED_CHANNEL_THRESHOLDING' : 58,
+
+
 };
 // let currentData = new SharedArrayBuffer(1024 * 8 * CONFIG.bytesPerSample);
 // let currentDataInt = new Int16Array(currentData);
@@ -328,6 +336,8 @@ var envelopes6 = [];
 var envelopeSizes = new Uint32Array(SIZE_LOGS2);
 var allEnvelopes = [];
 var allSabEnvelopes = [];
+var allEnvelopesThreshold = [];
+var allSabThresholdEnvelopes = [];
 
 
 
@@ -346,8 +356,38 @@ let arrMaxInt = new Int16Array(arrMax);
 size/=2;
 let i = 0;
 
-function filterSample( availableFrames, inputReadIndex ){
-  for (let c = 0 ; c < curChannel ; c++){
+function thresholdingProcess(c, availableFrames, inputReadIndex){
+  // console.log("THRESHOLDING PROCESS");
+  // console.log(allEnvelopesThreshold[0][drawState[DRAW_STATE.LEVEL]]);
+  let tempIdx = inputReadIndex;
+  let curIdx = 0;
+  let availableSamples = new Int16Array(availableFrames);
+  for (let i = 0 ; i < availableFrames ; i++){
+    availableSamples[curIdx] = InputRingBuffer[c][tempIdx];
+    curIdx++;
+    tempIdx++;
+    if (tempIdx == CONFIG.ringBufferLength){
+      tempIdx = 0;
+    }
+  }
+
+  const divider = drawState[DRAW_STATE.DIVIDER] / 10;
+  const sampleNeeded = Math.floor(allEnvelopesThreshold[c][drawState[DRAW_STATE.LEVEL]].length / divider);
+  // console.log("THRESHOLDING PROCESS RESULT ", allEnvelopesThreshold[c][drawState[DRAW_STATE.LEVEL]].length,  drawState[DRAW_STATE.DIVIDER]/10, sampleNeeded, availableFrames);
+  // console.log('appendSamplesThresholdProcess : ',drawStates[c][DRAW_STATE.VALUE_THRESHOLDING], drawStates[c][DRAW_STATE.AVERAGE_SNAPSHOT_THRESHOLDING]);
+
+  // const temp = Module.appendSamplesThresholdProcess(1, 1000, c, availableSamples, availableFrames, drawState[DRAW_STATE.DIVIDER]/10, drawState[DRAW_STATE.CURRENT_START], sampleNeeded);
+  if (c==drawStates[c][DRAW_STATE.SELECTED_CHANNEL_THRESHOLDING]){
+    const temp = Module.appendSamplesThresholdProcess(drawStates[c][DRAW_STATE.AVERAGE_SNAPSHOT_THRESHOLDING], drawStates[c][DRAW_STATE.VALUE_THRESHOLDING], c, availableSamples, availableFrames, drawState[DRAW_STATE.DIVIDER]/10, drawState[DRAW_STATE.CURRENT_START], sampleNeeded);
+    // console.log(temp);
+    allEnvelopesThreshold[c][drawState[DRAW_STATE.LEVEL]].set(temp);
+    // console.log(allEnvelopesThreshold[c][drawState[DRAW_STATE.LEVEL]]);
+  
+  }
+}
+
+function filterSample(c, availableFrames, inputReadIndex ){
+  // for (let c = 0 ; c < curChannel ; c++){
     let tempIdx = inputReadIndex;
     let curIdx = 0;
     let availableSamples = new Int16Array(availableFrames);
@@ -358,7 +398,7 @@ function filterSample( availableFrames, inputReadIndex ){
       if (tempIdx == CONFIG.ringBufferLength){
         tempIdx = 0;
       }
-    }  
+    }
     // console.log("availableSamples");
     // console.log(availableSamples);
     // console.log("filteredSamples : ", availableSamples[0]);
@@ -378,7 +418,7 @@ function filterSample( availableFrames, inputReadIndex ){
         tempIdx = 0;
       }
     }   
-  }
+  // }
 }
 
 function createSharedBuffers(idx, maxChannels){
@@ -400,6 +440,7 @@ function createSharedBuffers(idx, maxChannels){
                       
   
     sabEnvelopes : allSabEnvelopes[idx],
+    sabThresholdEnvelopes : allSabThresholdEnvelopes[idx],
     arrMax : allArrMax[idx],
 
     config : new SharedArrayBuffer(CONFIG.bytesPerState * 70),
@@ -1509,6 +1550,10 @@ function initializeSerial(options) {
   if (options.sabDraw){
     sabDraw = options.sabDraw;
     drawState = new Int32Array(sabDraw.draw_states[0]);
+    drawStates = [];
+    for (let i = 0;i<6;i++){
+      drawStates.push(new Int32Array(sabDraw.draw_states[i]));
+    }
     curChannel = drawState[DRAW_STATE.CHANNEL_COUNTS];
 
     eventsCounterInt = new Uint8Array(sabDraw.eventsCounter);
@@ -1677,7 +1722,10 @@ function processAudioKernel(availableFrames) {
     }
 
 
-    filterSample(availableFrames, inputReadIndex);
+    filterSample(c, availableFrames, inputReadIndex);
+    if (drawState[DRAW_STATE.IS_THRESHOLDING] == 1){
+      thresholdingProcess(c, availableFrames, inputReadIndex);
+    }
     // for (; i < CONFIG.kernelLength; ++i) {
     for (; i < availableFrames; ++i) {
       sample = InputRingBuffer[c][inputReadIndex];
@@ -1934,6 +1982,10 @@ function initializeAudio(options) {
   if (options.sabDraw !== undefined){
     sabDraw = options.sabDraw;
     drawState = new Int32Array(sabDraw.draw_states[0]);
+    drawStates = [];
+    for (let i = 0;i<6;i++){
+      drawStates.push(new Int32Array(sabDraw.draw_states[i]));
+    }
 
     eventsCounterInt = new Uint8Array(sabDraw.eventsCounter);
     eventsInt = new Uint8Array(sabDraw.events);
@@ -2055,6 +2107,7 @@ onmessage = async (eventFromMain) => {
 
       allEnvelopes = [];
       allSabEnvelopes = [];
+      allSabThresholdEnvelopes = [];
       let totalChannel = SERIAL_CHANNEL_MAX;
       if (deviceType == 'audio'){
         totalChannel = AUDIO_CHANNEL_MAX;
@@ -2066,6 +2119,8 @@ onmessage = async (eventFromMain) => {
         Module.createLowPassFilter(curChannel, SEGMENT_SIZE, SEGMENT_SIZE/2, 1/2);
         //if (isHighPass) 
         Module.createHighPassFilter(curChannel, SEGMENT_SIZE, 0, 1/2);
+        // createThresholdProcess(short _channelCount, uint32_t _sampleRate, short averagedSampleCount, short threshold){
+        Module.createThresholdProcess(curChannel, SEGMENT_SIZE, 1, 0);
       }else{
         if (isLowPass) Module.createLowPassFilter(totalChannel, SEGMENT_SIZE, SEGMENT_SIZE/2, 1/2);
         if (isHighPass) Module.createHighPassFilter(totalChannel, SEGMENT_SIZE, SEGMENT_SIZE/2, 1/2);
@@ -2073,21 +2128,29 @@ onmessage = async (eventFromMain) => {
 
       for (let c = 0; c < totalChannel ; c++){
         var sabEnvelopes = [];
+        var sabThresholdEnvelopes = [];
         var envelopes = [];
+        var envelopesThreshold = [];
         size = SIZE / 2;
         for (let i = 0 ; i < SIZE_LOGS2 ; i++){
           let sz = Math.ceil(size);
           if (sz % 2 == 1) sz++;
           const buffer = new SharedArrayBuffer(CONFIG.bytesPerSample * sz);
+          const bufferThreshold = new SharedArrayBuffer(CONFIG.bytesPerSample * sz);
           
           sabEnvelopes.push(buffer);
+          sabThresholdEnvelopes.push(bufferThreshold);
           envelopes.push(new Int16Array(buffer));
+          envelopesThreshold.push(new Int16Array(bufferThreshold));
       
           size/=2;
           envelopeSizes[i] = size;
         }
+        
+        allSabThresholdEnvelopes.push(sabThresholdEnvelopes);
         allSabEnvelopes.push(sabEnvelopes);
         allEnvelopes.push(envelopes);
+        allEnvelopesThreshold.push(envelopesThreshold);
       }
       console.log("allEnvelopes : ", allEnvelopes.length);
 

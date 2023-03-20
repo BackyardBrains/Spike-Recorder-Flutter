@@ -307,6 +307,10 @@ const DRAW_STATE = {
   'IS_HIGH_PASS_FILTER' : 52,
   'LOW_PASS_FILTER' : 53,
   'HIGH_PASS_FILTER' : 54,
+  'IS_THRESHOLDING' : 55,
+  'AVERAGE_SNAPSHOT_THRESHOLDING' : 56,
+  'VALUE_THRESHOLDING' : 57,
+  'SELECTED_CHANNEL_THRESHOLDING' : 58,
 
 };
 
@@ -391,12 +395,12 @@ function initializeSabDraw(){
     ],
     channelDisplays : new SharedArrayBuffer(CONFIG.bytesPerPosition * 10),
     draw_states : [
-      new SharedArrayBuffer(CONFIG.bytesPerState * 70),
-      new SharedArrayBuffer(CONFIG.bytesPerState * 70),
-      new SharedArrayBuffer(CONFIG.bytesPerSample * 70),
-      new SharedArrayBuffer(CONFIG.bytesPerSample * 70),
-      new SharedArrayBuffer(CONFIG.bytesPerSample * 70),
-      new SharedArrayBuffer(CONFIG.bytesPerSample * 70),
+      new SharedArrayBuffer(CONFIG.bytesPerState * 90),
+      new SharedArrayBuffer(CONFIG.bytesPerState * 90),
+      new SharedArrayBuffer(CONFIG.bytesPerState * 90),
+      new SharedArrayBuffer(CONFIG.bytesPerState * 90),
+      new SharedArrayBuffer(CONFIG.bytesPerState * 90),
+      new SharedArrayBuffer(CONFIG.bytesPerState * 90),
     ],
     levels : [
       new SharedArrayBuffer( 180000 * 2 ),
@@ -3637,6 +3641,26 @@ window.changeFilter = function(channelCount, isLowPass, lowPassFilter, isHighPas
     draw_state[DRAW_STATE.HIGH_PASS_FILTER] = highPassFilter;
     draw_state[DRAW_STATE.IS_LOW_PASS_FILTER] = isLowPass?2:0;
     draw_state[DRAW_STATE.IS_HIGH_PASS_FILTER] = isHighPass?2:0;
+  }
+ 
+}
+
+
+window.setThresholding = function(selectedChannel, isThresholding, averageSnapshotThresholding, valueThresholding){
+  for (let c = 0; c < SERIAL_CHANNEL_COUNT_FIX; c++){
+    let draw_state = new Int32Array(sabDraw.draw_states[c]);
+    console.log('selectedChannel : ',c, selectedChannel, c == selectedChannel, valueThresholding, averageSnapshotThresholding, isThresholding);
+    if (c == selectedChannel){
+      draw_state[DRAW_STATE.VALUE_THRESHOLDING] = Math.floor(valueThresholding);
+      draw_state[DRAW_STATE.AVERAGE_SNAPSHOT_THRESHOLDING] = Math.floor(averageSnapshotThresholding);
+      draw_state[DRAW_STATE.IS_THRESHOLDING] = isThresholding;  
+      draw_state[DRAW_STATE.SELECTED_CHANNEL_THRESHOLDING] = selectedChannel;  
+    }else{
+      draw_state[DRAW_STATE.VALUE_THRESHOLDING] = 0;
+      draw_state[DRAW_STATE.AVERAGE_SNAPSHOT_THRESHOLDING] = 0;
+      draw_state[DRAW_STATE.IS_THRESHOLDING] = 0;  
+      draw_state[DRAW_STATE.SELECTED_CHANNEL_THRESHOLDING] = -1;  
+    }
   }
  
 }

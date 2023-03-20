@@ -1,9 +1,6 @@
 #include <emscripten/bind.h>
 using namespace emscripten;
 
-//
-// Created by Stanislav Mircic  <stanislav at backyardbrains.com>
-//
 #ifndef SPIKE_RECORDER_ANDROID_LOWPASSFILTER
 #define SPIKE_RECORDER_ANDROID_LOWPASSFILTER
 // https://www.howtogeek.com/297721/how-to-create-and-use-symbolic-links-aka-symlinks-on-a-mac/

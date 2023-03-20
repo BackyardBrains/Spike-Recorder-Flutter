@@ -4,14 +4,14 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
-// import 'dart:ffi' as ffi;
-// import 'package:ffi/ffi.dart';
-// import 'package:nativec/allocation.dart';
+import 'dart:ffi' as ffi;
+import 'package:ffi/ffi.dart';
+import 'package:nativec/allocation.dart';
 
-import 'dart:js' as js;
+// import 'dart:js' as js;
 import 'package:another_xlider/another_xlider.dart';
 import 'package:crypto/crypto.dart';
-// import 'package:desktop_window/desktop_window.dart';
+import 'package:desktop_window/desktop_window.dart';
 import 'package:dotted_line/dotted_line.dart';
 import 'package:http/http.dart' as https;
 import 'package:alert_dialog/alert_dialog.dart';
@@ -28,11 +28,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_audio_waveforms/flutter_audio_waveforms.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
-// import 'package:fps_widget/fps_widget.dart';
+import 'package:fps_widget/fps_widget.dart';
 import 'package:mfi/mfi.dart';
 
 import 'package:mic_stream/mic_stream.dart';
-// import 'package:nativec/nativec.dart';
+import 'package:nativec/nativec.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -40,14 +40,14 @@ import 'package:srmobileapp/firebase_options.dart';
 // import 'package:flutter_wasm/flutter_wasm.dart';
 import 'package:srmobileapp/library.dart';
 import 'package:srmobileapp/dart_library.dart';
-import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
 // import 'package:quick_usb/quick_usb.dart';
+import 'package:gesture_x_detector/gesture_x_detector.dart';
 
-// import 'package:gesture_x_detector/gesture_x_detector.dart';
 // if platform isWindows
-// import 'package:flutter_libserialport/flutter_libserialport.dart';
-// import 'package:winaudio/winaudio.dart';
-// import 'package:usb_serial/usb_serial.dart';
+import 'package:flutter_libserialport/flutter_libserialport.dart';
+import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
+import 'package:winaudio/winaudio.dart';
+import 'package:usb_serial/usb_serial.dart';
 
 import 'bloc/main_bloc.dart';
 import 'board-config.dart';
@@ -96,24 +96,40 @@ final _data = Uint8List.fromList([
   0x7e, 0x0b,
 ]);
 
-// if Platform.isDesktop
-// Nativec nativec = Nativec();
-
 // PLAYING WAV
 bool isPlayingWav = false;
 bool isPaused = false;
+Nativec nativec = Nativec();
 
 bool isHighPass = false;
 bool isLowPass = false;
 bool isNotch50 = false;
 bool isNotch60 = false;
 
+// final mod = WasmModule(data);
+// print(mod.describe());
+// final inst = mod.builder().build();
+// final square = inst.lookupFunction('square');
+
+// Future<dynamic> readFileAsync() async {
+//   ByteData data = await rootBundle.load("wasm/fib.wasm");
+//   final dataList = data.buffer.asUint8List(0);
+//   print("dataList");
+//   print(dataList);
+//   final _inst = WasmModule(dataList).builder().build();
+//   final _wasmSquare = _inst.lookupFunction('fib');
+
+//   print("_wasmSquare(12)");
+//   print(_wasmSquare(10));
+//   return _wasmSquare(10);
+// }
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-  //   await DesktopWindow.setWindowSize(Size(800, 600));
-  //   await DesktopWindow.setMinWindowSize(Size(800, 600));
-  // }
+  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    await DesktopWindow.setWindowSize(Size(800, 600));
+    await DesktopWindow.setMinWindowSize(Size(800, 600));
+  }
   if (kIsWeb) {
     // await Firebase.initializeApp(options: DefaultFirebaseConfig.platformOptions);
   } else if (Platform.isWindows) {
@@ -130,626 +146,773 @@ void main() async {
   // _nativec.getPlatformVersion();
   // _nativec.init();
   runApp(const MyApp());
+  // final data = File('fib.wasm').readAsBytesSync();
+
+  // readFileAsync();
 }
 
+// getScreenBuffers(
+//     c,
+//     globalIdx,
+//     int start,
+//     int to,
+//     int prevSegment,
+//     int surfaceWidth,
+//     head,
+//     offsetHead,
+//     globalPositionCap,
+//     halfwayCap,
+//     skipCount,
+//     int excess,
+//     cBuff,
+//     eventPositionResultInt,
+//     eventPositionInt,
+//     eventGlobalPositionInt,
+//     arrMarkers,
+//     List<double> envelopeSamples) {
+//   int bufferCount = 0;
+//   if (globalIdx == 0) {
+//     if (to - prevSegment < 0) {
+//       List<double> arr = allEnvelopes[c][level].sublist(0, to);
+//       // print(arr);
+//       bufferCount = arr.length;
+//       cBuff.setAll(prevSegment - arr.length, arr);
+//     } else {
+//       start = to - prevSegment;
+
+//       List<double> arr = allEnvelopes[c][level].sublist(start, to);
+//       bufferCount = arr.length;
+//       cBuff.setAll(prevSegment - arr.length, arr);
+//     }
+
+//     if (c == 0) {
+//       int bufferLength = prevSegment;
+//       int evtCounter = arrMarkers.length;
+//       eventPositionResultInt.fillRange(0, max_markers, 0);
+//       double offsetTail = offsetHead - bufferLength / 2 * skipCount;
+
+//       for (int ctr = 0; ctr < evtCounter; ctr++) {
+//         if (eventGlobalPositionInt[ctr] >= globalPositionCap) {
+//           int headPosition = (eventPositionInt[ctr] / skipCount * 2)
+//               .floor(); // headPosition in envelope realm
+//           if (headPosition < start) {
+//             eventPositionResultInt[ctr] = 0;
+//           } else //{
+//           if (headPosition >= start && headPosition <= to) {
+//             eventPositionResultInt[ctr] =
+//                 (bufferLength - excess - (to - (headPosition))) /
+//                     bufferLength *
+//                     surfaceWidth;
+//           }
+//         }
+//       }
+//     }
+//   } else {
+//     if (start < 0) {
+//       int processedHead = head * 2;
+//       int segmentCount = prevSegment;
+//       int bufferLength = prevSegment;
+
+//       segmentCount = segmentCount - processedHead - 1;
+//       start = envelopeSamples.length - segmentCount;
+//       List<double> firstPartOfData = envelopeSamples.sublist(start);
+//       List<double> secondPartOfData =
+//           envelopeSamples.sublist(0, processedHead + 1);
+//       if (secondPartOfData.length > 0) {
+//         try {
+//           cBuff.setAll(0, firstPartOfData);
+//           cBuff.setAll(firstPartOfData.length, secondPartOfData);
+//         } catch (err) {
+//           print("err signal dividing");
+//           print(err);
+//         }
+//         bufferCount = firstPartOfData.length + secondPartOfData.length;
+//       } else {
+//         cBuff.setAll(
+//             bufferLength - firstPartOfData.length - 1, firstPartOfData);
+//         bufferCount = firstPartOfData.length;
+//       }
+
+//       if (c == 0) {
+//         int evtCounter = arrMarkers.length;
+
+//         for (int ctr = 0; ctr < evtCounter; ctr++) {
+//           int headPosition = (eventPositionInt[ctr] / skipCount * 2)
+//               .floor(); // headPosition in envelope realm
+
+//           if (eventGlobalPositionInt[ctr] >= halfwayCap) {
+//             if (headPosition < start && headPosition > to) {
+//               eventPositionResultInt[ctr] = 0;
+//             } else {
+//               if (headPosition <= envelopeSamples.length &&
+//                   headPosition >= start) {
+//                 // upper
+//                 int counter = bufferLength -
+//                     (envelopeSamples.length -
+//                         headPosition +
+//                         secondPartOfData.length);
+//                 eventPositionResultInt[ctr] =
+//                     counter / bufferLength * surfaceWidth;
+//                 // console.log("upper ", eventPositionResultInt[ctr].toString());
+//               } else //{ // headPosition < to // below
+//               if (headPosition <= to && headPosition >= 0) {
+//                 // console.log("below");
+//                 int counter = bufferLength - excess - (to - (headPosition));
+//                 eventPositionResultInt[ctr] =
+//                     counter / bufferLength * surfaceWidth;
+//               }
+//             }
+//           }
+//         }
+//       }
+//     } else {
+//       // print("start > 0");
+//       cBuff = List<double>.from(allEnvelopes[c][level].sublist(start, to));
+//       bufferCount = cBuff.length;
+
+//       if (c == 0) {
+//         int bufferLength = prevSegment;
+//         int evtCounter = arrMarkers.length;
+
+//         for (int ctr = 0; ctr < evtCounter; ctr++) {
+//           if (eventGlobalPositionInt[ctr] >= globalPositionCap) {
+//             int headPosition = (eventPositionInt[ctr] / skipCount * 2)
+//                 .floor(); // headPosition in envelope realm
+//             if (headPosition < start) {
+//               eventPositionResultInt[ctr] = 0;
+//             } else if (headPosition >= start && headPosition <= to) {
+//               // eventPositionResultInt[ctr] = prevSegment - excess - ( to - (headPosition) );
+//               eventPositionResultInt[ctr] =
+//                   (bufferLength - excess - (to - (headPosition))) /
+//                       bufferLength *
+//                       surfaceWidth;
+//             }
+//           }
+//         }
+//       }
+//     }
+//   }
+//   return bufferCount;
+// }
+
 void sampleBufferingEntryPoint(List<dynamic> values) {
-  // final iReceivePort = ReceivePort();
-  // SendPort sendPort = values[0];
-  // allEnvelopes = values[1];
-  // int cBufferSize = values[2];
-  // double sampleRate = values[3];
-  // List<double> myArrTimescale = values[4];
-  // List<double> arrTimeScale = [0.1, 1, 10, 50, 100, 500, 1000, 5000, 10000];
+  final iReceivePort = ReceivePort();
+  SendPort sendPort = values[0];
+  allEnvelopes = values[1];
+  int cBufferSize = values[2];
+  double sampleRate = values[3];
+  List<double> myArrTimescale = values[4];
+  List<double> arrTimeScale = [0.1, 1, 10, 50, 100, 500, 1000, 5000, 10000];
 
-  // double devicePixelRatio = values[5];
-  // double C_START =0; 
-  // int thresholdHit = 0;
+  double devicePixelRatio = values[5];
+  double C_START =0; 
+  int thresholdHit = 0;
 
-  // sendPort.send(iReceivePort.sendPort);
-  // int cBuffIdx = 0;
+  sendPort.send(iReceivePort.sendPort);
+  int cBuffIdx = 0;
+  int globalIdx = 0;
+  List<int> arrHeads = List<int>.generate(6, (index) => 0);
+  List<int> arrOffsetHeads = List<int>.generate(6, (index) => 0);
+  List<String> arrMarkers = [];
+  List<double> eventPositionInt =
+      List<double>.generate(max_markers, (index) => 0.0);
+  List<double> eventPositionResultInt =
+      List<double>.generate(max_markers, (index) => 0.0);
+  List<int> eventGlobalPositionInt =
+      List<int>.generate(max_markers, (index) => 0);
+  List<int> arrGlobalIdx = List<int>.generate(6, (index) => 0);
+  int tempPrevSegment = 0;
+
+  List<List<Int16List>> allThresholdEnvelopes = [];
+  List<int> allThresholdEnvelopesSize = [];
+  int SEGMENT_SIZE_THRESHOLD = sampleRate.floor();
+  int NUMBER_OF_SEGMENTS_THRESHOLD = 10;
+  int SIZE = NUMBER_OF_SEGMENTS_THRESHOLD * SEGMENT_SIZE_THRESHOLD;
+  double size = SIZE.toDouble() * 2;
+  int SIZE_LOGS_THRESHOLD = 10;
+  int THRESHOLD_CHANNEL_COUNT = 1;
+  int samplesLength = SIZE;
+  bool isPrevThresholdingStatus = true;
+
+  ffi.Pointer<ffi.Int16> _dataThreshold = allocate<ffi.Int16>(
+      count: samplesLength, sizeOfType: ffi.sizeOf<ffi.Int16>());
+  Int16List _thresholdBytes = _dataThreshold.asTypedList(samplesLength);
+
+  unitInitializeEnvelope(THRESHOLD_CHANNEL_COUNT, allThresholdEnvelopes,
+      allThresholdEnvelopesSize, size, SIZE, SIZE_LOGS_THRESHOLD);
+
+  nativec.createThresholdProcess(
+      1, SEGMENT_SIZE_THRESHOLD, 0, 1, _dataThreshold);
+  nativec.setThresholdParametersProcess(1, level, sampleRate, 6, 0);
+
+  bool isThresholding = true;
+  bool isInitial = true;
+  // List<List<List<double>>> allEnvelopes = [];
+  // int level = 8;
+  // int divider = 6;
   // int globalIdx = 0;
-  // List<int> arrHeads = List<int>.generate(6, (index) => 0);
-  // List<int> arrOffsetHeads = List<int>.generate(6, (index) => 0);
-  // List<String> arrMarkers = [];
-  // List<double> eventPositionInt =
-  //     List<double>.generate(max_markers, (index) => 0.0);
-  // List<double> eventPositionResultInt =
-  //     List<double>.generate(max_markers, (index) => 0.0);
-  // List<int> eventGlobalPositionInt =
-  //     List<int>.generate(max_markers, (index) => 0);
-  // List<int> arrGlobalIdx = List<int>.generate(6, (index) => 0);
-  // int tempPrevSegment = 0;
+  // int surfaceSize = (48000 * 60);
+  // String data = values[1];
+  iReceivePort.listen((Object? message) async {
+    // print("allEnvelopes");
+    // print(allEnvelopes);
+    List<dynamic> arr = message as List<dynamic>;
+    // int cBuffIdx = arr[0];
+    var rawSamples = arr[0];
+    // int globalIdx = arr[2];
+    // var surfaceSize = arr[2];
+    var level = arr[1];
+    var divider = arr[2];
+    var numberOfChannels = arr[3];
+    // print(numberOfChannels);
 
-  // List<List<Int16List>> allThresholdEnvelopes = [];
-  // List<int> allThresholdEnvelopesSize = [];
-  // int SEGMENT_SIZE_THRESHOLD = sampleRate.floor();
-  // int NUMBER_OF_SEGMENTS_THRESHOLD = 10;
-  // int SIZE = NUMBER_OF_SEGMENTS_THRESHOLD * SEGMENT_SIZE_THRESHOLD;
-  // double size = SIZE.toDouble() * 2;
-  // int SIZE_LOGS_THRESHOLD = 10;
-  // int THRESHOLD_CHANNEL_COUNT = 1;
-  // int samplesLength = SIZE;
-  // bool isPrevThresholdingStatus = true;
+    // var numberOfChannels = 1;
+    int CUR_START = arr[4];
+    bool isPaused = arr[5];
+    String curKey = arr[6];
+    double surfaceWidth = arr[7];
+    double lowPassFilter = arr[8];
+    double highPassFilter = arr[9];
+    bool isLowPass = arr[10];
+    bool isHighPass = arr[11];
+    bool isNotch50 = arr[12];
+    bool isNotch60 = arr[13];
+    isThresholding = arr[14];
 
-  // ffi.Pointer<ffi.Int16> _dataThreshold = allocate<ffi.Int16>(
-  //     count: samplesLength, sizeOfType: ffi.sizeOf<ffi.Int16>());
-  // Int16List _thresholdBytes = _dataThreshold.asTypedList(samplesLength);
+    if (isThresholding) {
+      numberOfChannels = 1;
+      if (isInitial) {
+        isInitial = false;
+      }
+    }
+    if (isPrevThresholdingStatus != isThresholding) {
+      isPrevThresholdingStatus = isThresholding;
+      if (isThresholding) {
+        cBufferSize = SIZE;
+        // threshold will be filled with c++
+      } else {
+        cBufferSize = (sampleRate * 60).floor();
+        allEnvelopes.forEach((element) {
+          element.forEach((envelope) {
+            envelope.fillRange(0, envelope.length, 0);
+          });
+        });
+      }
 
-  // unitInitializeEnvelope(THRESHOLD_CHANNEL_COUNT, allThresholdEnvelopes,
-  //     allThresholdEnvelopesSize, size, SIZE, SIZE_LOGS_THRESHOLD);
+      cBuffIdx = 0;
+    }
 
-  // nativec.createThresholdProcess(
-  //     1, SEGMENT_SIZE_THRESHOLD, 0, 1, _dataThreshold);
-  // nativec.setThresholdParametersProcess(1, level, sampleRate, 6, 0);
+    List<double> snapshotAveragedSamples = arr[15];
+    List<int> thresholdValue = arr[16];
+    int timeScaleBar = arr[17];
 
-  // bool isThresholding = true;
-  // bool isInitial = true;
-  // // List<List<List<double>>> allEnvelopes = [];
-  // // int level = 8;
-  // // int divider = 6;
-  // // int globalIdx = 0;
-  // // int surfaceSize = (48000 * 60);
-  // // String data = values[1];
-  // iReceivePort.listen((Object? message) async {
-  //   // print("allEnvelopes");
-  //   // print(allEnvelopes);
-  //   List<dynamic> arr = message as List<dynamic>;
-  //   // int cBuffIdx = arr[0];
-  //   var rawSamples = arr[0];
-  //   // int globalIdx = arr[2];
-  //   // var surfaceSize = arr[2];
-  //   var level = arr[1];
-  //   var divider = arr[2];
-  //   var numberOfChannels = arr[3];
-  //   // print(numberOfChannels);
+    int maxSize = (allEnvelopes[0][0]).length;
+    int globalPositionCap = (globalIdx * maxSize / 2).floor();
 
-  //   // var numberOfChannels = 1;
-  //   int CUR_START = arr[4];
-  //   bool isPaused = arr[5];
-  //   String curKey = arr[6];
-  //   double surfaceWidth = arr[7];
-  //   double lowPassFilter = arr[8];
-  //   double highPassFilter = arr[9];
-  //   bool isLowPass = arr[10];
-  //   bool isHighPass = arr[11];
-  //   bool isNotch50 = arr[12];
-  //   bool isNotch60 = arr[13];
-  //   isThresholding = arr[14];
+    List<List<int>> samples =
+        getAllChannelsSample(rawSamples, numberOfChannels);
 
-  //   if (isThresholding) {
-  //     numberOfChannels = 1;
-  //     if (isInitial) {
-  //       isInitial = false;
-  //     }
-  //   }
-  //   if (isPrevThresholdingStatus != isThresholding) {
-  //     isPrevThresholdingStatus = isThresholding;
-  //     if (isThresholding) {
-  //       cBufferSize = SIZE;
-  //       // threshold will be filled with c++
-  //     } else {
-  //       cBufferSize = (sampleRate * 60).floor();
-  //       allEnvelopes.forEach((element) {
-  //         element.forEach((envelope) {
-  //           envelope.fillRange(0, envelope.length, 0);
-  //         });
-  //       });
-  //     }
+    // print("!=======");
+    // print(level);
+    // print(divider);
+    // print(CUR_START);
 
-  //     cBuffIdx = 0;
-  //   }
+    // print(arr[5]);
+    // print("divider");
+    // print(divider);
+    // print("level");
+    // print(level);
 
-  //   List<double> snapshotAveragedSamples = arr[15];
-  //   List<int> thresholdValue = arr[16];
-  //   int timeScaleBar = arr[17];
+    // Map<String, dynamic> map = message as Map<String, dynamic>;
+    // // enveloping
+    // var surfaceSize = map["surfaceSize"];
+    // var cBuffIdx = map["cBuffIdx"];
+    // var samples = map["samples"];
+    // allEnvelopes = map["envelopes"];
+    // print(surfaceSize);
+    // print(divider);
+    // print(globalIdx);
 
-  //   int maxSize = (allEnvelopes[0][0]).length;
-  //   int globalPositionCap = (globalIdx * maxSize / 2).floor();
+    // print("cBuffIdx 0");
+    // print(allEnvelopes[0][8].sublist(0, 100));
+    // print(samples);
 
-  //   List<List<int>> samples =
-  //       getAllChannelsSample(rawSamples, numberOfChannels);
+    Int16List curSamples = new Int16List(0);
+    if (!isPaused) {
+      // print('numberOfChannels');
+      // print(numberOfChannels);
+      for (int c = 0; c < numberOfChannels; c++) {
+        cBuffIdx = arrHeads[c];
+        globalIdx = arrGlobalIdx[c];
+        // 2875. audioInputConfigArray[INPUT_TYPE_NEURONSS].filterLowPass = 5000.0f;
+        // audioInputConfigArray[INPUT_TYPE_NEURONSS].filterHighPass = 1.0f;
 
-  //   // print("!=======");
-  //   // print(level);
-  //   // print(divider);
-  //   // print(CUR_START);
+        // List<int> temp = List<int>.from(samples[c]);
+        // print("lowPassFilter");
+        if (isLowPass) {
+          samples[c] = nativec.lowPassFilter(c, samples[c], samples[c].length);
+        }
+        // samples[c] = nativec.lowPassFilter(c, samples[c], samples[c].length);
+        if (isHighPass) {
+          samples[c] = nativec.highPassFilter(c, samples[c], samples[c].length);
+        }
 
-  //   // print(arr[5]);
-  //   // print("divider");
-  //   // print(divider);
-  //   // print("level");
-  //   // print(level);
+        if (isNotch50) {
+          samples[c] =
+              nativec.notchPassFilter(true, c, samples[c], samples[c].length);
+        }
+        if (isNotch60) {
+          samples[c] =
+              nativec.notchPassFilter(false, c, samples[c], samples[c].length);
+        }
 
-  //   // Map<String, dynamic> map = message as Map<String, dynamic>;
-  //   // // enveloping
-  //   // var surfaceSize = map["surfaceSize"];
-  //   // var cBuffIdx = map["cBuffIdx"];
-  //   // var samples = map["samples"];
-  //   // allEnvelopes = map["envelopes"];
-  //   // print(surfaceSize);
-  //   // print(divider);
-  //   // print(globalIdx);
+        // curSamples = Int16List.from(samples[c]);
+        if (isThresholding) {
+          // print('samples[c].length');
+          // print(samples[c].length);
+          cBuffIdx = 0;
+          // level = calculateLevel(
+          //     NUMBER_OF_SEGMENTS_THRESHOLD * 1000, sampleRate.floor(), surfaceWidth, skipCounts);
 
-  //   // print("cBuffIdx 0");
-  //   // print(allEnvelopes[0][8].sublist(0, 100));
-  //   // print(samples);
-
-  //   Int16List curSamples = new Int16List(0);
-  //   if (!isPaused) {
-  //     // print('numberOfChannels');
-  //     // print(numberOfChannels);
-  //     for (int c = 0; c < numberOfChannels; c++) {
-  //       cBuffIdx = arrHeads[c];
-  //       globalIdx = arrGlobalIdx[c];
-  //       // 2875. audioInputConfigArray[INPUT_TYPE_NEURONSS].filterLowPass = 5000.0f;
-  //       // audioInputConfigArray[INPUT_TYPE_NEURONSS].filterHighPass = 1.0f;
-
-  //       // List<int> temp = List<int>.from(samples[c]);
-  //       // print("lowPassFilter");
-  //       if (isLowPass) {
-  //         samples[c] = nativec.lowPassFilter(c, samples[c], samples[c].length);
-  //       }
-  //       // samples[c] = nativec.lowPassFilter(c, samples[c], samples[c].length);
-  //       if (isHighPass) {
-  //         samples[c] = nativec.highPassFilter(c, samples[c], samples[c].length);
-  //       }
-
-  //       if (isNotch50) {
-  //         samples[c] =
-  //             nativec.notchPassFilter(true, c, samples[c], samples[c].length);
-  //       }
-  //       if (isNotch60) {
-  //         samples[c] =
-  //             nativec.notchPassFilter(false, c, samples[c], samples[c].length);
-  //       }
-
-  //       // curSamples = Int16List.from(samples[c]);
-  //       if (isThresholding) {
-  //         // print('samples[c].length');
-  //         // print(samples[c].length);
-  //         cBuffIdx = 0;
-  //         // level = calculateLevel(
-  //         //     NUMBER_OF_SEGMENTS_THRESHOLD * 1000, sampleRate.floor(), surfaceWidth, skipCounts);
-
-  //         try {
-  //           thresholdHit = nativec.getThresholdHitProcess();
-  //           // print("thresholdHit");
-  //           // print(thresholdHit);
-  //           if (thresholdHit == 1){
-  //             // change Current Start into the newest position
-  //             // double simulateCurrentStartPosition( int sampleRate, int cBuffIdx, row, 
-  //             //level, skipCount, double divider, double innerWidth, bool isThreshold, int deviceType, CURRENT_START, devicePixelRatio, myArrTimescale, isOpeningFile) {
+          try {
+            thresholdHit = nativec.getThresholdHitProcess();
+            // print("thresholdHit");
+            // print(thresholdHit);
+            if (thresholdHit == 1){
+              // change Current Start into the newest position
+              // double simulateCurrentStartPosition( int sampleRate, int cBuffIdx, row, 
+              //level, skipCount, double divider, double innerWidth, bool isThreshold, int deviceType, CURRENT_START, devicePixelRatio, myArrTimescale, isOpeningFile) {
               
-  //             // print('-----------------');
-  //             C_START = 0;
+              // print('-----------------');
+              C_START = 0;
 
-  //             for (int i = 80; i>timeScaleBar && timeScaleBar > 0; i--){
-  //               int transformScaleIdx = (i / 10).floor();
-  //               double tempDivider = myArrTimescale[i] / 10;      
-  //               int simLevel = calculateLevel(myArrTimescale[transformScaleIdx], sampleRate,
-  //                   surfaceWidth, skipCounts);          
+              for (int i = 80; i>timeScaleBar && timeScaleBar > 0; i--){
+                int transformScaleIdx = (i / 10).floor();
+                double tempDivider = myArrTimescale[i] / 10;      
+                int simLevel = calculateLevel(myArrTimescale[transformScaleIdx], sampleRate,
+                    surfaceWidth, skipCounts);          
 
-  //               transformScaleIdx = ((i - 1) / 10).floor();
-  //               var row = {
-  //                 "timeScaleBar": arrTimeScale[transformScaleIdx], // label in UI
-  //                 "levelScale": i-1, //scrollIdx
-  //                 "posX": surfaceWidth * 1/2 ,
-  //                 // "posX": surfaceWidth,
-  //                 "direction": 1
-  //               };
+                transformScaleIdx = ((i - 1) / 10).floor();
+                var row = {
+                  "timeScaleBar": arrTimeScale[transformScaleIdx], // label in UI
+                  "levelScale": i-1, //scrollIdx
+                  "posX": surfaceWidth * 1/2 ,
+                  // "posX": surfaceWidth,
+                  "direction": 1
+                };
 
-  //               double temp = simulateCurrentStartPosition(sampleRate.floor(), (allThresholdEnvelopesSize[0]/2).floor(), row,
-  //                 simLevel, skipCounts[simLevel], tempDivider, surfaceWidth, false, 0, C_START, devicePixelRatio, myArrTimescale, 0);
-  //               C_START = temp;
-  //               print('immediate C_START');
-  //               print(C_START);
-  //               CUR_START = C_START.floor();
-  //             }
+                double temp = simulateCurrentStartPosition(sampleRate.floor(), (allThresholdEnvelopesSize[0]/2).floor(), row,
+                  simLevel, skipCounts[simLevel], tempDivider, surfaceWidth, false, 0, C_START, devicePixelRatio, myArrTimescale, 0);
+                C_START = temp;
+                print('immediate C_START');
+                print(C_START);
+                CUR_START = C_START.floor();
+              }
 
               
-  //             // CURRENT_START = CUR_START;
-  //           }  
-  //           nativec.setThresholdParametersProcess(
-  //               1, level, sampleRate, divider, CUR_START);
-  //           double processedSamplesCount =
-  //               (nativec.appendSamplesThresholdProcess(
-  //                   snapshotAveragedSamples[0].floor(),
-  //                   thresholdValue[0],
-  //                   0,
-  //                   samples[c],
-  //                   samples[c].length,
-  //                   divider,
-  //                   CUR_START,
-  //                   (allEnvelopes[0][level].length / divider).floor()));
-  //           curSamples =
-  //               _thresholdBytes.sublist(0, processedSamplesCount.floor());
-  //           thresholdHeads[c] = processedSamplesCount.floor();
-  //           // curSamples = (nativec.appendSamplesThresholdProcess(2, 10000, 0, samples[c], samples[c].length));
-  //           // print(curSamples.length);
-  //         } catch (err) {
-  //           print("isThresholding Error");
-  //           print(err);
-  //         }
+              // CURRENT_START = CUR_START;
+            }  
+            nativec.setThresholdParametersProcess(
+                1, level, sampleRate, divider, CUR_START);
+            double processedSamplesCount =
+                (nativec.appendSamplesThresholdProcess(
+                    snapshotAveragedSamples[0].floor(),
+                    thresholdValue[0],
+                    0,
+                    samples[c],
+                    samples[c].length,
+                    divider,
+                    CUR_START,
+                    (allEnvelopes[0][level].length / divider).floor()));
+            curSamples =
+                _thresholdBytes.sublist(0, processedSamplesCount.floor());
+            thresholdHeads[c] = processedSamplesCount.floor();
+            // curSamples = (nativec.appendSamplesThresholdProcess(2, 10000, 0, samples[c], samples[c].length));
+            // print(curSamples.length);
+          } catch (err) {
+            print("isThresholding Error");
+            print(err);
+          }
 
-  //         // cBuffIdx = curSamples.length-1;
-  //         samplesLength = curSamples.length;
-  //         cBuffIdx = samplesLength;
-  //         globalIdx = 0;
-  //       } else {
-  //         // level = calculateLevel(
-  //         //     10000, sampleRate.floor(), surfaceWidth, skipCounts);
-  //         curSamples = Int16List.fromList(samples[c]);
-  //         samplesLength = curSamples.length;
-  //       }
+          // cBuffIdx = curSamples.length-1;
+          samplesLength = curSamples.length;
+          cBuffIdx = samplesLength;
+          globalIdx = 0;
+        } else {
+          // level = calculateLevel(
+          //     10000, sampleRate.floor(), surfaceWidth, skipCounts);
+          curSamples = Int16List.fromList(samples[c]);
+          samplesLength = curSamples.length;
+        }
 
-  //       // print("lowPassFilter2");
-  //       // if (temp != samples[c]){
-  //       //   print("Error");
-  //       //   print(temp);
-  //       //   print(samples[c]);
-  //       // }
-  //       // final int forceLevel = 8;
-  //       final int forceLevel = level;
-  //       // curSamples.forEach((tmp) {
-  //       if (isThresholding) {
-  //         if (allThresholdEnvelopes.length < c + 1) {
-  //           print('numberOfChannels');
-  //           print(numberOfChannels);
-  //           return;
-  //         }
-  //         allThresholdEnvelopes[c][level]
-  //             .fillRange(0, allThresholdEnvelopes[c][level].length, 0);
-  //       }
+        // print("lowPassFilter2");
+        // if (temp != samples[c]){
+        //   print("Error");
+        //   print(temp);
+        //   print(samples[c]);
+        // }
+        // final int forceLevel = 8;
+        final int forceLevel = level;
+        // curSamples.forEach((tmp) {
+        if (isThresholding) {
+          if (allThresholdEnvelopes.length < c + 1) {
+            print('numberOfChannels');
+            print(numberOfChannels);
+            return;
+          }
+          allThresholdEnvelopes[c][level]
+              .fillRange(0, allThresholdEnvelopes[c][level].length, 0);
+        }
 
-  //       if (isThresholding) {
+        if (isThresholding) {
 
-  //         allThresholdEnvelopes[c][level] = curSamples;
-  //         continue;
-  //       } else {
-  //         for (int i = 0; i < samplesLength; i++) {
-  //           int tmp = curSamples[i];
-  //           // print("allEnvelopes 3");
-  //           // print(tmp);
-  //           // print(nativec.gain(seri(), 10.0));
-  //           try {
-  //             // if (isThresholding) {
-  //             //   try {
-  //             //     // allThresholdEnvelopes[c][forceLevel].fillRange(0, allThresholdEnvelopes[c].length,0);
-  //             //     // envelopingSamples(cBuffIdx, tmp.toDouble(), allThresholdEnvelopes[c],
-  //             //     //     SIZE_LOGS2, skipCounts, forceLevel);
-  //             //     envelopingSamples(cBuffIdx, tmp, allThresholdEnvelopes[c],
-  //             //         SIZE_LOGS2, skipCounts, forceLevel);
-  //             //   } catch (err) {
-  //             //     print('error enveloping');
-  //             //     print(curSamples.length);
-  //             //     print(allThresholdEnvelopes[c].length);
-  //             //   }
-  //             // } else {
-  //             envelopingSamples(
-  //                 cBuffIdx, tmp, allEnvelopes[c], SIZE_LOGS2, skipCounts, -1);
-  //             // }
+          allThresholdEnvelopes[c][level] = curSamples;
+          continue;
+        } else {
+          for (int i = 0; i < samplesLength; i++) {
+            int tmp = curSamples[i];
+            // print("allEnvelopes 3");
+            // print(tmp);
+            // print(nativec.gain(seri(), 10.0));
+            try {
+              // if (isThresholding) {
+              //   try {
+              //     // allThresholdEnvelopes[c][forceLevel].fillRange(0, allThresholdEnvelopes[c].length,0);
+              //     // envelopingSamples(cBuffIdx, tmp.toDouble(), allThresholdEnvelopes[c],
+              //     //     SIZE_LOGS2, skipCounts, forceLevel);
+              //     envelopingSamples(cBuffIdx, tmp, allThresholdEnvelopes[c],
+              //         SIZE_LOGS2, skipCounts, forceLevel);
+              //   } catch (err) {
+              //     print('error enveloping');
+              //     print(curSamples.length);
+              //     print(allThresholdEnvelopes[c].length);
+              //   }
+              // } else {
+              envelopingSamples(
+                  cBuffIdx, tmp, allEnvelopes[c], SIZE_LOGS2, skipCounts, -1);
+              // }
 
-  //             cBuffIdx++;
-  //             if (cBuffIdx >= cBufferSize - 1) {
-  //               cBuffIdx = 0;
-  //               globalIdx++;
-  //             }
-  //           } catch (err) {
-  //             print("err");
-  //             print(err);
-  //           }
-  //         }
-  //       }
+              cBuffIdx++;
+              if (cBuffIdx >= cBufferSize - 1) {
+                cBuffIdx = 0;
+                globalIdx++;
+              }
+            } catch (err) {
+              print("err");
+              print(err);
+            }
+          }
+        }
 
-  //       // });
-  //       arrHeads[c] = cBuffIdx;
-  //       arrGlobalIdx[c] = globalIdx;
-  //     }
+        // });
+        arrHeads[c] = cBuffIdx;
+        arrGlobalIdx[c] = globalIdx;
+      }
 
-  //     if (curKey != "") {
-  //       cBuffIdx = arrHeads[0];
-  //       if (arrMarkers.length + 1 >= max_markers) {
-  //         arrMarkers.clear();
-  //       }
-  //       int markerIdx = arrMarkers.length;
-  //       eventPositionInt[markerIdx] = (cBuffIdx.toDouble());
+      if (curKey != "") {
+        cBuffIdx = arrHeads[0];
+        if (arrMarkers.length + 1 >= max_markers) {
+          arrMarkers.clear();
+        }
+        int markerIdx = arrMarkers.length;
+        eventPositionInt[markerIdx] = (cBuffIdx.toDouble());
 
-  //       eventGlobalPositionInt[markerIdx] = globalPositionCap + cBuffIdx;
+        eventGlobalPositionInt[markerIdx] = globalPositionCap + cBuffIdx;
 
-  //       // eventPositionResultInt[markerIdx] = (cBuffIdx.toDouble());
-  //       arrMarkers.add(curKey);
-  //     }
-  //   } else {
-  //     // nativec.setThresholdParametersProcess(1,level, sampleRate, divider, CUR_START);
-  //     if (isThresholding) {
-  //       if (allThresholdEnvelopes[0][level][0] == 0) {}
-  //       int sampleNeeded = (allEnvelopes[0][level].length / divider).floor();
-  //       int samplesLength = nativec
-  //           .getSamplesThresholdProcess(
-  //               0, level, divider, CUR_START, sampleNeeded)
-  //           .floor();
-  //       thresholdHeads[0] = sampleNeeded;
-  //       cBuffIdx = sampleNeeded;
+        // eventPositionResultInt[markerIdx] = (cBuffIdx.toDouble());
+        arrMarkers.add(curKey);
+      }
+    } else {
+      // nativec.setThresholdParametersProcess(1,level, sampleRate, divider, CUR_START);
+      if (isThresholding) {
+        if (allThresholdEnvelopes[0][level][0] == 0) {}
+        int sampleNeeded = (allEnvelopes[0][level].length / divider).floor();
+        int samplesLength = nativec
+            .getSamplesThresholdProcess(
+                0, level, divider, CUR_START, sampleNeeded)
+            .floor();
+        thresholdHeads[0] = sampleNeeded;
+        cBuffIdx = sampleNeeded;
 
-  //       // int samplesLength = (allThresholdEnvelopes[0][level].length/(divider/6)).floor();
-  //       // curSamples = Int16List(samplesLength);
-  //       // print("PAUSED CURSAMPLES0");
-  //       //allThresholdEnvelopes[0][level].length.floor()
-  //       curSamples = _thresholdBytes.sublist(0, samplesLength);
-  //       // allThresholdEnvelopes[0][level] = curSamples;
-  //       // print("PAUSED CURSAMPLES");
-  //       // print(samplesLength);
-  //     }
-  //   }
+        // int samplesLength = (allThresholdEnvelopes[0][level].length/(divider/6)).floor();
+        // curSamples = Int16List(samplesLength);
+        // print("PAUSED CURSAMPLES0");
+        //allThresholdEnvelopes[0][level].length.floor()
+        curSamples = _thresholdBytes.sublist(0, samplesLength);
+        // allThresholdEnvelopes[0][level] = curSamples;
+        // print("PAUSED CURSAMPLES");
+        // print(samplesLength);
+      }
+    }
 
-  //   // // filter
-  //   // // print("level");
-  //   // // print(level);
-  //   // print("samples");
-  //   // print(samples);
+    // // filter
+    // // print("level");
+    // // print(level);
+    // print("samples");
+    // print(samples);
 
-  //   List<Int16List> buffers = [];
-  //   const maxMinMultiplier = 2;
-  //   if (isThresholding) {
-  //     // level =
-  //     //     calculateLevel(10000, 44100, surfaceWidth, skipCounts);
-  //     // level =
-  //     //     calculateLevel(2000, sampleRate.floor(), surfaceWidth, skipCounts);
-  //     // level = 8;
+    List<Int16List> buffers = [];
+    const maxMinMultiplier = 2;
+    if (isThresholding) {
+      // level =
+      //     calculateLevel(10000, 44100, surfaceWidth, skipCounts);
+      // level =
+      //     calculateLevel(2000, sampleRate.floor(), surfaceWidth, skipCounts);
+      // level = 8;
 
-  //     for (int c = 0; c < numberOfChannels; c++) {
-  //       // Int16List envelopeSamples = (allThresholdEnvelopes[c][level]);
-  //       // Int16List envelopeSamples = curSamples;
-  //       // int prevSegment = (envelopeSamples.length / 1).floor();
-  //       // int drawSamplesCount = prevSegment;
-  //       // // int from = ((envelopeSamples.length - drawSamplesCount) * .5).floor();
-  //       // // int to = ((envelopeSamples.length + drawSamplesCount) * .5).floor();
-  //       // int from = 0;
-  //       // int to = curSamples.length;
+      for (int c = 0; c < numberOfChannels; c++) {
+        // Int16List envelopeSamples = (allThresholdEnvelopes[c][level]);
+        // Int16List envelopeSamples = curSamples;
+        // int prevSegment = (envelopeSamples.length / 1).floor();
+        // int drawSamplesCount = prevSegment;
+        // // int from = ((envelopeSamples.length - drawSamplesCount) * .5).floor();
+        // // int to = ((envelopeSamples.length + drawSamplesCount) * .5).floor();
+        // int from = 0;
+        // int to = curSamples.length;
 
-  //       // List<double> cBuff = List<double>.from( ( envelopeSamples.map((val)=> val.toDouble()) ).toList(growable:false));
-  //       Int16List cBuff = curSamples;
-  //       // int sumInt =  envelopeSamples.sublist(from,to).reduce((value, element) => value+element);
-  //       // double sumDouble = ( Float32List.sublistView( envelopeSamples, from,to ) ).reduce((value, element) => value+element);
-  //       // print("SUMS");
-  //       // print(sumInt);
-  //       // print(sumDouble);
-  //       // List<double> cBuff =  List<double>.from(( envelopeSamples.sublist(from,to) ).buffer.asFloat32List().toList(growable:false));
-  //       buffers.add(cBuff);
-  //     }
-  //     if (thresholdHit == 1){
-  //       if (C_START != 0){
-  //         sendPort.send([buffers, arrHeads[0], eventPositionResultInt, thresholdHit, C_START]);
-  //       }else{
-  //         sendPort.send([buffers, arrHeads[0], eventPositionResultInt]);  
-  //       }
-  //       thresholdHit = 0;
-  //       print("SEND c_start "+thresholdHit.toString());
-  //       print(C_START);
-  //     }else{
-  //       sendPort.send([buffers, arrHeads[0], eventPositionResultInt]);
+        // List<double> cBuff = List<double>.from( ( envelopeSamples.map((val)=> val.toDouble()) ).toList(growable:false));
+        Int16List cBuff = curSamples;
+        // int sumInt =  envelopeSamples.sublist(from,to).reduce((value, element) => value+element);
+        // double sumDouble = ( Float32List.sublistView( envelopeSamples, from,to ) ).reduce((value, element) => value+element);
+        // print("SUMS");
+        // print(sumInt);
+        // print(sumDouble);
+        // List<double> cBuff =  List<double>.from(( envelopeSamples.sublist(from,to) ).buffer.asFloat32List().toList(growable:false));
+        buffers.add(cBuff);
+      }
+      if (thresholdHit == 1){
+        if (C_START != 0){
+          sendPort.send([buffers, arrHeads[0], eventPositionResultInt, thresholdHit, C_START]);
+        }else{
+          sendPort.send([buffers, arrHeads[0], eventPositionResultInt]);  
+        }
+        thresholdHit = 0;
+        print("SEND c_start "+thresholdHit.toString());
+        print(C_START);
+      }else{
+        sendPort.send([buffers, arrHeads[0], eventPositionResultInt]);
 
-  //     }
-  //     return;
-  //   }
-  //   const excess = 0;
-  //   int halfwayCap =
-  //       // globalPositionCap - ((globalPositionCap * 0.2) / currentCap).floor();
-  //       globalPositionCap - (globalPositionCap * 0.2).floor();
+      }
+      return;
+    }
+    const excess = 0;
+    int halfwayCap =
+        // globalPositionCap - ((globalPositionCap * 0.2) / currentCap).floor();
+        globalPositionCap - (globalPositionCap * 0.2).floor();
 
-  //   for (int c = 0; c < numberOfChannels; c++) {
-  //     Int16List envelopeSamples = allEnvelopes[c][level];
-  //     int prevSegment = (envelopeSamples.length / divider).floor();
-  //     if (tempPrevSegment != prevSegment) {
-  //       print("prevSegment " + level.toString());
-  //       print(prevSegment);
-  //       tempPrevSegment = prevSegment;
-  //     }
-  //     // print(envelopeSamples.length);
-  //     // print(divider);
-  //     Int16List cBuff = Int16List(prevSegment);
-  //     // List<double>.generate(prevSegment, (i) => 0, growable: false);
-  //     int rawHead = arrHeads[c];
-  //     int rawOffsetHead = arrOffsetHeads[c];
-  //     // print("CUR_START");
-  //     // print(CUR_START);
-  //     if (CUR_START != 0) {
-  //       // print("CUR_START");
-  //       // print(CUR_START);
-  //       if (rawHead - CUR_START >= 0) {
-  //         rawHead = rawHead - (CUR_START);
-  //         if (rawHead > cBuffIdx) {
-  //           rawHead = cBuffIdx;
-  //         }
-  //         // print("cBuffIdx");
-  //         // print(cBuffIdx);
-  //         // print(rawHead);
-  //         // rawOffsetHead = rawOffsetHead - (CUR_START) ;
-  //       } else {
-  //         // print("zero");
-  //         // print(rawHead - CUR_START);
-  //         // print(rawHead);
-  //         // print(CUR_START);
-  //       }
-  //       // head = head - (CUR_START as int) ;
-  //       // offsetHead = offsetHead - Math.floor(zoomHorizontalDifference) ;
-  //     }
-  //     int skipCount = skipCounts[level];
-  //     int head = (rawHead / skipCount).floor();
-  //     int offsetHead = (rawOffsetHead).floor();
+    for (int c = 0; c < numberOfChannels; c++) {
+      Int16List envelopeSamples = allEnvelopes[c][level];
+      int prevSegment = (envelopeSamples.length / divider).floor();
+      if (tempPrevSegment != prevSegment) {
+        print("prevSegment " + level.toString());
+        print(prevSegment);
+        tempPrevSegment = prevSegment;
+      }
+      // print(envelopeSamples.length);
+      // print(divider);
+      Int16List cBuff = Int16List(prevSegment);
+      // List<double>.generate(prevSegment, (i) => 0, growable: false);
+      int rawHead = arrHeads[c];
+      int rawOffsetHead = arrOffsetHeads[c];
+      // print("CUR_START");
+      // print(CUR_START);
+      if (CUR_START != 0) {
+        // print("CUR_START");
+        // print(CUR_START);
+        if (rawHead - CUR_START >= 0) {
+          rawHead = rawHead - (CUR_START);
+          if (rawHead > cBuffIdx) {
+            rawHead = cBuffIdx;
+          }
+          // print("cBuffIdx");
+          // print(cBuffIdx);
+          // print(rawHead);
+          // rawOffsetHead = rawOffsetHead - (CUR_START) ;
+        } else {
+          // print("zero");
+          // print(rawHead - CUR_START);
+          // print(rawHead);
+          // print(CUR_START);
+        }
+        // head = head - (CUR_START as int) ;
+        // offsetHead = offsetHead - Math.floor(zoomHorizontalDifference) ;
+      }
+      int skipCount = skipCounts[level];
+      int head = (rawHead / skipCount).floor();
+      int offsetHead = (rawOffsetHead).floor();
 
-  //     int interleavedIdx = head * 2;
-  //     int start = interleavedIdx - prevSegment;
-  //     int to = interleavedIdx;
+      int interleavedIdx = head * 2;
+      int start = interleavedIdx - prevSegment;
+      int to = interleavedIdx;
 
-  //     if (globalIdx == 0) {
-  //       if (to - prevSegment < 0) {
-  //         Int16List arr = allEnvelopes[c][level].sublist(0, to);
-  //         // print(arr);
-  //         cBuff.setAll(prevSegment - arr.length, arr);
-  //       } else {
-  //         start = to - prevSegment;
-  //         // print("----@---");
-  //         // print(start);
-  //         // print(to);
-  //         // print(prevSegment);
+      if (globalIdx == 0) {
+        if (to - prevSegment < 0) {
+          Int16List arr = allEnvelopes[c][level].sublist(0, to);
+          // print(arr);
+          cBuff.setAll(prevSegment - arr.length, arr);
+        } else {
+          start = to - prevSegment;
+          // print("----@---");
+          // print(start);
+          // print(to);
+          // print(prevSegment);
 
-  //         Int16List arr = allEnvelopes[c][level].sublist(start, to);
-  //         cBuff.setAll(prevSegment - arr.length, arr);
-  //       }
+          Int16List arr = allEnvelopes[c][level].sublist(start, to);
+          cBuff.setAll(prevSegment - arr.length, arr);
+        }
 
-  //       if (c == 0) {
-  //         int bufferLength = prevSegment;
-  //         int evtCounter = arrMarkers.length;
-  //         eventPositionResultInt.fillRange(0, max_markers, 0);
-  //         double offsetTail = offsetHead - bufferLength / 2 * skipCount;
+        if (c == 0) {
+          int bufferLength = prevSegment;
+          int evtCounter = arrMarkers.length;
+          eventPositionResultInt.fillRange(0, max_markers, 0);
+          double offsetTail = offsetHead - bufferLength / 2 * skipCount;
 
-  //         for (int ctr = 0; ctr < evtCounter; ctr++) {
-  //           if (eventGlobalPositionInt[ctr] >= globalPositionCap) {
-  //             int headPosition = (eventPositionInt[ctr] / skipCount * 2)
-  //                 .floor(); // headPosition in envelope realm
-  //             if (headPosition < start) {
-  //               eventPositionResultInt[ctr] = 0;
-  //             } else //{
-  //             if (headPosition >= start && headPosition <= to) {
-  //               eventPositionResultInt[ctr] =
-  //                   (bufferLength - excess - (to - (headPosition))) /
-  //                       bufferLength *
-  //                       surfaceWidth;
-  //             }
-  //           }
-  //         }
-  //         // print("eventPositionResultInt");
-  //         // print(eventPositionResultInt);
+          for (int ctr = 0; ctr < evtCounter; ctr++) {
+            if (eventGlobalPositionInt[ctr] >= globalPositionCap) {
+              int headPosition = (eventPositionInt[ctr] / skipCount * 2)
+                  .floor(); // headPosition in envelope realm
+              if (headPosition < start) {
+                eventPositionResultInt[ctr] = 0;
+              } else //{
+              if (headPosition >= start && headPosition <= to) {
+                eventPositionResultInt[ctr] =
+                    (bufferLength - excess - (to - (headPosition))) /
+                        bufferLength *
+                        surfaceWidth;
+              }
+            }
+          }
+          // print("eventPositionResultInt");
+          // print(eventPositionResultInt);
 
-  //         // for ( int ctr = 0; ctr < evtCounter; ctr++ ){
-  //         //   if ( offsetTail < 0 ) offsetTail = 0;
+          // for ( int ctr = 0; ctr < evtCounter; ctr++ ){
+          //   if ( offsetTail < 0 ) offsetTail = 0;
 
-  //         //   if (eventGlobalPositionInt[ctr] < offsetTail){
-  //         //     eventPositionResultInt[ctr] = 0;
-  //         //   }else
-  //         //   if (eventGlobalPositionInt[ctr] >= offsetTail && eventGlobalPositionInt[ctr] <= offsetHead){
-  //         //     // eventPositionResultInt[ctr] = ( bufferLength - excess - (to - (markerPosition)) ) / bufferLength * vm.drawSurfaceWidth;
-  //         //     // eventPositionResultInt[ctr] = ( bufferLength - excess - (bufferLength - (markerPosition)) ) / bufferLength * vm.drawSurfaceWidth;
-  //         //     int posMarker = ( (offsetHead - eventGlobalPositionInt[ctr] ) /skipCount * maxMinMultiplier ).floor();
-  //         //     // print("posMarker");
-  //         //     // print(posMarker);
-  //         //     // print(( bufferLength - excess - posMarker ) / bufferLength * surfaceWidth);
-  //         //     eventPositionResultInt[ctr] = ( bufferLength - excess - posMarker ) / bufferLength * surfaceWidth;
-  //         //   }else
-  //         //   if (eventGlobalPositionInt[ctr] > offsetHead){
-  //         //     eventPositionResultInt[ctr] = 0;
-  //         //   }
-  //         //   // print("markers : ");
-  //         //   // print(eventPositionResultInt);
+          //   if (eventGlobalPositionInt[ctr] < offsetTail){
+          //     eventPositionResultInt[ctr] = 0;
+          //   }else
+          //   if (eventGlobalPositionInt[ctr] >= offsetTail && eventGlobalPositionInt[ctr] <= offsetHead){
+          //     // eventPositionResultInt[ctr] = ( bufferLength - excess - (to - (markerPosition)) ) / bufferLength * vm.drawSurfaceWidth;
+          //     // eventPositionResultInt[ctr] = ( bufferLength - excess - (bufferLength - (markerPosition)) ) / bufferLength * vm.drawSurfaceWidth;
+          //     int posMarker = ( (offsetHead - eventGlobalPositionInt[ctr] ) /skipCount * maxMinMultiplier ).floor();
+          //     // print("posMarker");
+          //     // print(posMarker);
+          //     // print(( bufferLength - excess - posMarker ) / bufferLength * surfaceWidth);
+          //     eventPositionResultInt[ctr] = ( bufferLength - excess - posMarker ) / bufferLength * surfaceWidth;
+          //   }else
+          //   if (eventGlobalPositionInt[ctr] > offsetHead){
+          //     eventPositionResultInt[ctr] = 0;
+          //   }
+          //   // print("markers : ");
+          //   // print(eventPositionResultInt);
 
-  //         // }
-  //       }
+          // }
+        }
 
-  //       // print(prevSegment - arr.length);
-  //     } else {
-  //       if (start < 0) {
-  //         // it is divided into 2 sections
-  //         int processedHead = head * 2;
-  //         int segmentCount = prevSegment;
-  //         int bufferLength = prevSegment;
+        // print(prevSegment - arr.length);
+      } else {
+        if (start < 0) {
+          // it is divided into 2 sections
+          int processedHead = head * 2;
+          int segmentCount = prevSegment;
+          int bufferLength = prevSegment;
 
-  //         segmentCount = segmentCount - processedHead - 1;
-  //         start = envelopeSamples.length - segmentCount;
-  //         Int16List firstPartOfData = envelopeSamples.sublist(start);
-  //         Int16List secondPartOfData =
-  //             envelopeSamples.sublist(0, processedHead + 1);
-  //         if (secondPartOfData.length > 0) {
-  //           try {
-  //             cBuff.setAll(0, firstPartOfData);
-  //             cBuff.setAll(firstPartOfData.length, secondPartOfData);
-  //           } catch (err) {
-  //             print("err signal dividing");
-  //             print(err);
-  //           }
-  //         } else {
-  //           cBuff.setAll(
-  //               bufferLength - firstPartOfData.length - 1, firstPartOfData);
-  //         }
+          segmentCount = segmentCount - processedHead - 1;
+          start = envelopeSamples.length - segmentCount;
+          Int16List firstPartOfData = envelopeSamples.sublist(start);
+          Int16List secondPartOfData =
+              envelopeSamples.sublist(0, processedHead + 1);
+          if (secondPartOfData.length > 0) {
+            try {
+              cBuff.setAll(0, firstPartOfData);
+              cBuff.setAll(firstPartOfData.length, secondPartOfData);
+            } catch (err) {
+              print("err signal dividing");
+              print(err);
+            }
+          } else {
+            cBuff.setAll(
+                bufferLength - firstPartOfData.length - 1, firstPartOfData);
+          }
 
-  //         if (c == 0) {
-  //           int evtCounter = arrMarkers.length;
+          if (c == 0) {
+            int evtCounter = arrMarkers.length;
 
-  //           for (int ctr = 0; ctr < evtCounter; ctr++) {
-  //             int headPosition = (eventPositionInt[ctr] / skipCount * 2)
-  //                 .floor(); // headPosition in envelope realm
+            for (int ctr = 0; ctr < evtCounter; ctr++) {
+              int headPosition = (eventPositionInt[ctr] / skipCount * 2)
+                  .floor(); // headPosition in envelope realm
 
-  //             if (eventGlobalPositionInt[ctr] >= halfwayCap) {
-  //               if (headPosition < start && headPosition > to) {
-  //                 eventPositionResultInt[ctr] = 0;
-  //               } else {
-  //                 if (headPosition <= envelopeSamples.length &&
-  //                     headPosition >= start) {
-  //                   // upper
-  //                   int counter = bufferLength -
-  //                       (envelopeSamples.length -
-  //                           headPosition +
-  //                           secondPartOfData.length);
-  //                   eventPositionResultInt[ctr] =
-  //                       counter / bufferLength * surfaceWidth;
-  //                   // console.log("upper ", eventPositionResultInt[ctr].toString());
-  //                 } else //{ // headPosition < to // below
-  //                 if (headPosition <= to && headPosition >= 0) {
-  //                   // console.log("below");
-  //                   int counter = bufferLength - excess - (to - (headPosition));
-  //                   eventPositionResultInt[ctr] =
-  //                       counter / bufferLength * surfaceWidth;
-  //                 }
-  //               }
-  //             }
-  //           }
-  //         }
-  //       } else {
-  //         // print("start > 0");
-  //         // cBuff = List<double>.from(allEnvelopes[c][level].sublist(start, to));
-  //         cBuff = allEnvelopes[c][level].sublist(start, to);
+              if (eventGlobalPositionInt[ctr] >= halfwayCap) {
+                if (headPosition < start && headPosition > to) {
+                  eventPositionResultInt[ctr] = 0;
+                } else {
+                  if (headPosition <= envelopeSamples.length &&
+                      headPosition >= start) {
+                    // upper
+                    int counter = bufferLength -
+                        (envelopeSamples.length -
+                            headPosition +
+                            secondPartOfData.length);
+                    eventPositionResultInt[ctr] =
+                        counter / bufferLength * surfaceWidth;
+                    // console.log("upper ", eventPositionResultInt[ctr].toString());
+                  } else //{ // headPosition < to // below
+                  if (headPosition <= to && headPosition >= 0) {
+                    // console.log("below");
+                    int counter = bufferLength - excess - (to - (headPosition));
+                    eventPositionResultInt[ctr] =
+                        counter / bufferLength * surfaceWidth;
+                  }
+                }
+              }
+            }
+          }
+        } else {
+          // print("start > 0");
+          // cBuff = List<double>.from(allEnvelopes[c][level].sublist(start, to));
+          cBuff = allEnvelopes[c][level].sublist(start, to);
 
-  //         if (c == 0) {
-  //           int bufferLength = prevSegment;
-  //           int evtCounter = arrMarkers.length;
+          if (c == 0) {
+            int bufferLength = prevSegment;
+            int evtCounter = arrMarkers.length;
 
-  //           for (int ctr = 0; ctr < evtCounter; ctr++) {
-  //             if (eventGlobalPositionInt[ctr] >= globalPositionCap) {
-  //               int headPosition = (eventPositionInt[ctr] / skipCount * 2)
-  //                   .floor(); // headPosition in envelope realm
-  //               if (headPosition < start) {
-  //                 eventPositionResultInt[ctr] = 0;
-  //               } else if (headPosition >= start && headPosition <= to) {
-  //                 // eventPositionResultInt[ctr] = prevSegment - excess - ( to - (headPosition) );
-  //                 eventPositionResultInt[ctr] =
-  //                     (bufferLength - excess - (to - (headPosition))) /
-  //                         bufferLength *
-  //                         surfaceWidth;
-  //               }
-  //             }
-  //           }
-  //         }
-  //       }
-  //     }
-  //     buffers.add(cBuff);
-  //     // print("cBuff.length " + c.toString());
-  //     // print(cBuff);
-  //   }
+            for (int ctr = 0; ctr < evtCounter; ctr++) {
+              if (eventGlobalPositionInt[ctr] >= globalPositionCap) {
+                int headPosition = (eventPositionInt[ctr] / skipCount * 2)
+                    .floor(); // headPosition in envelope realm
+                if (headPosition < start) {
+                  eventPositionResultInt[ctr] = 0;
+                } else if (headPosition >= start && headPosition <= to) {
+                  // eventPositionResultInt[ctr] = prevSegment - excess - ( to - (headPosition) );
+                  eventPositionResultInt[ctr] =
+                      (bufferLength - excess - (to - (headPosition))) /
+                          bufferLength *
+                          surfaceWidth;
+                }
+              }
+            }
+          }
+        }
+      }
+      buffers.add(cBuff);
+      // print("cBuff.length " + c.toString());
+      // print(cBuff);
+    }
 
-  //   // print("cBuff.length");
-  //   // print("cBuff.length");
-  //   // print(level);
-  //   // print(cBuff.length);
-  //   // print(start);
-  //   // print(to);
-  //   // print("buffers[1]");
-  //   // print(buffers[1]);
-  //   sendPort.send([buffers, arrHeads[0], eventPositionResultInt]);
+    // print("cBuff.length");
+    // print("cBuff.length");
+    // print(level);
+    // print(cBuff.length);
+    // print(start);
+    // print(to);
+    // print("buffers[1]");
+    // print(buffers[1]);
+    sendPort.send([buffers, arrHeads[0], eventPositionResultInt]);
 
-  //   // List<double> data =
-  //   //     List.generate(samples.length, (index) => index.toDouble());
-  //   // sendPort.send(samples);
-  // });
+    // List<double> data =
+    //     List.generate(samples.length, (index) => index.toDouble());
+    // sendPort.send(samples);
+  });
 }
 
 double simulateCurrentStartPosition( int sampleRate, int cBuffIdx, row, level, skipCount, double divider, double innerWidth, bool isThreshold, int deviceType, double CURRENT_START, devicePixelRatio, myArrTimescale, isOpeningFile) {
@@ -812,9 +975,6 @@ double simulateCurrentStartPosition( int sampleRate, int cBuffIdx, row, level, s
 
       int diffPosition;
       double platformMultiplier = devicePixelRatio;
-      if (kIsWeb){
-        platformMultiplier = 1;
-      }else
       if (Platform.isWindows) {
         platformMultiplier = 2;
       }
@@ -866,568 +1026,568 @@ double simulateCurrentStartPosition( int sampleRate, int cBuffIdx, row, level, s
 }
 
 void serialBufferingEntryPoint(List<dynamic> values) {
-  // final iReceivePort = ReceivePort();
-  // SendPort sendPort = values[0];
-  // List<List<Int16List>> allEnvelopes = values[1];
-  // int cBufferSize = values[2];
-  // Uint8List rawCircularBuffer = values[3];
-  // String deviceType = values[4];
-  // // print(values[5]);
-  // DEVICE_CATALOG = values[5];
-  // // iReceiveDeviceInfoPort = values[6];
-  // deviceInfoPort = values[6];
-  // double sampleRate = values[8];
+  final iReceivePort = ReceivePort();
+  SendPort sendPort = values[0];
+  List<List<Int16List>> allEnvelopes = values[1];
+  int cBufferSize = values[2];
+  Uint8List rawCircularBuffer = values[3];
+  String deviceType = values[4];
+  // print(values[5]);
+  DEVICE_CATALOG = values[5];
+  // iReceiveDeviceInfoPort = values[6];
+  deviceInfoPort = values[6];
+  double sampleRate = values[8];
 
-  // List<List<Int16List>> allThresholdEnvelopes = [];
-  // List<int> allThresholdEnvelopesSize = [];
-  // int SEGMENT_SIZE_THRESHOLD = 10000;
-  // int NUMBER_OF_SEGMENTS_THRESHOLD = 10;
-  // int SIZE = NUMBER_OF_SEGMENTS_THRESHOLD * SEGMENT_SIZE_THRESHOLD;
-  // double size = SIZE.toDouble() * 2;
-  // int SIZE_LOGS_THRESHOLD = 10;
-  // int THRESHOLD_CHANNEL_COUNT = 1;
-  // int samplesLength = SIZE;
-  // bool isPrevThresholdingStatus = true;
+  List<List<Int16List>> allThresholdEnvelopes = [];
+  List<int> allThresholdEnvelopesSize = [];
+  int SEGMENT_SIZE_THRESHOLD = 10000;
+  int NUMBER_OF_SEGMENTS_THRESHOLD = 10;
+  int SIZE = NUMBER_OF_SEGMENTS_THRESHOLD * SEGMENT_SIZE_THRESHOLD;
+  double size = SIZE.toDouble() * 2;
+  int SIZE_LOGS_THRESHOLD = 10;
+  int THRESHOLD_CHANNEL_COUNT = 1;
+  int samplesLength = SIZE;
+  bool isPrevThresholdingStatus = true;
 
-  // unitInitializeEnvelope(THRESHOLD_CHANNEL_COUNT, allThresholdEnvelopes,
-  //     allThresholdEnvelopesSize, size, SIZE, SIZE_LOGS_THRESHOLD);
+  unitInitializeEnvelope(THRESHOLD_CHANNEL_COUNT, allThresholdEnvelopes,
+      allThresholdEnvelopesSize, size, SIZE, SIZE_LOGS_THRESHOLD);
 
-  // ffi.Pointer<ffi.Int16> _dataThreshold = allocate<ffi.Int16>(
-  //     count: samplesLength, sizeOfType: ffi.sizeOf<ffi.Int16>());
-  // Int16List _thresholdBytes = _dataThreshold.asTypedList(samplesLength);
-  // nativec.createThresholdProcess(
-  //     1, SEGMENT_SIZE_THRESHOLD, 0, 1, _dataThreshold);
-  // nativec.setThresholdParametersProcess(1, level, sampleRate.floor(), 6, 0);
+  ffi.Pointer<ffi.Int16> _dataThreshold = allocate<ffi.Int16>(
+      count: samplesLength, sizeOfType: ffi.sizeOf<ffi.Int16>());
+  Int16List _thresholdBytes = _dataThreshold.asTypedList(samplesLength);
+  nativec.createThresholdProcess(
+      1, SEGMENT_SIZE_THRESHOLD, 0, 1, _dataThreshold);
+  nativec.setThresholdParametersProcess(1, level, sampleRate.floor(), 6, 0);
 
-  // bool isThresholding = true;
-  // if (isThresholding) {
-  //   cBufferSize = SIZE;
-  // }
+  bool isThresholding = true;
+  if (isThresholding) {
+    cBufferSize = SIZE;
+  }
 
-  // Uint8List messagesBuffer = Uint8List(SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER);
+  Uint8List messagesBuffer = Uint8List(SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER);
 
-  // int numberOfChannels = 1;
-  // //NEED to be an array
-  // int cBuffIdx = 0;
-  // int globalIdx = 0;
-  // List<int> arrHeads = List<int>.generate(6, (index) => 0);
-  // List<int> arrOffsetHeads = List<int>.generate(6, (index) => 0);
-  // List<String> arrMarkers = [];
-  // List<double> eventPositionInt =
-  //     List<double>.generate(max_markers, (index) => 0.0);
-  // List<double> eventPositionResultInt =
-  //     List<double>.generate(max_markers, (index) => 0.0);
-  // List<int> eventGlobalPositionInt =
-  //     List<int>.generate(max_markers, (index) => 0);
-  // List<int> arrGlobalIdx = List<int>.generate(6, (index) => 0);
+  int numberOfChannels = 1;
+  //NEED to be an array
+  int cBuffIdx = 0;
+  int globalIdx = 0;
+  List<int> arrHeads = List<int>.generate(6, (index) => 0);
+  List<int> arrOffsetHeads = List<int>.generate(6, (index) => 0);
+  List<String> arrMarkers = [];
+  List<double> eventPositionInt =
+      List<double>.generate(max_markers, (index) => 0.0);
+  List<double> eventPositionResultInt =
+      List<double>.generate(max_markers, (index) => 0.0);
+  List<int> eventGlobalPositionInt =
+      List<int>.generate(max_markers, (index) => 0);
+  List<int> arrGlobalIdx = List<int>.generate(6, (index) => 0);
 
-  // int cBufHead = 0;
-  // int cBufTail = 0;
-  // MainBloc deviceBloc = MainBloc();
+  int cBufHead = 0;
+  int cBufTail = 0;
+  MainBloc deviceBloc = MainBloc();
 
-  // bool weAreInsideEscapeSequence = false;
-  // int escapeSequenceDetectorIndex = 0;
-  // int messageBufferIndex = 0;
+  bool weAreInsideEscapeSequence = false;
+  int escapeSequenceDetectorIndex = 0;
+  int messageBufferIndex = 0;
 
-  // List<int> escapeSequence = [255, 255, 1, 1, 129, 255];
+  List<int> escapeSequence = [255, 255, 1, 1, 129, 255];
 
-  // sendPort.send(iReceivePort.sendPort);
+  sendPort.send(iReceivePort.sendPort);
 
-  // iReceivePort.listen((Object? message) async {
-  //   List<dynamic> arr = message as List<dynamic>;
-  //   List<int> samples = arr[0] as List<int>;
-  //   var level = arr[1];
-  //   var divider = arr[2];
-  //   var deviceChannel = arr[3];
-  //   // print('deviceChannel');
-  //   // print(deviceChannel);
-  //   var _sampleRate = arr[4];
-  //   var _maxSampleRate = 10000;
-  //   int CUR_START = arr[6];
-  //   bool isPaused = arr[7];
-  //   String curKey = arr[8];
-  //   double surfaceWidth = 0;
-  //   try {
-  //     surfaceWidth = arr[9];
-  //   } catch (err) {
-  //     print("err");
-  //     print(err);
-  //     // arr[9];
-  //   }
+  iReceivePort.listen((Object? message) async {
+    List<dynamic> arr = message as List<dynamic>;
+    List<int> samples = arr[0] as List<int>;
+    var level = arr[1];
+    var divider = arr[2];
+    var deviceChannel = arr[3];
+    // print('deviceChannel');
+    // print(deviceChannel);
+    var _sampleRate = arr[4];
+    var _maxSampleRate = 10000;
+    int CUR_START = arr[6];
+    bool isPaused = arr[7];
+    String curKey = arr[8];
+    double surfaceWidth = 0;
+    try {
+      surfaceWidth = arr[9];
+    } catch (err) {
+      print("err");
+      print(err);
+      // arr[9];
+    }
 
-  //   bool isLowPass = arr[10];
-  //   bool isHighPass = arr[11];
-  //   bool isNotch50 = arr[12];
-  //   bool isNotch60 = arr[13];
+    bool isLowPass = arr[10];
+    bool isHighPass = arr[11];
+    bool isNotch50 = arr[12];
+    bool isNotch60 = arr[13];
 
-  //   isThresholding = arr[14];
-  //   List<double> snapshotAveragedSamples = arr[15];
-  //   List<int> thresholdValue = arr[16];
+    isThresholding = arr[14];
+    List<double> snapshotAveragedSamples = arr[15];
+    List<int> thresholdValue = arr[16];
 
-  //   int maxSize = (allEnvelopes[0][0]).length;
-  //   int globalPositionCap = (globalIdx * maxSize / 2).floor();
+    int maxSize = (allEnvelopes[0][0]).length;
+    int globalPositionCap = (globalIdx * maxSize / 2).floor();
 
-  //   numberOfChannels = deviceChannel;
-  //   if (isThresholding) {
-  //     numberOfChannels = 1;
-  //   }
+    numberOfChannels = deviceChannel;
+    if (isThresholding) {
+      numberOfChannels = 1;
+    }
 
-  //   //if prevsampleRate != curSampleRate
-  //   // _dataThreshold = allocate<ffi.Int16>(count: samplesLength, sizeOfType: ffi.sizeOf<ffi.Int16>());
-  //   // _thresholdBytes = _dataThreshold.asTypedList( Nativec.totalThresholdBytes );
+    //if prevsampleRate != curSampleRate
+    // _dataThreshold = allocate<ffi.Int16>(count: samplesLength, sizeOfType: ffi.sizeOf<ffi.Int16>());
+    // _thresholdBytes = _dataThreshold.asTypedList( Nativec.totalThresholdBytes );
 
-  //   if (isPrevThresholdingStatus != isThresholding) {
-  //     isPrevThresholdingStatus = isThresholding;
-  //     if (isThresholding) {
-  //       cBufferSize = SIZE;
-  //       // threshold will be filled with c++
-  //     } else {
-  //       cBufferSize = (_sampleRate * 60).floor();
-  //       allEnvelopes.forEach((element) {
-  //         element.forEach((envelope) {
-  //           envelope.fillRange(0, envelope.length, 0);
-  //         });
-  //       });
-  //     }
+    if (isPrevThresholdingStatus != isThresholding) {
+      isPrevThresholdingStatus = isThresholding;
+      if (isThresholding) {
+        cBufferSize = SIZE;
+        // threshold will be filled with c++
+      } else {
+        cBufferSize = (_sampleRate * 60).floor();
+        allEnvelopes.forEach((element) {
+          element.forEach((envelope) {
+            envelope.fillRange(0, envelope.length, 0);
+          });
+        });
+      }
 
-  //     cBuffIdx = 0;
-  //   }
+      cBuffIdx = 0;
+    }
 
-  //   if (cBuffIdx == -1) {
-  //     cBuffIdx = 0;
-  //     // print("reset CBUFFIDX");
-  //     // print(cBuffIdx);
-  //     final maxChannels = max(numberOfChannels, 6);
-  //     for (int c = 0; c < maxChannels; c++) {
-  //       for (int l = 0; l < skipCounts.length; l++) {
-  //         allEnvelopes[c][l].clear();
-  //       }
-  //     }
-  //   }
+    if (cBuffIdx == -1) {
+      cBuffIdx = 0;
+      // print("reset CBUFFIDX");
+      // print(cBuffIdx);
+      final maxChannels = max(numberOfChannels, 6);
+      for (int c = 0; c < maxChannels; c++) {
+        for (int l = 0; l < skipCounts.length; l++) {
+          allEnvelopes[c][l].clear();
+        }
+      }
+    }
 
-  //   Int16List curSamples = new Int16List(0);
-  //   if (!isPaused) {
-  //     int len = samples.length;
-  //     int i = 0;
-  //     for (i = 0; i < len; i++) {
-  //       int sample = samples[i];
+    Int16List curSamples = new Int16List(0);
+    if (!isPaused) {
+      int len = samples.length;
+      int i = 0;
+      for (i = 0; i < len; i++) {
+        int sample = samples[i];
 
-  //       if (weAreInsideEscapeSequence) {
-  //         messagesBuffer[messageBufferIndex] = sample;
-  //         messageBufferIndex++;
-  //       } else {
-  //         rawCircularBuffer[cBufHead++] = sample;
-  //         //uint debugMSB  = ((uint)(buffer[i])) & 0xFF;
+        if (weAreInsideEscapeSequence) {
+          messagesBuffer[messageBufferIndex] = sample;
+          messageBufferIndex++;
+        } else {
+          rawCircularBuffer[cBufHead++] = sample;
+          //uint debugMSB  = ((uint)(buffer[i])) & 0xFF;
 
-  //         if (cBufHead >= SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER)
-  //         // if(cBufHead>=CONFIG.ringBufferLength)
-  //         {
-  //           cBufHead = 0;
-  //         }
-  //       }
+          if (cBufHead >= SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER)
+          // if(cBufHead>=CONFIG.ringBufferLength)
+          {
+            cBufHead = 0;
+          }
+        }
 
-  //       Map<String, dynamic> oBufHead = {
-  //         "value": cBufHead,
-  //         "weAreInsideEscapeSequence": weAreInsideEscapeSequence
-  //       };
-  //       if (deviceType == "serial") {
-  //         if (sample == 0) {
-  //           if (lastWasZero == 1) {
-  //             numberOfZeros++;
-  //           }
-  //           lastWasZero = 1;
-  //         } else {
-  //           lastWasZero = 0;
-  //         }
+        Map<String, dynamic> oBufHead = {
+          "value": cBufHead,
+          "weAreInsideEscapeSequence": weAreInsideEscapeSequence
+        };
+        if (deviceType == "serial") {
+          if (sample == 0) {
+            if (lastWasZero == 1) {
+              numberOfZeros++;
+            }
+            lastWasZero = 1;
+          } else {
+            lastWasZero = 0;
+          }
 
-  //         testEscapeSequence(
-  //             sample & 0xFF,
-  //             (((i - (numberOfZeros > 0 ? numberOfZeros + 1 : 0)) / 2) /
-  //                     numberOfChannels -
-  //                 1),
-  //             messagesBuffer,
-  //             weAreInsideEscapeSequence,
-  //             messageBufferIndex,
-  //             escapeSequenceDetectorIndex,
-  //             oBufHead);
-  //         cBufHead = oBufHead["value"]!;
-  //         weAreInsideEscapeSequence = oBufHead["weAreInsideEscapeSequence"]!;
-  //       } else {
-  //         testEscapeSequence(
-  //             sample,
-  //             (((i) / 2) / numberOfChannels - 1).floor(),
-  //             messagesBuffer,
-  //             weAreInsideEscapeSequence,
-  //             messageBufferIndex,
-  //             escapeSequenceDetectorIndex,
-  //             oBufHead);
-  //         cBufHead = oBufHead["value"]!;
-  //         weAreInsideEscapeSequence = oBufHead["weAreInsideEscapeSequence"]!;
-  //       }
-  //     }
-  //     int LSB;
-  //     int MSB;
-  //     bool haveData = true;
-  //     bool weAlreadyProcessedBeginingOfTheFrame;
-  //     int numberOfParsedChannels;
-  //     int sample;
-  //     // String deviceType = 'serial';
+          testEscapeSequence(
+              sample & 0xFF,
+              (((i - (numberOfZeros > 0 ? numberOfZeros + 1 : 0)) / 2) /
+                      numberOfChannels -
+                  1),
+              messagesBuffer,
+              weAreInsideEscapeSequence,
+              messageBufferIndex,
+              escapeSequenceDetectorIndex,
+              oBufHead);
+          cBufHead = oBufHead["value"]!;
+          weAreInsideEscapeSequence = oBufHead["weAreInsideEscapeSequence"]!;
+        } else {
+          testEscapeSequence(
+              sample,
+              (((i) / 2) / numberOfChannels - 1).floor(),
+              messagesBuffer,
+              weAreInsideEscapeSequence,
+              messageBufferIndex,
+              escapeSequenceDetectorIndex,
+              oBufHead);
+          cBufHead = oBufHead["value"]!;
+          weAreInsideEscapeSequence = oBufHead["weAreInsideEscapeSequence"]!;
+        }
+      }
+      int LSB;
+      int MSB;
+      bool haveData = true;
+      bool weAlreadyProcessedBeginingOfTheFrame;
+      int numberOfParsedChannels;
+      int sample;
+      // String deviceType = 'serial';
 
-  //     Map<String, dynamic> map = {
-  //       'cBufTail': cBufTail,
-  //       'numberOfParsedChannels': 0,
-  //       'numberOfChannels': deviceChannel,
-  //       'numberOfFrames': numberOfFrames,
-  //       'cBufHead': cBufHead,
-  //       'deviceType': deviceType,
-  //       // 'cBuffIdx': cBuffIdx,
-  //       'globalIdx': globalIdx,
-  //       'arrHeads': arrHeads,
-  //     };
+      Map<String, dynamic> map = {
+        'cBufTail': cBufTail,
+        'numberOfParsedChannels': 0,
+        'numberOfChannels': deviceChannel,
+        'numberOfFrames': numberOfFrames,
+        'cBufHead': cBufHead,
+        'deviceType': deviceType,
+        // 'cBuffIdx': cBuffIdx,
+        'globalIdx': globalIdx,
+        'arrHeads': arrHeads,
+      };
 
-  //     serialParsing(
-  //         rawCircularBuffer,
-  //         allEnvelopes,
-  //         map,
-  //         cBufferSize,
-  //         SIZE_LOGS2,
-  //         skipCounts,
-  //         isThresholding,
-  //         snapshotAveragedSamples,
-  //         thresholdValue);
-  //     cBufTail = map['cBufTail'];
-  //     numberOfParsedChannels = map['numberOfParsedChannels'];
-  //     numberOfChannels = map['numberOfChannels'];
-  //     numberOfFrames = map['numberOfFrames'];
-  //     cBufHead = map['cBufHead'];
-  //     deviceType = map['deviceType'];
-  //     // cBuffIdx = map['cBuffIdx'];
-  //     globalIdx = map['globalIdx'];
-  //     arrHeads = map['arrHeads'];
+      serialParsing(
+          rawCircularBuffer,
+          allEnvelopes,
+          map,
+          cBufferSize,
+          SIZE_LOGS2,
+          skipCounts,
+          isThresholding,
+          snapshotAveragedSamples,
+          thresholdValue);
+      cBufTail = map['cBufTail'];
+      numberOfParsedChannels = map['numberOfParsedChannels'];
+      numberOfChannels = map['numberOfChannels'];
+      numberOfFrames = map['numberOfFrames'];
+      cBufHead = map['cBufHead'];
+      deviceType = map['deviceType'];
+      // cBuffIdx = map['cBuffIdx'];
+      globalIdx = map['globalIdx'];
+      arrHeads = map['arrHeads'];
 
-  //     // List<Int16List> zamples = map['processedSamples'];
-  //     List<List<int>> zamples = map['processedSamples'];
-  //     // if (isLowPass) {
-  //     //   zamples[c] = nativec.lowPassFilter(c, zamples[c], zamples[c].length);
-  //     // }
-  //     // // samples[c] = nativec.lowPassFilter(c, zamples[c], zamples[c].length);
-  //     // if (isHighPass) {
-  //     //   zamples[c] = nativec.highPassFilter(c, zamples[c], zamples[c].length);
-  //     // }
+      // List<Int16List> zamples = map['processedSamples'];
+      List<List<int>> zamples = map['processedSamples'];
+      // if (isLowPass) {
+      //   zamples[c] = nativec.lowPassFilter(c, zamples[c], zamples[c].length);
+      // }
+      // // samples[c] = nativec.lowPassFilter(c, zamples[c], zamples[c].length);
+      // if (isHighPass) {
+      //   zamples[c] = nativec.highPassFilter(c, zamples[c], zamples[c].length);
+      // }
 
-  //     // if (isNotch50) {
-  //     //   zamples[c] =
-  //     //       nativec.notchPassFilter(true, c, zamples[c], zamples[c].length);
-  //     // }
-  //     // if (isNotch60) {
-  //     //   zamples[c] =
-  //     //       nativec.notchPassFilter(false, c, zamples[c], zamples[c].length);
-  //     // }
-  //     int c = 0;
-  //     if (isThresholding) {
-  //       cBuffIdx = 0;
-  //       for (int i = 0; i < zamples[0].length; i++) {
-  //         if (zamples[0][i].abs() > 2000) zamples[0][i] = 0;
-  //       }
-  //       try {
-  //         // curSamples = (nativec.appendSamplesThresholdProcess(snapshotAveragedSamples[0].floor(), thresholdValue[0] * 2, 0, zamples[c], zamples[c].length));
-  //         // curSamples = (nativec.appendSamplesThresholdProcess(2, 30000, 0, zamples[c], zamples[c].length));
-  //         nativec.setThresholdParametersProcess(
-  //             1, level, sampleRate, divider, CUR_START);
-  //         double processedSamplesCount = (nativec.appendSamplesThresholdProcess(
-  //             snapshotAveragedSamples[0].floor(),
-  //             thresholdValue[0],
-  //             0,
-  //             zamples[c],
-  //             zamples[c].length,
-  //             divider,
-  //             CUR_START,
-  //             (allEnvelopes[0][level].length / divider).floor()));
+      // if (isNotch50) {
+      //   zamples[c] =
+      //       nativec.notchPassFilter(true, c, zamples[c], zamples[c].length);
+      // }
+      // if (isNotch60) {
+      //   zamples[c] =
+      //       nativec.notchPassFilter(false, c, zamples[c], zamples[c].length);
+      // }
+      int c = 0;
+      if (isThresholding) {
+        cBuffIdx = 0;
+        for (int i = 0; i < zamples[0].length; i++) {
+          if (zamples[0][i].abs() > 2000) zamples[0][i] = 0;
+        }
+        try {
+          // curSamples = (nativec.appendSamplesThresholdProcess(snapshotAveragedSamples[0].floor(), thresholdValue[0] * 2, 0, zamples[c], zamples[c].length));
+          // curSamples = (nativec.appendSamplesThresholdProcess(2, 30000, 0, zamples[c], zamples[c].length));
+          nativec.setThresholdParametersProcess(
+              1, level, sampleRate, divider, CUR_START);
+          double processedSamplesCount = (nativec.appendSamplesThresholdProcess(
+              snapshotAveragedSamples[0].floor(),
+              thresholdValue[0],
+              0,
+              zamples[c],
+              zamples[c].length,
+              divider,
+              CUR_START,
+              (allEnvelopes[0][level].length / divider).floor()));
 
-  //         // curSamples = _thresholdBytes;
-  //         curSamples =
-  //             _thresholdBytes.sublist(0, processedSamplesCount.floor());
-  //         // thresholdHeads[c] = processedSamplesCount.floor();
+          // curSamples = _thresholdBytes;
+          curSamples =
+              _thresholdBytes.sublist(0, processedSamplesCount.floor());
+          // thresholdHeads[c] = processedSamplesCount.floor();
 
-  //         // print(curSamples.length);
-  //       } catch (err) {
-  //         print("isThresholding Error");
-  //         print(err);
-  //       }
-  //       // level = calculateLevel(NUMBER_OF_SEGMENTS_THRESHOLD * 1000, _sampleRate, surfaceWidth, skipCounts);
-  //       samplesLength = curSamples.length;
-  //       cBuffIdx = samplesLength;
-  //       globalIdx = 0;
-  //       // allThresholdEnvelopes[c][level]
-  //       //     .fillRange(0, allThresholdEnvelopes[c].length, 0);
-  //     } else {
-  //       // level = calculateLevel(
-  //       //     10000, _sampleRate.floor(), surfaceWidth, skipCounts);
-  //       curSamples = Int16List.fromList(zamples[c]);
-  //       samplesLength = curSamples.length;
-  //     }
+          // print(curSamples.length);
+        } catch (err) {
+          print("isThresholding Error");
+          print(err);
+        }
+        // level = calculateLevel(NUMBER_OF_SEGMENTS_THRESHOLD * 1000, _sampleRate, surfaceWidth, skipCounts);
+        samplesLength = curSamples.length;
+        cBuffIdx = samplesLength;
+        globalIdx = 0;
+        // allThresholdEnvelopes[c][level]
+        //     .fillRange(0, allThresholdEnvelopes[c].length, 0);
+      } else {
+        // level = calculateLevel(
+        //     10000, _sampleRate.floor(), surfaceWidth, skipCounts);
+        curSamples = Int16List.fromList(zamples[c]);
+        samplesLength = curSamples.length;
+      }
 
-  //     //ENVELOPING
-  //     final int forceLevel = level;
-  //     if (isThresholding) {
-  //       if (allThresholdEnvelopes.length < c + 1) {
-  //         print('numberOfChannels');
-  //         print(numberOfChannels);
-  //         return;
-  //       }
-  //       // allThresholdEnvelopes[c][level]
-  //       //     .fillRange(0, allThresholdEnvelopes[c][level].length, 0);
-  //     }
+      //ENVELOPING
+      final int forceLevel = level;
+      if (isThresholding) {
+        if (allThresholdEnvelopes.length < c + 1) {
+          print('numberOfChannels');
+          print(numberOfChannels);
+          return;
+        }
+        // allThresholdEnvelopes[c][level]
+        //     .fillRange(0, allThresholdEnvelopes[c][level].length, 0);
+      }
 
-  //     // cBuffIdx = 0;
-  //     if (isThresholding) {
-  //       allThresholdEnvelopes[c][level] = curSamples;
-  //       // continue;
-  //     } else {
-  //       for (int i = 0; i < samplesLength; i++) {
-  //         int tmp = curSamples[i];
+      // cBuffIdx = 0;
+      if (isThresholding) {
+        allThresholdEnvelopes[c][level] = curSamples;
+        // continue;
+      } else {
+        for (int i = 0; i < samplesLength; i++) {
+          int tmp = curSamples[i];
 
-  //         try {
-  //           // if (isThresholding) {
-  //           //   try {
-  //           //     envelopingSamples(cBuffIdx, tmp, allThresholdEnvelopes[c],
-  //           //         SIZE_LOGS2, skipCounts, forceLevel);
-  //           //   } catch (err) {
-  //           //     print('error enveloping');
-  //           //     print(curSamples.length);
-  //           //     print(allThresholdEnvelopes[c].length);
-  //           //   }
-  //           // } else {
-  //           envelopingSamples(
-  //               cBuffIdx, tmp, allEnvelopes[c], SIZE_LOGS2, skipCounts, -1);
-  //           // }
+          try {
+            // if (isThresholding) {
+            //   try {
+            //     envelopingSamples(cBuffIdx, tmp, allThresholdEnvelopes[c],
+            //         SIZE_LOGS2, skipCounts, forceLevel);
+            //   } catch (err) {
+            //     print('error enveloping');
+            //     print(curSamples.length);
+            //     print(allThresholdEnvelopes[c].length);
+            //   }
+            // } else {
+            envelopingSamples(
+                cBuffIdx, tmp, allEnvelopes[c], SIZE_LOGS2, skipCounts, -1);
+            // }
 
-  //           cBuffIdx++;
-  //           if (cBuffIdx >= cBufferSize - 1) {
-  //             cBuffIdx = 0;
-  //             globalIdx++;
-  //           }
-  //         } catch (err) {
-  //           print("err");
-  //           print(err);
-  //         }
-  //       }
-  //     }
+            cBuffIdx++;
+            if (cBuffIdx >= cBufferSize - 1) {
+              cBuffIdx = 0;
+              globalIdx++;
+            }
+          } catch (err) {
+            print("err");
+            print(err);
+          }
+        }
+      }
 
-  //     if (curKey != "") {
-  //       cBuffIdx = arrHeads[0];
-  //       if (arrMarkers.length + 1 >= max_markers) {
-  //         arrMarkers.clear();
-  //       }
-  //       int markerIdx = arrMarkers.length;
-  //       eventPositionInt[markerIdx] = (cBuffIdx.toDouble());
-  //       eventGlobalPositionInt[markerIdx] = globalPositionCap + cBuffIdx;
-  //       arrMarkers.add(curKey);
-  //     }
-  //   } else {
-  //     // nativec.setThresholdParametersProcess(1,level, sampleRate, divider, CUR_START);
-  //     // curSamples = _thresholdBytes.sublist(0, allThresholdEnvelopes[0][level].length.floor());
-  //     int sampleNeeded = (allEnvelopes[0][level].length / divider).floor();
-  //     int samplesLength = nativec
-  //         .getSamplesThresholdProcess(
-  //             0, level, divider, CUR_START, sampleNeeded)
-  //         .floor();
-  //     thresholdHeads[0] = sampleNeeded;
-  //     cBuffIdx = sampleNeeded;
-  //     curSamples = _thresholdBytes.sublist(0, samplesLength);
-  //   }
+      if (curKey != "") {
+        cBuffIdx = arrHeads[0];
+        if (arrMarkers.length + 1 >= max_markers) {
+          arrMarkers.clear();
+        }
+        int markerIdx = arrMarkers.length;
+        eventPositionInt[markerIdx] = (cBuffIdx.toDouble());
+        eventGlobalPositionInt[markerIdx] = globalPositionCap + cBuffIdx;
+        arrMarkers.add(curKey);
+      }
+    } else {
+      // nativec.setThresholdParametersProcess(1,level, sampleRate, divider, CUR_START);
+      // curSamples = _thresholdBytes.sublist(0, allThresholdEnvelopes[0][level].length.floor());
+      int sampleNeeded = (allEnvelopes[0][level].length / divider).floor();
+      int samplesLength = nativec
+          .getSamplesThresholdProcess(
+              0, level, divider, CUR_START, sampleNeeded)
+          .floor();
+      thresholdHeads[0] = sampleNeeded;
+      cBuffIdx = sampleNeeded;
+      curSamples = _thresholdBytes.sublist(0, samplesLength);
+    }
 
-  //   // level = 7;
-  //   // int deviceChannel = 2;
-  //   List<Int16List> buffers = [];
+    // level = 7;
+    // int deviceChannel = 2;
+    List<Int16List> buffers = [];
 
-  //   if (isThresholding) {
-  //     // print("123 forceLevel");
-  //     // print(level);
-  //     level = calculateLevel(NUMBER_OF_SEGMENTS_THRESHOLD * 1000, _sampleRate,
-  //         surfaceWidth, skipCounts);
-  //     // print("allThresholdEnvelopes[0][level]");
-  //     // print(allThresholdEnvelopes[0][level-1].sublist(0,30));
-  //     // print(allThresholdEnvelopes[0][level].sublist(0,30));
-  //     // print(allThresholdEnvelopes[0][level+1].sublist(0,30));
-  //     for (int c = 0; c < numberOfChannels; c++) {
-  //       // Int16List envelopeSamples = (allThresholdEnvelopes[c][level]);
-  //       // // Int16List envelopeSamples = (allThresholdEnvelopes[0][0]);
-  //       // // print('envelopeSamples');
-  //       // // print(envelopeSamples.reduce((value, element) => value+element));
+    if (isThresholding) {
+      // print("123 forceLevel");
+      // print(level);
+      level = calculateLevel(NUMBER_OF_SEGMENTS_THRESHOLD * 1000, _sampleRate,
+          surfaceWidth, skipCounts);
+      // print("allThresholdEnvelopes[0][level]");
+      // print(allThresholdEnvelopes[0][level-1].sublist(0,30));
+      // print(allThresholdEnvelopes[0][level].sublist(0,30));
+      // print(allThresholdEnvelopes[0][level+1].sublist(0,30));
+      for (int c = 0; c < numberOfChannels; c++) {
+        // Int16List envelopeSamples = (allThresholdEnvelopes[c][level]);
+        // // Int16List envelopeSamples = (allThresholdEnvelopes[0][0]);
+        // // print('envelopeSamples');
+        // // print(envelopeSamples.reduce((value, element) => value+element));
 
-  //       // int prevSegment = (envelopeSamples.length / 1).floor();
-  //       // int drawSamplesCount = prevSegment;
-  //       // int from = ((envelopeSamples.length - drawSamplesCount) * .5).floor();
-  //       // int to = ((envelopeSamples.length + drawSamplesCount) * .5).floor();
-  //       // // if (to> envelopeSamples.length){
-  //       // // }
-  //       // from = 0;
-  //       // to = envelopeSamples.length;
+        // int prevSegment = (envelopeSamples.length / 1).floor();
+        // int drawSamplesCount = prevSegment;
+        // int from = ((envelopeSamples.length - drawSamplesCount) * .5).floor();
+        // int to = ((envelopeSamples.length + drawSamplesCount) * .5).floor();
+        // // if (to> envelopeSamples.length){
+        // // }
+        // from = 0;
+        // to = envelopeSamples.length;
 
-  //       // Int16List cBuff = envelopeSamples;
-  //       Int16List cBuff = curSamples;
-  //       buffers.add(cBuff);
-  //     }
-  //     sendPort.send([buffers, arrHeads[0], eventPositionResultInt]);
+        // Int16List cBuff = envelopeSamples;
+        Int16List cBuff = curSamples;
+        buffers.add(cBuff);
+      }
+      sendPort.send([buffers, arrHeads[0], eventPositionResultInt]);
 
-  //     return;
-  //   }
+      return;
+    }
 
-  //   const excess = 0;
-  //   int halfwayCap =
-  //       // globalPositionCap - ((globalPositionCap * 0.2) / currentCap).floor();
-  //       globalPositionCap - (globalPositionCap * 0.2).floor();
-  //   for (int c = 0; c < deviceChannel; c++) {
-  //     Int16List envelopeSamples = allEnvelopes[c][level];
-  //     double factor = _sampleRate / _maxSampleRate;
-  //     int bufferLength =
-  //         (_sampleRate * 60 / divider * 2 / skipCounts[level]).floor();
-  //     Int16List cBuff = Int16List(bufferLength);
-  //     int prevSegment = (envelopeSamples.length / divider * factor).floor();
-  //     // print(bufferLength.toString() + " VS " + (prevSegment).toString());
-  //     int rawHead = arrHeads[c];
-  //     int rawOffsetHead = arrOffsetHeads[c];
-  //     if (CUR_START != 0) {
-  //       if (rawHead - CUR_START >= 0) {
-  //         rawHead = rawHead - (CUR_START);
-  //       } else {
-  //         print("rawHead - Curstart <= 0");
-  //       }
-  //     }
+    const excess = 0;
+    int halfwayCap =
+        // globalPositionCap - ((globalPositionCap * 0.2) / currentCap).floor();
+        globalPositionCap - (globalPositionCap * 0.2).floor();
+    for (int c = 0; c < deviceChannel; c++) {
+      Int16List envelopeSamples = allEnvelopes[c][level];
+      double factor = _sampleRate / _maxSampleRate;
+      int bufferLength =
+          (_sampleRate * 60 / divider * 2 / skipCounts[level]).floor();
+      Int16List cBuff = Int16List(bufferLength);
+      int prevSegment = (envelopeSamples.length / divider * factor).floor();
+      // print(bufferLength.toString() + " VS " + (prevSegment).toString());
+      int rawHead = arrHeads[c];
+      int rawOffsetHead = arrOffsetHeads[c];
+      if (CUR_START != 0) {
+        if (rawHead - CUR_START >= 0) {
+          rawHead = rawHead - (CUR_START);
+        } else {
+          print("rawHead - Curstart <= 0");
+        }
+      }
 
-  //     int skipCount = skipCounts[level];
-  //     // int cBuffHead = arrHeads[c];
-  //     // int head = (cBuffHead / skipCount).floor();
-  //     int head = (rawHead / skipCount).floor();
-  //     int offsetHead = (rawOffsetHead).floor();
+      int skipCount = skipCounts[level];
+      // int cBuffHead = arrHeads[c];
+      // int head = (cBuffHead / skipCount).floor();
+      int head = (rawHead / skipCount).floor();
+      int offsetHead = (rawOffsetHead).floor();
 
-  //     int interleavedIdx = head * 2;
-  //     int start = interleavedIdx - prevSegment;
-  //     int to = interleavedIdx;
-  //     int nearFull = head * 2 + prevSegment;
-  //     // print("Zerial Level : " + level.toString());
+      int interleavedIdx = head * 2;
+      int start = interleavedIdx - prevSegment;
+      int to = interleavedIdx;
+      int nearFull = head * 2 + prevSegment;
+      // print("Zerial Level : " + level.toString());
 
-  //     if (globalIdx == 0) {
-  //       if (start < 0) start = 0;
-  //       Int16List arr = allEnvelopes[c][level].sublist(start, to);
+      if (globalIdx == 0) {
+        if (start < 0) start = 0;
+        Int16List arr = allEnvelopes[c][level].sublist(start, to);
 
-  //       if (arr.length < bufferLength) {
-  //         // if (to-prevSegment < bufferLength) {
-  //         // print(arr);
-  //         cBuff.setAll(bufferLength - arr.length - 1, arr);
-  //       } else {
-  //         // start = to - bufferLength;
-  //         cBuff.setAll(0, arr);
-  //       }
+        if (arr.length < bufferLength) {
+          // if (to-prevSegment < bufferLength) {
+          // print(arr);
+          cBuff.setAll(bufferLength - arr.length - 1, arr);
+        } else {
+          // start = to - bufferLength;
+          cBuff.setAll(0, arr);
+        }
 
-  //       if (c == 0) {
-  //         int bufferLength = prevSegment;
-  //         int evtCounter = arrMarkers.length;
-  //         eventPositionResultInt.fillRange(0, max_markers, 0);
-  //         double offsetTail = offsetHead - bufferLength / 2 * skipCount;
+        if (c == 0) {
+          int bufferLength = prevSegment;
+          int evtCounter = arrMarkers.length;
+          eventPositionResultInt.fillRange(0, max_markers, 0);
+          double offsetTail = offsetHead - bufferLength / 2 * skipCount;
 
-  //         for (int ctr = 0; ctr < evtCounter; ctr++) {
-  //           if (eventGlobalPositionInt[ctr] >= globalPositionCap) {
-  //             int headPosition = (eventPositionInt[ctr] / skipCount * 2)
-  //                 .floor(); // headPosition in envelope realm
-  //             if (headPosition < start) {
-  //               eventPositionResultInt[ctr] = 0;
-  //             } else //{
-  //             if (headPosition >= start && headPosition <= to) {
-  //               eventPositionResultInt[ctr] =
-  //                   (bufferLength - excess - (to - (headPosition))) /
-  //                       bufferLength *
-  //                       surfaceWidth;
-  //             }
-  //           }
-  //         }
-  //       }
-  //     } else {
-  //       if (start < 0) {
-  //         // it is divided into 2 sections
-  //         int processedHead = head * 2;
-  //         int segmentCount = prevSegment;
-  //         int bufferLength = prevSegment;
+          for (int ctr = 0; ctr < evtCounter; ctr++) {
+            if (eventGlobalPositionInt[ctr] >= globalPositionCap) {
+              int headPosition = (eventPositionInt[ctr] / skipCount * 2)
+                  .floor(); // headPosition in envelope realm
+              if (headPosition < start) {
+                eventPositionResultInt[ctr] = 0;
+              } else //{
+              if (headPosition >= start && headPosition <= to) {
+                eventPositionResultInt[ctr] =
+                    (bufferLength - excess - (to - (headPosition))) /
+                        bufferLength *
+                        surfaceWidth;
+              }
+            }
+          }
+        }
+      } else {
+        if (start < 0) {
+          // it is divided into 2 sections
+          int processedHead = head * 2;
+          int segmentCount = prevSegment;
+          int bufferLength = prevSegment;
 
-  //         segmentCount = segmentCount - processedHead - 1;
-  //         start = envelopeSamples.length - segmentCount;
-  //         Int16List firstPartOfData = envelopeSamples.sublist(start);
-  //         Int16List secondPartOfData =
-  //             envelopeSamples.sublist(0, processedHead + 1);
-  //         if (secondPartOfData.length > 0) {
-  //           try {
-  //             cBuff.setAll(0, firstPartOfData);
-  //             cBuff.setAll(firstPartOfData.length, secondPartOfData);
-  //           } catch (err) {}
-  //         } else {
-  //           cBuff.setAll(
-  //               bufferLength - firstPartOfData.length - 1, firstPartOfData);
-  //         }
+          segmentCount = segmentCount - processedHead - 1;
+          start = envelopeSamples.length - segmentCount;
+          Int16List firstPartOfData = envelopeSamples.sublist(start);
+          Int16List secondPartOfData =
+              envelopeSamples.sublist(0, processedHead + 1);
+          if (secondPartOfData.length > 0) {
+            try {
+              cBuff.setAll(0, firstPartOfData);
+              cBuff.setAll(firstPartOfData.length, secondPartOfData);
+            } catch (err) {}
+          } else {
+            cBuff.setAll(
+                bufferLength - firstPartOfData.length - 1, firstPartOfData);
+          }
 
-  //         if (c == 0) {
-  //           int evtCounter = arrMarkers.length;
+          if (c == 0) {
+            int evtCounter = arrMarkers.length;
 
-  //           for (int ctr = 0; ctr < evtCounter; ctr++) {
-  //             int headPosition = (eventPositionInt[ctr] / skipCount * 2)
-  //                 .floor(); // headPosition in envelope realm
+            for (int ctr = 0; ctr < evtCounter; ctr++) {
+              int headPosition = (eventPositionInt[ctr] / skipCount * 2)
+                  .floor(); // headPosition in envelope realm
 
-  //             if (eventGlobalPositionInt[ctr] >= halfwayCap) {
-  //               if (headPosition < start && headPosition > to) {
-  //                 eventPositionResultInt[ctr] = 0;
-  //               } else {
-  //                 if (headPosition <= envelopeSamples.length &&
-  //                     headPosition >= start) {
-  //                   // upper
-  //                   int counter = bufferLength -
-  //                       (envelopeSamples.length -
-  //                           headPosition +
-  //                           secondPartOfData.length);
-  //                   eventPositionResultInt[ctr] =
-  //                       counter / bufferLength * surfaceWidth;
-  //                   // console.log("upper ", eventPositionResultInt[ctr].toString());
-  //                 } else //{ // headPosition < to // below
-  //                 if (headPosition <= to && headPosition >= 0) {
-  //                   // console.log("below");
-  //                   int counter = bufferLength - excess - (to - (headPosition));
-  //                   eventPositionResultInt[ctr] =
-  //                       counter / bufferLength * surfaceWidth;
-  //                 }
-  //               }
-  //             }
-  //           }
-  //         }
-  //       } else {
-  //         // print("start > 0");
-  //         // cBuff = List<double>.from(allEnvelopes[c][level].sublist(start, to));
-  //         cBuff = allEnvelopes[c][level].sublist(start, to);
-  //         if (c == 0) {
-  //           int bufferLength = prevSegment;
-  //           int evtCounter = arrMarkers.length;
+              if (eventGlobalPositionInt[ctr] >= halfwayCap) {
+                if (headPosition < start && headPosition > to) {
+                  eventPositionResultInt[ctr] = 0;
+                } else {
+                  if (headPosition <= envelopeSamples.length &&
+                      headPosition >= start) {
+                    // upper
+                    int counter = bufferLength -
+                        (envelopeSamples.length -
+                            headPosition +
+                            secondPartOfData.length);
+                    eventPositionResultInt[ctr] =
+                        counter / bufferLength * surfaceWidth;
+                    // console.log("upper ", eventPositionResultInt[ctr].toString());
+                  } else //{ // headPosition < to // below
+                  if (headPosition <= to && headPosition >= 0) {
+                    // console.log("below");
+                    int counter = bufferLength - excess - (to - (headPosition));
+                    eventPositionResultInt[ctr] =
+                        counter / bufferLength * surfaceWidth;
+                  }
+                }
+              }
+            }
+          }
+        } else {
+          // print("start > 0");
+          // cBuff = List<double>.from(allEnvelopes[c][level].sublist(start, to));
+          cBuff = allEnvelopes[c][level].sublist(start, to);
+          if (c == 0) {
+            int bufferLength = prevSegment;
+            int evtCounter = arrMarkers.length;
 
-  //           for (int ctr = 0; ctr < evtCounter; ctr++) {
-  //             if (eventGlobalPositionInt[ctr] >= globalPositionCap) {
-  //               int headPosition = (eventPositionInt[ctr] / skipCount * 2)
-  //                   .floor(); // headPosition in envelope realm
-  //               if (headPosition < start) {
-  //                 eventPositionResultInt[ctr] = 0;
-  //               } else if (headPosition >= start && headPosition <= to) {
-  //                 // eventPositionResultInt[ctr] = prevSegment - excess - ( to - (headPosition) );
-  //                 eventPositionResultInt[ctr] =
-  //                     (bufferLength - excess - (to - (headPosition))) /
-  //                         bufferLength *
-  //                         surfaceWidth;
-  //               }
-  //             }
-  //           }
-  //         }
-  //       }
-  //     }
-  //     buffers.add(cBuff);
-  //   }
+            for (int ctr = 0; ctr < evtCounter; ctr++) {
+              if (eventGlobalPositionInt[ctr] >= globalPositionCap) {
+                int headPosition = (eventPositionInt[ctr] / skipCount * 2)
+                    .floor(); // headPosition in envelope realm
+                if (headPosition < start) {
+                  eventPositionResultInt[ctr] = 0;
+                } else if (headPosition >= start && headPosition <= to) {
+                  // eventPositionResultInt[ctr] = prevSegment - excess - ( to - (headPosition) );
+                  eventPositionResultInt[ctr] =
+                      (bufferLength - excess - (to - (headPosition))) /
+                          bufferLength *
+                          surfaceWidth;
+                }
+              }
+            }
+          }
+        }
+      }
+      buffers.add(cBuff);
+    }
 
-  //   sendPort.send([buffers, arrHeads[0], eventPositionResultInt]);
-  // });
+    sendPort.send([buffers, arrHeads[0], eventPositionResultInt]);
+  });
 }
 
 class MyApp extends StatelessWidget {
@@ -1915,11 +2075,11 @@ class _MyHomePageState extends State<MyHomePage> {
   late StreamSubscription subscriptionSimulateData;
 
   // Platform.isWindows
-  // late SerialPort serialPort;
-  // late SerialPortReader serialReader;
+  late SerialPort serialPort;
+  late SerialPortReader serialReader;
 
-  // // Platform.isAndroid
-  // late UsbPort port;
+  // Platform.isAndroid
+  late UsbPort port;
 
   StreamSubscription<List<int>>? audioListener;
 
@@ -1958,20 +2118,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   js2Dart(params) {
-    // channelsData[0] = (params[0]).toList().cast<double>();
-    final int len = params.length;
-    final int temp = (len-1) - channelsData.length;
-    for (int i = 0; i < temp; i++){
-      channelsData.add([]);
-    }
-    for (int i = 0; i< len-1 ; i++){
-      //channelsData
-      if (settingParams['flagDisplay'+(i+1).toString()]== 1){
-        channelsData[i] = (params[i]).toList().cast<double>();
-      }else{
-        channelsData[i] = [];
-      }
-    }
+    cBuffDouble = (params[0]).toList().cast<double>();
     setState(() {});
   }
 
@@ -1999,14 +2146,14 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     }
     if (kIsWeb) {
-      js.context.callMethod('setFlagChannelDisplay', [
-        settingParams["flagDisplay1"],
-        settingParams["flagDisplay2"],
-        settingParams["flagDisplay3"],
-        settingParams["flagDisplay4"],
-        settingParams["flagDisplay5"],
-        settingParams["flagDisplay6"]
-      ]);
+      // js.context.callMethod('setFlagChannelDisplay', [
+      //   settingParams["flagDisplay1"],
+      //   settingParams["flagDisplay2"],
+      //   settingParams["flagDisplay3"],
+      //   settingParams["flagDisplay4"],
+      //   settingParams["flagDisplay5"],
+      //   settingParams["flagDisplay6"]
+      // ]);
     } else {}
     setState(() {});
   }
@@ -2160,9 +2307,6 @@ class _MyHomePageState extends State<MyHomePage> {
       // }
       print("platformMultiplier");
       print(platformMultiplier);
-      if (kIsWeb){
-        // platformMultiplier = 1;
-      }else
       if (Platform.isWindows) {
         platformMultiplier = 2;
       }
@@ -2307,14 +2451,14 @@ class _MyHomePageState extends State<MyHomePage> {
     // print("channelsColor[1] : "+channelsColor[1].toString());
 
     if (kIsWeb) {
-      js.context.callMethod('setFlagChannelDisplay', [
-        settingParams["flagDisplay1"],
-        settingParams["flagDisplay2"],
-        settingParams["flagDisplay3"],
-        settingParams["flagDisplay4"],
-        settingParams["flagDisplay5"],
-        settingParams["flagDisplay6"]
-      ]);
+      // js.context.callMethod('setFlagChannelDisplay', [
+      //   settingParams["flagDisplay1"],
+      //   settingParams["flagDisplay2"],
+      //   settingParams["flagDisplay3"],
+      //   settingParams["flagDisplay4"],
+      //   settingParams["flagDisplay5"],
+      //   settingParams["flagDisplay6"]
+      // ]);
     } else {}
 
     setState(() {});
@@ -2348,26 +2492,26 @@ class _MyHomePageState extends State<MyHomePage> {
     callbackAudioInit([0, 0]);
     isPlaying = 1;
     // closeIsolate();
-    if (kIsWeb) {
-      js.context['jsToDart'] = js2Dart;
-      js.context['callbackErrorLog'] = callbackErrorLog;
-      js.context['callbackGetDeviceInfo'] = callbackGetDeviceInfo;
-      js.context['callbackAudioInit'] = callbackAudioInit;
-      js.context['callbackOpenWavFile'] = callbackOpenWavFile;
-      js.context['callbackOpeningFile'] = callbackOpeningFile;
-      js.context['callbackIsOpeningWavFile'] = callbackIsOpeningWavFile;
-      js.context['changeResetPlayback'] = changeResetPlayback;
-      js.context['resetToAudio'] = resetToAudio;
-      js.context['changeSampleRate'] = (params) {
-        // sampleRate = params[0];
-        // curSkipCounts = params[1];
-        // curLevel = params[2];
-      };
+    // if (kIsWeb) {
+    //   js.context['jsToDart'] = js2Dart;
+    //   js.context['callbackErrorLog'] = callbackErrorLog;
+    //   js.context['callbackGetDeviceInfo'] = callbackGetDeviceInfo;
+    //   js.context['callbackAudioInit'] = callbackAudioInit;
+    //   js.context['callbackOpenWavFile'] = callbackOpenWavFile;
+    //   js.context['callbackOpeningFile'] = callbackOpeningFile;
+    //   js.context['callbackIsOpeningWavFile'] = callbackIsOpeningWavFile;
+    //   js.context['changeResetPlayback'] = changeResetPlayback;
+    //   js.context['resetToAudio'] = resetToAudio;
+    //   js.context['changeSampleRate'] = (params) {
+    //     // sampleRate = params[0];
+    //     // curSkipCounts = params[1];
+    //     // curLevel = params[2];
+    //   };
 
-      js.context
-          .callMethod('recordAudio', ['Flutter is calling upon JavaScript!']);
-      return;
-    }
+    //   js.context
+    //       .callMethod('recordAudio', ['Flutter is calling upon JavaScript!']);
+    //   return;
+    // }
 
     // if (Platform.isMacOS) {
     // https://github.com/BackyardBrains/Spike-Recorder/blob/327cd6ff142238c657a7cb68ff536f65fcbb2b98/src/engine/RecordingManager.cpp#L879
@@ -2377,476 +2521,476 @@ class _MyHomePageState extends State<MyHomePage> {
     // await (Winaudio()).startRecording();
     // }
     // if android : audioRecord.getRoutedDevice()   https://developer.android.com/reference/android/media/AudioDeviceInfo#getChannelCounts()
-  //   maxOsChannel = 1;
-  //   if (Platform.isWindows || Platform.isMacOS) {
-  //     maxOsChannel = 2;
+    maxOsChannel = 1;
+    if (Platform.isWindows || Platform.isMacOS) {
+      maxOsChannel = 2;
 
-  //     print("isWINDOWS or MAC");
-  //     try {
-  //       if (await Permission.microphone.request().isGranted) {
-  //         // Either the permission was already granted before or the user just granted it.
-  //       }
-  //     } catch (err) {}
-  //     sampleRate = 48000;
-  //     double _sampleRate = sampleRate.toDouble();
-  //     if (Platform.isMacOS) {
-  //       Stream<List<int>>? stream = await MicStream.microphone(
-  //           audioSource: AudioSource.DEFAULT,
-  //           sampleRate: 48000,
-  //           channelConfig: ChannelConfig.CHANNEL_IN_MONO,
-  //           audioFormat: AudioFormat.ENCODING_PCM_16BIT);
+      print("isWINDOWS or MAC");
+      try {
+        if (await Permission.microphone.request().isGranted) {
+          // Either the permission was already granted before or the user just granted it.
+        }
+      } catch (err) {}
+      sampleRate = 48000;
+      double _sampleRate = sampleRate.toDouble();
+      if (Platform.isMacOS) {
+        Stream<List<int>>? stream = await MicStream.microphone(
+            audioSource: AudioSource.DEFAULT,
+            sampleRate: 48000,
+            channelConfig: ChannelConfig.CHANNEL_IN_MONO,
+            audioFormat: AudioFormat.ENCODING_PCM_16BIT);
 
-  //       _sampleRate = await MicStream.sampleRate!;
-  //       MicStream.stopListening();
-  //     }
-  //     sampleRate = _sampleRate.floor();
+        _sampleRate = await MicStream.sampleRate!;
+        MicStream.stopListening();
+      }
+      sampleRate = _sampleRate.floor();
 
-  //     _lowPassFilter = _sampleRate / 2;
-  //     _highPassFilter = 0;
-  //     settingParams['lowFilterValue'] = _highPassFilter.floor().toString();
-  //     settingParams['highFilterValue'] = _lowPassFilter.floor().toString();
+      _lowPassFilter = _sampleRate / 2;
+      _highPassFilter = 0;
+      settingParams['lowFilterValue'] = _highPassFilter.floor().toString();
+      settingParams['highFilterValue'] = _lowPassFilter.floor().toString();
 
-  //     if (_lowPassFilter == sampleRate / 2) {
-  //       isLowPass = false;
-  //     } else {
-  //       isLowPass = true;
-  //     }
-  //     if (_highPassFilter == 0) {
-  //       isHighPass = false;
-  //     } else {
-  //       isHighPass = true;
-  //     }
+      if (_lowPassFilter == sampleRate / 2) {
+        isLowPass = false;
+      } else {
+        isLowPass = true;
+      }
+      if (_highPassFilter == 0) {
+        isHighPass = false;
+      } else {
+        isHighPass = true;
+      }
 
-  //     if (isLowPass)
-  //       nativec.createLowPassFilter(
-  //           maxOsChannel, _sampleRate, _lowPassFilter, 0.5);
-  //     // print("lowPass Alpha");
-  //     // print(low);
-  //     if (isHighPass)
-  //       nativec.createHighPassFilter(maxOsChannel, _sampleRate,
-  //           _highPassFilter == 0 ? 1.0 : _highPassFilter, 0.5);
+      if (isLowPass)
+        nativec.createLowPassFilter(
+            maxOsChannel, _sampleRate, _lowPassFilter, 0.5);
+      // print("lowPass Alpha");
+      // print(low);
+      if (isHighPass)
+        nativec.createHighPassFilter(maxOsChannel, _sampleRate,
+            _highPassFilter == 0 ? 1.0 : _highPassFilter, 0.5);
 
-  //     nativec.createNotchPassFilter(1, maxOsChannel, _sampleRate, 50.0, 1.0);
-  //     nativec.createNotchPassFilter(0, maxOsChannel, _sampleRate, 60.0, 1.0);
+      nativec.createNotchPassFilter(1, maxOsChannel, _sampleRate, 50.0, 1.0);
+      nativec.createNotchPassFilter(0, maxOsChannel, _sampleRate, 60.0, 1.0);
 
-  //     List<int> envelopeSizes = [];
-  //     int SEGMENT_SIZE = _sampleRate.toInt();
-  //     int SIZE = NUMBER_OF_SEGMENTS * SEGMENT_SIZE;
-  //     double size = SIZE.toDouble() * 2;
-  //     allEnvelopes = [];
-  //     //get audio Channel
-  //     unitInitializeEnvelope(
-  //         maxOsChannel, allEnvelopes, envelopeSizes, size, SIZE, SIZE_LOGS2);
-  //     int cBufferSize = ((_sampleRate * 60).floor()).floor();
-  //     print("start Isolate ");
-  //     _receivePort = ReceivePort();
-  //     _receiveAudioPort = ReceivePort();
+      List<int> envelopeSizes = [];
+      int SEGMENT_SIZE = _sampleRate.toInt();
+      int SIZE = NUMBER_OF_SEGMENTS * SEGMENT_SIZE;
+      double size = SIZE.toDouble() * 2;
+      allEnvelopes = [];
+      //get audio Channel
+      unitInitializeEnvelope(
+          maxOsChannel, allEnvelopes, envelopeSizes, size, SIZE, SIZE_LOGS2);
+      int cBufferSize = ((_sampleRate * 60).floor()).floor();
+      print("start Isolate ");
+      _receivePort = ReceivePort();
+      _receiveAudioPort = ReceivePort();
 
-  //     _receiveQueue = StreamQueue(_receivePort);
-  //     _receiveAudioQueue = StreamQueue(_receiveAudioPort);
+      _receiveQueue = StreamQueue(_receivePort);
+      _receiveAudioQueue = StreamQueue(_receiveAudioPort);
 
-  //     _isolate = await Isolate.spawn<List<dynamic>>(sampleBufferingEntryPoint, [
-  //       _receiveAudioPort.sendPort,
-  //       allEnvelopes,
-  //       cBufferSize,
-  //       _sampleRate.toDouble(),
-  //       myArrTimescale,
-  //       MediaQuery.of(context).devicePixelRatio,
-  //       [197]
-  //     ]);
-  //     iSendAudioPort = await _receiveAudioQueue.next;
+      _isolate = await Isolate.spawn<List<dynamic>>(sampleBufferingEntryPoint, [
+        _receiveAudioPort.sendPort,
+        allEnvelopes,
+        cBufferSize,
+        _sampleRate.toDouble(),
+        myArrTimescale,
+        MediaQuery.of(context).devicePixelRatio,
+        [197]
+      ]);
+      iSendAudioPort = await _receiveAudioQueue.next;
 
-  //     double innerWidth = MediaQuery.of(context).size.width;
-  //     level =
-  //         calculateLevel(10000, _sampleRate.toInt(), innerWidth, skipCounts);
-  //     print("calculate level");
+      double innerWidth = MediaQuery.of(context).size.width;
+      level =
+          calculateLevel(10000, _sampleRate.toInt(), innerWidth, skipCounts);
+      print("calculate level");
 
-  //     int skipCount = skipCounts[level];
+      int skipCount = skipCounts[level];
 
-  //     Int16List envelopeSamples = allEnvelopes[0][level];
-  //     int prevSegment = (envelopeSamples.length / divider).floor();
+      Int16List envelopeSamples = allEnvelopes[0][level];
+      int prevSegment = (envelopeSamples.length / divider).floor();
 
-  //     cBuffDouble = List<double>.generate(prevSegment, (i) => 0);
-  //     cBuff = List<double>.generate(prevSegment, (i) => 0);
-  //     globalIdx = 0;
-  //     int channelIdx = 0;
+      cBuffDouble = List<double>.generate(prevSegment, (i) => 0);
+      cBuff = List<double>.generate(prevSegment, (i) => 0);
+      globalIdx = 0;
+      int channelIdx = 0;
 
-  //     // START RECORDING
-  //     if (Platform.isMacOS) {
-  //       // await (Winaudio()).initBassAudio(48000);
-  //       // await (Winaudio()).startRecording();
-  //       // Future.delayed(Duration(seconds: 1), () {
-  //       //   (Winaudio()).startRecording();
-  //       // });
-  //     }
-  //     await (Winaudio()).initBassAudio(sampleRate);
-  //     Future.delayed(Duration(milliseconds: 300), () {
-  //       (Winaudio()).startRecording();
-  //     });
+      // START RECORDING
+      if (Platform.isMacOS) {
+        // await (Winaudio()).initBassAudio(48000);
+        // await (Winaudio()).startRecording();
+        // Future.delayed(Duration(seconds: 1), () {
+        //   (Winaudio()).startRecording();
+        // });
+      }
+      await (Winaudio()).initBassAudio(sampleRate);
+      Future.delayed(Duration(milliseconds: 300), () {
+        (Winaudio()).startRecording();
+      });
 
-  //     print("start Recording - end");
+      print("start Recording - end");
 
-  //     _receiveAudioQueue.rest.listen((curSamples) {
-  //       // print('curSamples[0].runTimeType');
-  //       // print(curSamples[0][0].runTimeType);
-  //       // if (isThreshold){
-  //       // Int16List convSamples = curSamples[0][0] as Int16List;
-  //       // // cBuffDouble = List<double>.from(curSamples);
-  //       // // channelsData = List<List<double>>.from(curSamples[0]);
-  //       // // channelsData = List<List<double>>.from(convSamples.map((e) => (e.toDouble())));
-  //       // List<double> list = convSamples.map( (e) => e.toDouble() ).toList(growable: false);
-  //       // channelsData=[list];
-  //       // }else{
-  //       //   channelsData = [];
-  //       //   List<Int16List> convSamples = curSamples[0];
-  //       //   for (int i = 0; i<convSamples.length ; i++){
-  //       //     channelsData.add(convSamples[i].map( (e) => e.toDouble() ).toList(growable: false));
-  //       //   }
-  //       // }
-  //       channelsData = [];
-  //       List<Int16List> convSamples = curSamples[0];
+      _receiveAudioQueue.rest.listen((curSamples) {
+        // print('curSamples[0].runTimeType');
+        // print(curSamples[0][0].runTimeType);
+        // if (isThreshold){
+        // Int16List convSamples = curSamples[0][0] as Int16List;
+        // // cBuffDouble = List<double>.from(curSamples);
+        // // channelsData = List<List<double>>.from(curSamples[0]);
+        // // channelsData = List<List<double>>.from(convSamples.map((e) => (e.toDouble())));
+        // List<double> list = convSamples.map( (e) => e.toDouble() ).toList(growable: false);
+        // channelsData=[list];
+        // }else{
+        //   channelsData = [];
+        //   List<Int16List> convSamples = curSamples[0];
+        //   for (int i = 0; i<convSamples.length ; i++){
+        //     channelsData.add(convSamples[i].map( (e) => e.toDouble() ).toList(growable: false));
+        //   }
+        // }
+        channelsData = [];
+        List<Int16List> convSamples = curSamples[0];
 
-  //       for (int i = 0; i < convSamples.length; i++) {
-  //         channelsData.add(
-  //             convSamples[i].map((e) => e.toDouble()).toList(growable: false));
-  //       }
+        for (int i = 0; i < convSamples.length; i++) {
+          channelsData.add(
+              convSamples[i].map((e) => e.toDouble()).toList(growable: false));
+        }
 
-  //       // Int16List dupSamples = new Int16List.fromList(convSamples[0]);
-  //       // dupSamples.sort();
-  //       // print("int------");
-  //       // print(dupSamples[dupSamples.length-1]);
+        // Int16List dupSamples = new Int16List.fromList(convSamples[0]);
+        // dupSamples.sort();
+        // print("int------");
+        // print(dupSamples[dupSamples.length-1]);
 
-  //       // List<double> dupSamples2 = new List<double>.from(channelsData[0]);
-  //       // dupSamples2.sort();
-  //       // print(dupSamples2[dupSamples2.length-1]);
+        // List<double> dupSamples2 = new List<double>.from(channelsData[0]);
+        // dupSamples2.sort();
+        // print(dupSamples2[dupSamples2.length-1]);
 
-  //       cBuffIdx = curSamples[1];
-  //       markersData = curSamples[2];
-  //       if (curSamples.length > 4){
-  //         if (curSamples[3] == 1){
-  //           print('curSamples[4].floor()');
-  //           print(curSamples[4].floor());
-  //           CURRENT_START = curSamples[4].floor();
-  //         }
-  //       }
-  //       // if (markersData.length> 0){
-  //       //   print("markersData");
-  //       //   print(markersData);
-  //       // }
+        cBuffIdx = curSamples[1];
+        markersData = curSamples[2];
+        if (curSamples.length > 4){
+          if (curSamples[3] == 1){
+            print('curSamples[4].floor()');
+            print(curSamples[4].floor());
+            CURRENT_START = curSamples[4].floor();
+          }
+        }
+        // if (markersData.length> 0){
+        //   print("markersData");
+        //   print(markersData);
+        // }
 
-  //       // print("cBuffDouble");
-  //       // print(cBuffDouble);
-  //       setState(() {});
-  //     });
+        // print("cBuffDouble");
+        // print(cBuffDouble);
+        setState(() {});
+      });
 
-  //     winAudioSubscription?.cancel();
-  //     winAudioSubscription = Winaudio.audioData().listen((samples) {
-  //       // print("samples audio data : !!! ");
-  //       // print(samples);
-  //       // List<List<double>> arrVisibleSamples = [];
-  //       final divider = myArrTimescale[timeScaleBar] / 10;
-  //       // CURRENT_START = 100;
+      winAudioSubscription?.cancel();
+      winAudioSubscription = Winaudio.audioData().listen((samples) {
+        // print("samples audio data : !!! ");
+        // print(samples);
+        // List<List<double>> arrVisibleSamples = [];
+        final divider = myArrTimescale[timeScaleBar] / 10;
+        // CURRENT_START = 100;
 
-  //       if (isPaused) {
-  //         // print("CURRENT_START paused");
-  //         // print(currentStart);
-  //         iSendAudioPort.send([
-  //           [],
-  //           level,
-  //           divider,
-  //           maxOsChannel,
-  //           CURRENT_START,
-  //           isPaused,
-  //           currentKey,
-  //           MediaQuery.of(context).size.width,
-  //           _lowPassFilter,
-  //           _highPassFilter,
-  //           isLowPass,
-  //           isHighPass,
-  //           isNotch50,
-  //           isNotch60,
-  //           isThreshold,
-  //           snapshotAveragedSamples,
-  //           thresholdValue,
-  //           timeScaleBar,
-  //           // DISPLAY_CHANNEL_FIX,
-  //         ]);
-  //         currentKey = "";
-  //         return;
-  //       }
+        if (isPaused) {
+          // print("CURRENT_START paused");
+          // print(currentStart);
+          iSendAudioPort.send([
+            [],
+            level,
+            divider,
+            maxOsChannel,
+            CURRENT_START,
+            isPaused,
+            currentKey,
+            MediaQuery.of(context).size.width,
+            _lowPassFilter,
+            _highPassFilter,
+            isLowPass,
+            isHighPass,
+            isNotch50,
+            isNotch60,
+            isThreshold,
+            snapshotAveragedSamples,
+            thresholdValue,
+            timeScaleBar,
+            // DISPLAY_CHANNEL_FIX,
+          ]);
+          currentKey = "";
+          return;
+        }
 
-  //       // getAllChannelsSample(samples,maxOsChannel);
-  //       // print("arrVisibleSamples[0]");
-  //       // print(arrVisibleSamples[0]);
+        // getAllChannelsSample(samples,maxOsChannel);
+        // print("arrVisibleSamples[0]");
+        // print(arrVisibleSamples[0]);
 
-  //       iSendAudioPort.send([
-  //         samples,
-  //         level,
-  //         divider,
-  //         maxOsChannel,
-  //         CURRENT_START,
-  //         isPaused,
-  //         currentKey,
-  //         MediaQuery.of(context).size.width,
-  //         _lowPassFilter,
-  //         _highPassFilter,
-  //         isLowPass,
-  //         isHighPass,
-  //         isNotch50,
-  //         isNotch60,
-  //         isThreshold,
-  //         snapshotAveragedSamples,
-  //         thresholdValue,
-  //         timeScaleBar,
-  //         // DISPLAY_CHANNEL_FIX,
-  //       ]);
-  //       currentKey = "";
+        iSendAudioPort.send([
+          samples,
+          level,
+          divider,
+          maxOsChannel,
+          CURRENT_START,
+          isPaused,
+          currentKey,
+          MediaQuery.of(context).size.width,
+          _lowPassFilter,
+          _highPassFilter,
+          isLowPass,
+          isHighPass,
+          isNotch50,
+          isNotch60,
+          isThreshold,
+          snapshotAveragedSamples,
+          thresholdValue,
+          timeScaleBar,
+          // DISPLAY_CHANNEL_FIX,
+        ]);
+        currentKey = "";
 
-  //       // cBuffIdx = (cBuffIdx + arrVisibleSamples[0].length);
-  //       // if (cBuffIdx >= cBufferSize) {
-  //       //   globalIdx++;
-  //       //   cBuffIdx %= cBufferSize;
-  //       // }
-  //     });
+        // cBuffIdx = (cBuffIdx + arrVisibleSamples[0].length);
+        // if (cBuffIdx >= cBufferSize) {
+        //   globalIdx++;
+        //   cBuffIdx %= cBufferSize;
+        // }
+      });
 
-  //     // Winaudio wa = new Winaudio();
-  //     // String? version = await wa.getPlatformVersion();
-  //     // print("version");
-  //     // print(version);
-  //     return;
-  //   }
-  //   settingParams["maxAudioChannels"] = maxOsChannel;
-  //   cBuffIdx = 0;
+      // Winaudio wa = new Winaudio();
+      // String? version = await wa.getPlatformVersion();
+      // print("version");
+      // print(version);
+      return;
+    }
+    settingParams["maxAudioChannels"] = maxOsChannel;
+    cBuffIdx = 0;
 
-  //   double? tempSampleRate = (await MicStream.sampleRate);
-  //   int? bitDepth = await MicStream.bitDepth;
-  //   int? bufferSize = await MicStream.bufferSize;
+    double? tempSampleRate = (await MicStream.sampleRate);
+    int? bitDepth = await MicStream.bitDepth;
+    int? bufferSize = await MicStream.bufferSize;
 
-  //   // sampleRate = tempSampleRate!.floor();
-  //   // int SIZE = sampleRate!.toInt() * 60 * 2;
-  //   // int SIZE = 48000 * 60 * 2;
-  //   // cBuff = CircularBuffer<int>(SIZE);
-  //   // Init a new Stream
-  //   Stream<List<int>>? stream = await MicStream.microphone(
-  //       audioSource: AudioSource.DEFAULT,
-  //       sampleRate: 48000,
-  //       channelConfig: ChannelConfig.CHANNEL_IN_MONO,
-  //       audioFormat: AudioFormat.ENCODING_PCM_16BIT);
+    // sampleRate = tempSampleRate!.floor();
+    // int SIZE = sampleRate!.toInt() * 60 * 2;
+    // int SIZE = 48000 * 60 * 2;
+    // cBuff = CircularBuffer<int>(SIZE);
+    // Init a new Stream
+    Stream<List<int>>? stream = await MicStream.microphone(
+        audioSource: AudioSource.DEFAULT,
+        sampleRate: 48000,
+        channelConfig: ChannelConfig.CHANNEL_IN_MONO,
+        audioFormat: AudioFormat.ENCODING_PCM_16BIT);
 
-  //   double _sampleRate = await MicStream.sampleRate!;
+    double _sampleRate = await MicStream.sampleRate!;
 
-  //   _lowPassFilter = _sampleRate / 2;
-  //   _highPassFilter = 0;
-  //   settingParams['lowFilterValue'] = _highPassFilter.floor().toString();
-  //   settingParams['highFilterValue'] = _lowPassFilter.floor().toString();
+    _lowPassFilter = _sampleRate / 2;
+    _highPassFilter = 0;
+    settingParams['lowFilterValue'] = _highPassFilter.floor().toString();
+    settingParams['highFilterValue'] = _lowPassFilter.floor().toString();
 
-  //   if (_lowPassFilter == _sampleRate / 2) {
-  //     isLowPass = false;
-  //   } else {
-  //     isLowPass = true;
-  //   }
-  //   if (_highPassFilter == 0) {
-  //     isHighPass = false;
-  //   } else {
-  //     isHighPass = true;
-  //   }
+    if (_lowPassFilter == _sampleRate / 2) {
+      isLowPass = false;
+    } else {
+      isLowPass = true;
+    }
+    if (_highPassFilter == 0) {
+      isHighPass = false;
+    } else {
+      isHighPass = true;
+    }
 
-  //   if (isLowPass)
-  //     nativec.createLowPassFilter(
-  //         maxOsChannel, _sampleRate, _lowPassFilter, 0.5);
-  //   if (isHighPass)
-  //     nativec.createHighPassFilter(maxOsChannel, _sampleRate,
-  //         _highPassFilter == 0 ? 1.0 : _highPassFilter, 0.5);
+    if (isLowPass)
+      nativec.createLowPassFilter(
+          maxOsChannel, _sampleRate, _lowPassFilter, 0.5);
+    if (isHighPass)
+      nativec.createHighPassFilter(maxOsChannel, _sampleRate,
+          _highPassFilter == 0 ? 1.0 : _highPassFilter, 0.5);
 
-  //   sampleRate = _sampleRate.floor();
-  //   List<int> envelopeSizes = [];
-  //   int SEGMENT_SIZE = _sampleRate.toInt();
-  //   int SIZE = NUMBER_OF_SEGMENTS * SEGMENT_SIZE;
-  //   double size = SIZE.toDouble() * 2;
-  //   allEnvelopes = [];
-  //   unitInitializeEnvelope(DISPLAY_CHANNEL_FIX, allEnvelopes, envelopeSizes,
-  //       size, SIZE, SIZE_LOGS2);
-  //   // print(" unitInitializeEnvelope :");
-  //   // print(allEnvelopes);
-  //   int cBufferSize = ((_sampleRate * 60).floor()).floor();
-  //   // cBuff = CircularBuffer<int>(surfaceSize);
-  //   _receivePort = ReceivePort();
-  //   _receiveAudioPort = ReceivePort();
+    sampleRate = _sampleRate.floor();
+    List<int> envelopeSizes = [];
+    int SEGMENT_SIZE = _sampleRate.toInt();
+    int SIZE = NUMBER_OF_SEGMENTS * SEGMENT_SIZE;
+    double size = SIZE.toDouble() * 2;
+    allEnvelopes = [];
+    unitInitializeEnvelope(DISPLAY_CHANNEL_FIX, allEnvelopes, envelopeSizes,
+        size, SIZE, SIZE_LOGS2);
+    // print(" unitInitializeEnvelope :");
+    // print(allEnvelopes);
+    int cBufferSize = ((_sampleRate * 60).floor()).floor();
+    // cBuff = CircularBuffer<int>(surfaceSize);
+    _receivePort = ReceivePort();
+    _receiveAudioPort = ReceivePort();
 
-  //   _receiveQueue = StreamQueue(_receivePort);
-  //   _receiveAudioQueue = StreamQueue(_receiveAudioPort);
+    _receiveQueue = StreamQueue(_receivePort);
+    _receiveAudioQueue = StreamQueue(_receiveAudioPort);
 
-  //   _isolate = await Isolate.spawn<List<dynamic>>(sampleBufferingEntryPoint, [
-  //     _receiveAudioPort.sendPort,
-  //     allEnvelopes,
-  //     cBufferSize,
-  //     _sampleRate.toDouble(),
-  //     [197]
-  //   ]);
-  //   iSendAudioPort = await _receiveAudioQueue.next;
+    _isolate = await Isolate.spawn<List<dynamic>>(sampleBufferingEntryPoint, [
+      _receiveAudioPort.sendPort,
+      allEnvelopes,
+      cBufferSize,
+      _sampleRate.toDouble(),
+      [197]
+    ]);
+    iSendAudioPort = await _receiveAudioQueue.next;
 
-  //   double innerWidth = MediaQuery.of(context).size.width;
-  //   level = calculateLevel(10000, _sampleRate.toInt(), innerWidth, skipCounts);
-  //   // print("getMicrophone Data : " +
-  //   //     level.toString() +
-  //   //     " _ " +
-  //   //     sampleRate.toString() +
-  //   //     " _ " +
-  //   //     innerWidth.toString());
-  //   // print("skipCounts");
-  //   // print(skipCounts);
+    double innerWidth = MediaQuery.of(context).size.width;
+    level = calculateLevel(10000, _sampleRate.toInt(), innerWidth, skipCounts);
+    // print("getMicrophone Data : " +
+    //     level.toString() +
+    //     " _ " +
+    //     sampleRate.toString() +
+    //     " _ " +
+    //     innerWidth.toString());
+    // print("skipCounts");
+    // print(skipCounts);
 
-  //   int skipCount = skipCounts[level];
+    int skipCount = skipCounts[level];
 
-  //   Int16List envelopeSamples = allEnvelopes[0][level];
-  //   int prevSegment = (envelopeSamples.length / divider).floor();
+    Int16List envelopeSamples = allEnvelopes[0][level];
+    int prevSegment = (envelopeSamples.length / divider).floor();
 
-  //   cBuffDouble = List<double>.generate(prevSegment, (i) => 0);
-  //   cBuff = List<double>.generate(prevSegment, (i) => 0);
-  //   globalIdx = 0;
-  //   int channelIdx = 0;
+    cBuffDouble = List<double>.generate(prevSegment, (i) => 0);
+    cBuff = List<double>.generate(prevSegment, (i) => 0);
+    globalIdx = 0;
+    int channelIdx = 0;
 
-  //   // Start listening to the stream
-  //   audioListener?.cancel();
-  //   audioListener = stream?.listen((samples) async {
-  //     final divider = myArrTimescale[timeScaleBar] / 10;
-  //     if (isPaused) {
-  //       iSendAudioPort.send([
-  //         [],
-  //         level,
-  //         divider,
-  //         maxOsChannel,
-  //         CURRENT_START,
-  //         isPaused,
-  //         currentKey,
-  //         MediaQuery.of(context).size.width,
-  //         _lowPassFilter,
-  //         _highPassFilter,
-  //         isLowPass,
-  //         isHighPass,
-  //         isNotch50,
-  //         isNotch60,
-  //         isThreshold,
-  //         snapshotAveragedSamples,
-  //         thresholdValue,
-  //         timeScaleBar,
-  //         // DISPLAY_CHANNEL_FIX,
-  //       ]);
-  //     } else {
-  //       iSendAudioPort.send([
-  //         samples,
-  //         level,
-  //         divider,
-  //         maxOsChannel,
-  //         CURRENT_START,
-  //         isPaused,
-  //         currentKey,
-  //         MediaQuery.of(context).size.width,
-  //         _lowPassFilter,
-  //         _highPassFilter,
-  //         isLowPass,
-  //         isHighPass,
-  //         isNotch50,
-  //         isNotch60,
-  //         isThreshold,
-  //         snapshotAveragedSamples,
-  //         thresholdValue,
-  //         timeScaleBar,
-  //         // DISPLAY_CHANNEL_FIX,
-  //       ]);
-  //       currentKey = "";
-  //     }
+    // Start listening to the stream
+    audioListener?.cancel();
+    audioListener = stream?.listen((samples) async {
+      final divider = myArrTimescale[timeScaleBar] / 10;
+      if (isPaused) {
+        iSendAudioPort.send([
+          [],
+          level,
+          divider,
+          maxOsChannel,
+          CURRENT_START,
+          isPaused,
+          currentKey,
+          MediaQuery.of(context).size.width,
+          _lowPassFilter,
+          _highPassFilter,
+          isLowPass,
+          isHighPass,
+          isNotch50,
+          isNotch60,
+          isThreshold,
+          snapshotAveragedSamples,
+          thresholdValue,
+          timeScaleBar,
+          // DISPLAY_CHANNEL_FIX,
+        ]);
+      } else {
+        iSendAudioPort.send([
+          samples,
+          level,
+          divider,
+          maxOsChannel,
+          CURRENT_START,
+          isPaused,
+          currentKey,
+          MediaQuery.of(context).size.width,
+          _lowPassFilter,
+          _highPassFilter,
+          isLowPass,
+          isHighPass,
+          isNotch50,
+          isNotch60,
+          isThreshold,
+          snapshotAveragedSamples,
+          thresholdValue,
+          timeScaleBar,
+          // DISPLAY_CHANNEL_FIX,
+        ]);
+        currentKey = "";
+      }
 
-  //     /* PERFORMANCE TWEAK
-  //     bool first = true;
-  //     List<double> visibleSamples = [];
+      /* PERFORMANCE TWEAK
+      bool first = true;
+      List<double> visibleSamples = [];
 
-  //     int tmp = 0;
-  //     Uint8List byteArray = Uint8List(2);
-  //     tempBuffIdx = cBuffIdx;
-  //     for (int sample in samples) {
-  //       // if (sample > 128) sample -= 255;
-  //       if (first) {
-  //         byteArray[0] = sample;
-  //       } else {
-  //         byteArray[1] = sample;
+      int tmp = 0;
+      Uint8List byteArray = Uint8List(2);
+      tempBuffIdx = cBuffIdx;
+      for (int sample in samples) {
+        // if (sample > 128) sample -= 255;
+        if (first) {
+          byteArray[0] = sample;
+        } else {
+          byteArray[1] = sample;
 
-  //         ByteData byteData = ByteData.view(byteArray.buffer);
-  //         tmp = (byteData.getInt16(0, Endian.little));
-  //         visibleSamples.add(tmp.toDouble());
-  //         // int interleavedSignalIdx = cBuffIdx * 2;
+          ByteData byteData = ByteData.view(byteArray.buffer);
+          tmp = (byteData.getInt16(0, Endian.little));
+          visibleSamples.add(tmp.toDouble());
+          // int interleavedSignalIdx = cBuffIdx * 2;
 
-  //         tmp = 0;
-  //       }
-  //       first = !first;
-  //     }
-  //     */
+          tmp = 0;
+        }
+        first = !first;
+      }
+      */
 
-  //     // // print("sending to isolate");
-  //     // iSendPort.send(visibleSamples);
+      // // print("sending to isolate");
+      // iSendPort.send(visibleSamples);
 
-  //     // cBuffIdx = (cBuffIdx + visibleSamples.length);
-  //     // if (cBuffIdx >= cBufferSize) {
-  //     //   globalIdx++;
-  //     //   cBuffIdx %= cBufferSize;
-  //     // }
-  //     // iSendPort.send({
-  //     //   "cBuffIdx": cBuffIdx,
-  //     //   "samples": visibleSamples,
-  //     //   "envelopes": allEnvelopes,
-  //     //   "surfaceSize": surfaceSize,
-  //     // });
-  //     // iSendPort.send(visibleSamples);
-  //     // // print(visibleSamples);
-  //     // // return await _receiveQueue.next;
-  //     // cBuffDouble = List<double>.from(visibleSamples);
-  //     // setState(() {});
-  //   });
-  //   audioQueueSubscription?.cancel();
-  //   audioQueueSubscription = _receiveAudioQueue.rest.listen((curSamples) {
-  //     // final curSamples = dataToSamples(samples as Uint8List);
+      // cBuffIdx = (cBuffIdx + visibleSamples.length);
+      // if (cBuffIdx >= cBufferSize) {
+      //   globalIdx++;
+      //   cBuffIdx %= cBufferSize;
+      // }
+      // iSendPort.send({
+      //   "cBuffIdx": cBuffIdx,
+      //   "samples": visibleSamples,
+      //   "envelopes": allEnvelopes,
+      //   "surfaceSize": surfaceSize,
+      // });
+      // iSendPort.send(visibleSamples);
+      // // print(visibleSamples);
+      // // return await _receiveQueue.next;
+      // cBuffDouble = List<double>.from(visibleSamples);
+      // setState(() {});
+    });
+    audioQueueSubscription?.cancel();
+    audioQueueSubscription = _receiveAudioQueue.rest.listen((curSamples) {
+      // final curSamples = dataToSamples(samples as Uint8List);
 
-  //     // cBuff.addAll(curSamples);
-  //     // for (int i = 0; i < curSamples.length; i++) {
-  //     //   cBuff[cBuffIdx] = curSamples[i].toDouble();
-  //     //   cBuffIdx++;
-  //     //   if (cBuffIdx >= surfaceSize) {
-  //     //     cBuffIdx = 0;
-  //     //   }
-  //     // }
-  //     // print("curSamples");
-  //     // print(curSamples);
-  //     // cBuffDouble = curSamples.map((i) => i.toDouble()).toList().cast<double>();
-  //     // cBuffDouble = cBuff.map((i) => i.toDouble()).toList().cast<double>();
-  //     // cBuffDouble = cBuff.toList().cast<double>();
-  //     // print("curSamples");
-  //     // print(curSamples);
-  //     // channelsData = List<List<double>>.from(curSamples[0]);
-  //     // cBuffIdx = curSamples[1];
-  //     // markersData = curSamples[2];
-  //     channelsData = [];
-  //     List<Int16List> convSamples = curSamples[0];
+      // cBuff.addAll(curSamples);
+      // for (int i = 0; i < curSamples.length; i++) {
+      //   cBuff[cBuffIdx] = curSamples[i].toDouble();
+      //   cBuffIdx++;
+      //   if (cBuffIdx >= surfaceSize) {
+      //     cBuffIdx = 0;
+      //   }
+      // }
+      // print("curSamples");
+      // print(curSamples);
+      // cBuffDouble = curSamples.map((i) => i.toDouble()).toList().cast<double>();
+      // cBuffDouble = cBuff.map((i) => i.toDouble()).toList().cast<double>();
+      // cBuffDouble = cBuff.toList().cast<double>();
+      // print("curSamples");
+      // print(curSamples);
+      // channelsData = List<List<double>>.from(curSamples[0]);
+      // cBuffIdx = curSamples[1];
+      // markersData = curSamples[2];
+      channelsData = [];
+      List<Int16List> convSamples = curSamples[0];
 
-  //     for (int i = 0; i < convSamples.length; i++) {
-  //       channelsData.add(
-  //           convSamples[i].map((e) => e.toDouble()).toList(growable: false));
-  //     }
+      for (int i = 0; i < convSamples.length; i++) {
+        channelsData.add(
+            convSamples[i].map((e) => e.toDouble()).toList(growable: false));
+      }
 
-  //     cBuffIdx = curSamples[1];
-  //     markersData = curSamples[2];
+      cBuffIdx = curSamples[1];
+      markersData = curSamples[2];
 
-  //     // cBuffDouble = List<double>.from(curSamples);
-  //     // channelsData[0] = cBuffDouble;
-  //     // channelsData[1] = cBuffDouble;
-  //     // print("cBuffDouble");
-  //     // print(cBuffDouble);
-  //     setState(() {});
-  //     // print(curSamples.length);
-  //   });
+      // cBuffDouble = List<double>.from(curSamples);
+      // channelsData[0] = cBuffDouble;
+      // channelsData[1] = cBuffDouble;
+      // print("cBuffDouble");
+      // print(cBuffDouble);
+      setState(() {});
+      // print(curSamples.length);
+    });
 
-  //   // _receivePort.asBroadcastStream().listen((Object? samples){
-  //   //   print(dataToSamples(samples as Uint8List));
-  //   // });
+    // _receivePort.asBroadcastStream().listen((Object? samples){
+    //   print(dataToSamples(samples as Uint8List));
+    // });
 
     setState(() {
       // _counter++;
@@ -2856,8 +3000,8 @@ class _MyHomePageState extends State<MyHomePage> {
   zoomGesture(dragDetails) {
     // const arrTimeScale = [0.1, 1, 10, 50, 100, 500, 1000, 5000, 10000];
     int direction = 0;
-    print("previousLevel : ");
-    print(level);
+    // print("previousLevel : ");
+    // print(level);
 
     int tempTimeScaleBar = timeScaleBar;
     if (dragDetails.delta.dx == 0.0 && dragDetails.delta.dy == 0.0) {
@@ -2931,8 +3075,8 @@ class _MyHomePageState extends State<MyHomePage> {
       "posX": localPosition.dx,
       "direction": direction
     };
-    print("data");
-    print(data);
+    // print("data");
+    // print(data);
 
     if (timeScaleBar == -1) {
       isZooming = false;
@@ -2947,7 +3091,7 @@ class _MyHomePageState extends State<MyHomePage> {
     if (deviceType == 0) {
     } else {}
     if (kIsWeb) {
-        js.context.callMethod('setZoomLevel', [json.encode(data)]);
+      //   // js.context.callMethod('setZoomLevel', [json.encode(data)]);
       //   level = calculateLevel(
       //       timeScale, sampleRate, MediaQuery.of(context).size.width, skipCounts);
     } else {
@@ -3014,144 +3158,141 @@ class _MyHomePageState extends State<MyHomePage> {
       print('channelGains[0]');
       // print(channelGains[0]);
       print(heightFactor);
-      // print(Platform.isAndroid);
       print(thresholdValue[0]);
-      print('------channelGains[0]');
     }
 
-    // if (Platform.isAndroid || Platform.isIOS) {
-      // return Scaffold(
-      //   backgroundColor: Colors.black,
-      //   body: XGestureDetector(
-      //     behavior: HitTestBehavior.translucent,
-      //     // onScaleUpdate: (ScaleUpdateDetails details) {
-      //     onScaleUpdate: (details) {
-      //       //ScaleUpdateDetails(focalPoint: Offset(104.9, 124.4), localFocalPoint: Offset(104.9, 124.4), scale: 1.0382496909924845, horizontalScale: 1.0382496909924845, verticalScale: 1.0382496909924845, rotation: 0.0, pointerCount: 1, focalPointDelta: Offset(0.0, 0.0))
-      //       // print(details);
-      //       int channelIdx = -1;
-      //       double centerX = MediaQuery.of(context).size.width / 2;
-      //       for (int c = 0; c < channelsData.length; c++) {
-      //         double median =
-      //             levelMedian[c] == -1 ? initialLevelMedian[c] : levelMedian[c];
-      //         Rect rectPoints = Rect.fromCenter(
-      //             center: Offset(centerX, median),
-      //             width: MediaQuery.of(context).size.width,
-      //             height:
-      //                 MediaQuery.of(context).size.height / channelsData.length);
-      //         if (rectPoints.contains(details.focalPoint)) {
-      //           channelIdx = c;
-      //           break;
-      //         }
-      //       }
+    if (Platform.isAndroid || Platform.isIOS) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: XGestureDetector(
+          behavior: HitTestBehavior.translucent,
+          // onScaleUpdate: (ScaleUpdateDetails details) {
+          onScaleUpdate: (details) {
+            //ScaleUpdateDetails(focalPoint: Offset(104.9, 124.4), localFocalPoint: Offset(104.9, 124.4), scale: 1.0382496909924845, horizontalScale: 1.0382496909924845, verticalScale: 1.0382496909924845, rotation: 0.0, pointerCount: 1, focalPointDelta: Offset(0.0, 0.0))
+            // print(details);
+            int channelIdx = -1;
+            double centerX = MediaQuery.of(context).size.width / 2;
+            for (int c = 0; c < channelsData.length; c++) {
+              double median =
+                  levelMedian[c] == -1 ? initialLevelMedian[c] : levelMedian[c];
+              Rect rectPoints = Rect.fromCenter(
+                  center: Offset(centerX, median),
+                  width: MediaQuery.of(context).size.width,
+                  height:
+                      MediaQuery.of(context).size.height / channelsData.length);
+              if (rectPoints.contains(details.focalPoint)) {
+                channelIdx = c;
+                break;
+              }
+            }
 
-      //       // print("channelIdx");
-      //       // print(channelIdx);
-      //       if (channelIdx == -1) return;
-      //       if (details.scale > 1) {
-      //         // scale Up
-      //         if (((details.scale * 10).round()) % 2 == 0) {
-      //           debouncerScale.run(() {
-      //             increaseGain(channelIdx);
-      //           });
-      //         }
-      //       } else {
-      //         if (((details.scale * 10).round()) % 2 == 0) {
-      //           debouncerScale.run(() {
-      //             decreaseGain(channelIdx);
-      //           });
-      //         }
-      //         // scale Down
-      //       }
-      //     },
-      //     // onVerticalDragUpdate: (DragUpdateDetails details) {
-      //     onMoveUpdate: (details) {
-      //       if (Platform.isMacOS || Platform.isWindows) {
-      //         // debouncerTimeZoom.run(() {
-      //         dragDetails = details;
-      //         if (!kIsWeb) {
-      //           zoomGesture(dragDetails);
-      //         }
-      //         // });
-      //       } else {
-      //         // debouncerTimeZoom.run(() {
-      //         if (details.position.dx < 70) {
-      //           return;
-      //         }
-      //         print('details.position.dy');
-      //         print(details.position.dy);
-      //         if (details.position.dx > MediaQuery.of(context).size.width - 45
-      //             // &&
-      //             // (details.position.dy > thresholdValue[0] - 35 &&
-      //             //     details.position.dy < thresholdValue[0] + 70)
-      //             ) {
-      //           return;
-      //         }
-      //         dragDetails = details;
-      //         if (!kIsWeb) {
-      //           zoomGesture(dragDetails);
-      //         }
-      //         // });
-      //       }
-      //     },
-      //     // onVerticalDragEnd: (DragEndDetails dragEndDetails) {
-      //     onMoveEnd: (dragEndDetails) {
-      //       if (dragEndDetails.position.dx < 70) {
-      //         return;
-      //       }
-      //       print('details.position.dy 2');
-      //       print(dragEndDetails.position.dy);
-      //       if (dragEndDetails.position.dx >
-      //               MediaQuery.of(context).size.width - 45
-      //           //     &&
-      //           // (dragEndDetails.position.dy > thresholdValue[0] - 45 &&
-      //           //     dragEndDetails.position.dy < thresholdValue[0] + 70)
-      //           ) {
-      //         return;
-      //       }
-      //       // debouncerTimeZoom.run(() {
-      //       if (kIsWeb) zoomGesture(dragDetails);
-      //       // });
-      //     },
+            // print("channelIdx");
+            // print(channelIdx);
+            if (channelIdx == -1) return;
+            if (details.scale > 1) {
+              // scale Up
+              if (((details.scale * 10).round()) % 2 == 0) {
+                debouncerScale.run(() {
+                  increaseGain(channelIdx);
+                });
+              }
+            } else {
+              if (((details.scale * 10).round()) % 2 == 0) {
+                debouncerScale.run(() {
+                  decreaseGain(channelIdx);
+                });
+              }
+              // scale Down
+            }
+          },
+          // onVerticalDragUpdate: (DragUpdateDetails details) {
+          onMoveUpdate: (details) {
+            if (Platform.isMacOS || Platform.isWindows) {
+              // debouncerTimeZoom.run(() {
+              dragDetails = details;
+              if (!kIsWeb) {
+                zoomGesture(dragDetails);
+              }
+              // });
+            } else {
+              // debouncerTimeZoom.run(() {
+              if (details.position.dx < 70) {
+                return;
+              }
+              print('details.position.dy');
+              print(details.position.dy);
+              if (details.position.dx > MediaQuery.of(context).size.width - 45
+                  // &&
+                  // (details.position.dy > thresholdValue[0] - 35 &&
+                  //     details.position.dy < thresholdValue[0] + 70)
+                  ) {
+                return;
+              }
+              dragDetails = details;
+              if (!kIsWeb) {
+                zoomGesture(dragDetails);
+              }
+              // });
+            }
+          },
+          // onVerticalDragEnd: (DragEndDetails dragEndDetails) {
+          onMoveEnd: (dragEndDetails) {
+            if (dragEndDetails.position.dx < 70) {
+              return;
+            }
+            print('details.position.dy 2');
+            print(dragEndDetails.position.dy);
+            if (dragEndDetails.position.dx >
+                    MediaQuery.of(context).size.width - 45
+                //     &&
+                // (dragEndDetails.position.dy > thresholdValue[0] - 45 &&
+                //     dragEndDetails.position.dy < thresholdValue[0] + 70)
+                ) {
+              return;
+            }
+            // debouncerTimeZoom.run(() {
+            if (kIsWeb) zoomGesture(dragDetails);
+            // });
+          },
 
-      //     child: Focus(
-      //       onKey: (FocusNode node, RawKeyEvent event) =>
-      //           KeyEventResult.handled,
-      //       child: RawKeyboardListener(
-      //         onKey: (key) {
-      //           if (isFeedback) return;
+          child: Focus(
+            onKey: (FocusNode node, RawKeyEvent event) =>
+                KeyEventResult.handled,
+            child: RawKeyboardListener(
+              onKey: (key) {
+                if (isFeedback) return;
 
-      //           if (key.character == null) {
-      //             prevKey = "~";
-      //             currentKey = "";
-      //           } else {
-      //             if (key.character.toString().codeUnitAt(0) >= 48 &&
-      //                 key.character.toString().codeUnitAt(0) <= 57) {
-      //               if (prevKey != key.character.toString()) {
-      //                 prevKey = key.character.toString();
-      //                 if (kIsWeb) {
-      //                   js.context.callMethod('setEventKeypress', [prevKey]);
-      //                 } else {
-      //                   if (globalMarkers.length + 1 >= max_markers) {
-      //                     globalMarkers.clear();
-      //                   }
-      //                   globalMarkers.add((prevKey.codeUnitAt(0) - 48));
-      //                   currentKey = prevKey;
-      //                 }
-      //               }
-      //             }
-      //           }
-      //           return;
-      //         },
-      //         focusNode: keyboardFocusNode,
-      //         child: isLoadingFile
-      //             ? getLoadingWidget(context)
-      //             : (isFeedback ? getFeedbackWidget() : getMainWidget()),
-      //       ),
-      //     ),
-      //   ),
-      // );
-    // } else 
-    {
+                if (key.character == null) {
+                  prevKey = "~";
+                  currentKey = "";
+                } else {
+                  if (key.character.toString().codeUnitAt(0) >= 48 &&
+                      key.character.toString().codeUnitAt(0) <= 57) {
+                    if (prevKey != key.character.toString()) {
+                      prevKey = key.character.toString();
+                      if (kIsWeb) {
+                        // js.context.callMethod('setEventKeypress', [prevKey]);
+                      } else {
+                        if (globalMarkers.length + 1 >= max_markers) {
+                          globalMarkers.clear();
+                        }
+                        globalMarkers.add((prevKey.codeUnitAt(0) - 48));
+                        currentKey = prevKey;
+                      }
+                    }
+                  }
+                }
+                return;
+              },
+              focusNode: keyboardFocusNode,
+              child: isLoadingFile
+                  ? getLoadingWidget(context)
+                  : (isFeedback ? getFeedbackWidget() : getMainWidget()),
+            ),
+          ),
+        ),
+      );
+    } else {
       return Scaffold(
         backgroundColor: Colors.black,
         body: GestureDetector(
@@ -3204,7 +3345,6 @@ class _MyHomePageState extends State<MyHomePage> {
           },
           onVerticalDragEnd: (DragEndDetails dragEndDetails) {
             // onMoveEnd: (dragEndDetails) {
-              print("onVerticalDragEnd");
             if (kIsWeb) zoomGesture(dragDetails);
           },
           // behavior: HitTestBehavior.translucent,
@@ -3268,7 +3408,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   if (prevKey != key.character.toString()) {
                     prevKey = key.character.toString();
                     if (kIsWeb) {
-                      js.context.callMethod('setEventKeypress', [prevKey]);
+                      // js.context.callMethod('setEventKeypress', [prevKey]);
                     } else {
                       if (globalMarkers.length + 1 >= max_markers) {
                         globalMarkers.clear();
@@ -3294,8 +3434,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void initPorts() {
     // Platform.isWindows
-    // if (Platform.isWindows || Platform.isMacOS)
-    //   availablePorts = SerialPort.availablePorts;
+    if (Platform.isWindows || Platform.isMacOS)
+      availablePorts = SerialPort.availablePorts;
 
     // for (final address in availablePorts) {
 
@@ -3384,9 +3524,7 @@ class _MyHomePageState extends State<MyHomePage> {
     calculateArrScaleBar();
     // getDeviceCatalog();
     // Future.delayed(new Duration(seconds: 5), () {
-    
-    // Platform isDevice
-    // callGetDeviceEndPoint();
+    callGetDeviceEndPoint();
     // });
 
     initPorts();
@@ -3406,15 +3544,15 @@ class _MyHomePageState extends State<MyHomePage> {
 
   //Platform.isWindows
   void closeRawSerial() async {
-    // try {
-    //   port.close();
-    // } catch (err) {}
+    try {
+      port.close();
+    } catch (err) {}
 
-    // try {
-    //   serialPort.close();
-    //   serialPort.dispose();
-    //   serialReader.close();
-    // } catch (err) {}
+    try {
+      serialPort.close();
+      serialPort.dispose();
+      serialReader.close();
+    } catch (err) {}
   }
 
   void closeAudio() {
@@ -3426,395 +3564,395 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void getSerialParsing() async {
-    // if (DEVICE_CATALOG.keys.length == 0) {
-    //   return;
-    // }
-    // closeAudio();
-    // DISPLAY_CHANNEL = 1;
-    // String deviceType = 'serial';
-    // int numberOfChannels = DISPLAY_CHANNEL;
-    // double _sampleRate = 10000;
-    // sampleRate = _sampleRate.floor();
-    // List<int> envelopeSizes = [];
-    // int SEGMENT_SIZE = _sampleRate.toInt();
-    // int SIZE = NUMBER_OF_SEGMENTS * SEGMENT_SIZE;
-    // double size = SIZE.toDouble() * 2;
+    if (DEVICE_CATALOG.keys.length == 0) {
+      return;
+    }
+    closeAudio();
+    DISPLAY_CHANNEL = 1;
+    String deviceType = 'serial';
+    int numberOfChannels = DISPLAY_CHANNEL;
+    double _sampleRate = 10000;
+    sampleRate = _sampleRate.floor();
+    List<int> envelopeSizes = [];
+    int SEGMENT_SIZE = _sampleRate.toInt();
+    int SIZE = NUMBER_OF_SEGMENTS * SEGMENT_SIZE;
+    double size = SIZE.toDouble() * 2;
 
-    // _sendAnalyticsEvent("button_serial_connected", {
-    //   "device": "Serial",
-    //   "deviceType": 'serial',
-    //   "isStartingSerial": 1,
-    //   "isStartingAudio": 0
+    _sendAnalyticsEvent("button_serial_connected", {
+      "device": "Serial",
+      "deviceType": 'serial',
+      "isStartingSerial": 1,
+      "isStartingAudio": 0
+    });
+    this.deviceType = 1;
+    closeIsolate();
+    allEnvelopes = [];
+    unitInitializeEnvelope(
+        6, allEnvelopes, envelopeSizes, size, SIZE, SIZE_LOGS2);
+    int surfaceSize = ((_sampleRate * NUMBER_OF_SEGMENTS).floor());
+
+    Uint8List rawCircularBuffer = Uint8List(SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER);
+    iReceiveDeviceInfoPort = ReceivePort();
+    iReceiveExpansionDeviceInfoPort = ReceivePort();
+
+    _isolate = await Isolate.spawn<List<dynamic>>(serialBufferingEntryPoint, [
+      _receivePort.sendPort,
+      allEnvelopes,
+      surfaceSize,
+      rawCircularBuffer,
+      deviceType,
+      DEVICE_CATALOG,
+      iReceiveDeviceInfoPort.sendPort,
+      iReceiveExpansionDeviceInfoPort.sendPort,
+      _sampleRate,
+      [217]
+    ]);
+    iSendPort = await _receiveQueue.next;
+
+    double innerWidth = MediaQuery.of(context).size.width;
+    level = calculateLevel(10000, _sampleRate.toInt(), innerWidth, skipCounts);
+    print("Serial Level : " + level.toString());
+    int skipCount = skipCounts[level];
+
+    iReceiveExpansionDeviceInfoPort.listen((message) {
+      EXPANSION_BOARD = message;
+      //change sample rate, channels
+      sampleRate = EXPANSION_BOARD['maxSampleRate'];
+      DISPLAY_CHANNEL = CURRENT_DEVICE['maxNumberOfChannels'] +
+          EXPANSION_BOARD['maxNumberOfChannels'];
+      DISPLAY_CHANNEL_FIX = CURRENT_DEVICE['maxNumberOfChannels'];
+      numberOfChannels = DISPLAY_CHANNEL;
+    });
+    iReceiveDeviceInfoPort.listen((message) {
+      print("DEVICE_CATALOG MESSAGE");
+      print(message);
+
+      CURRENT_DEVICE = DEVICE_CATALOG[message];
+      print(CURRENT_DEVICE);
+      minChannels = 1;
+      int maxExpansionChannels = 0;
+      List<int> sampleRates = [];
+      if (CURRENT_DEVICE["expansionBoards"].length > 0) {
+        minChannels = int.parse(CURRENT_DEVICE['maxNumberOfChannels']);
+        // sampleRates.add(int.parse(CURRENT_DEVICE["maxSampleRate"])/minChannels);
+        CURRENT_DEVICE['expansionBoards'].forEach((board) {
+          maxExpansionChannels = max(
+              maxExpansionChannels, int.parse(board['maxNumberOfChannels']));
+        });
+        maxChannels = minChannels + maxExpansionChannels;
+      } else if (maxExpansionChannels == 0) {
+        maxChannels = int.parse(CURRENT_DEVICE['maxNumberOfChannels']);
+        if (CURRENT_DEVICE["channels"].length > 5) {
+          minChannels = 1;
+        } else {
+          minChannels = int.parse(CURRENT_DEVICE['maxNumberOfChannels']);
+        }
+      }
+
+      sampleRate =
+          (int.parse(CURRENT_DEVICE['maxSampleRate']) / minChannels).floor();
+      // print(sampleRate);
+      DISPLAY_CHANNEL_FIX = minChannels;
+      if (maxChannels > 5) {
+        DISPLAY_CHANNEL = 1;
+      } else {
+        // DISPLAY_CHANNEL = maxChannels;
+        DISPLAY_CHANNEL = minChannels;
+      }
+      numberOfChannels = DISPLAY_CHANNEL;
+
+      // List<int> channels = [];
+
+      // for (int i = minChannels; i <= maxChannels; i++) {
+      //   channels.add(i);
+      // }
+      // var params = {
+      //   "maxSamplingRate": 1000,
+      //   "minChannels": minChannels,
+      //   "maxChannels": maxChannels,
+      //   "channels": channels,
+      //   "sampleRates": [10000, 5000, 3333, 2500, 2000, 1666],
+      //   "baudRate": 222222,
+      // };
+      // '67_1240' : { //Muscle SpikerShield
+      //     "deviceIdx" : 4,
+      //     "maxSamplingRate" : 10000,
+      //     "minChannels" : 1,
+      //     "maxChannels" : 6,
+      //     "channels" : [1,2,3,4,5,6],
+      //     "sampleRates" : [10000,5000,3333,2500,2000,1666],
+      //     "baudRate" : 222222,
+      // },
+      // extraChannels = params[0];
+      // minChannels = params[1];
+      // maxChannels = params[2];
+      // settingParams["channelCount"] = minChannels;
+      for (int c = 0; c < maxChannels; c++) {
+        double idx = listIndexSerial[c];
+        channelGains[c] = listChannelSerial[idx.toInt()];
+      }
+      double heightFactor = (channelGains[0] / signalMultiplier);
+      thresholdValue[0] = ((thresholdMarkerTop[0] +
+                      12 -
+                      (levelMedian[0] == -1
+                          ? initialLevelMedian[0]
+                          : levelMedian[0]))
+                  .floor() *
+              heightFactor)
+          .floor();
+
+      callbackGetDeviceInfo([maxExpansionChannels, minChannels, maxChannels]);
+    });
+
+    Int16List envelopeSamples = allEnvelopes[0][level];
+    int divider = 60;
+    int prevSegment = (envelopeSamples.length / divider).floor();
+
+    cBuffDouble = List<double>.generate(prevSegment, (i) => 0);
+    cBuff = List<double>.generate(prevSegment, (i) => 0);
+    globalIdx = 0;
+    int channelIdx = 0;
+    if (Platform.isAndroid) {
+      List<UsbDevice> devices = await UsbSerial.listDevices();
+      print(devices);
+
+      // alert(context,title: Text('Alert5'),content: Text(devices.toString()),textOK: Text('Yes'),);
+      if (devices.length == 0) {
+        return;
+      }
+      port = (await devices[0].create())!;
+
+      bool openResult = await port.open();
+      if (!openResult) {
+        print("Failed to open");
+        // alert(context,title: Text('Failed'),content: Text("Failed to open"),textOK: Text('Yes'),);
+        return;
+      }
+
+      await port.setDTR(true);
+      await port.setRTS(true);
+
+      port.setPortParameters(
+          222222, UsbPort.DATABITS_8, UsbPort.STOPBITS_1, UsbPort.PARITY_NONE);
+
+      // print first result and close port.
+      bool isReceiving = false;
+      Future.delayed(Duration(seconds: 3), () {
+        isReceiving = true;
+      });
+      port.inputStream?.listen((Uint8List samples) {
+        if (!isReceiving) return;
+        List<int> visibleSamples = [];
+        for (int sample in samples) {
+          visibleSamples.add(sample);
+        }
+        final divider = myArrTimescale[timeScaleBar] / 10;
+        int maxSampleRate = 10000;
+        if (CURRENT_DEVICE.keys.length > 0) {
+          maxSampleRate = int.parse(CURRENT_DEVICE['maxSampleRate']);
+        }
+
+        // var timeScale = arrTimeScale[transformScale];
+        //10000;//
+        level = calculateLevel(timeScale, sampleRate, innerWidth, skipCounts);
+        iSendPort.send([
+          isPaused ? List<int>.generate(0, (index) => 0) : visibleSamples,
+          level,
+          divider,
+          DISPLAY_CHANNEL,
+          sampleRate,
+          maxSampleRate,
+          CURRENT_START,
+          isPaused,
+          currentKey,
+          MediaQuery.of(context).size.width,
+          isLowPass,
+          isHighPass,
+          isNotch50,
+          isNotch60,
+          isThreshold,
+          snapshotAveragedSamples,
+          thresholdValue,
+        ]);
+        currentKey = "";
+      });
+
+      _receiveQueue.rest.listen((curSamples) {
+        // cBuffDouble
+        // channelsData = List<Int16List>.from(curSamples[0]);
+        channelsData = [];
+        List<Int16List> convSamples = curSamples[0];
+        for (int i = 0; i < convSamples.length; i++) {
+          channelsData.add(
+              convSamples[i].map((e) => e.toDouble()).toList(growable: false));
+        }
+
+        cBuffIdx = curSamples[1];
+        markersData = curSamples[2];
+
+        setState(() {});
+      });
+
+      Future.delayed(new Duration(seconds: 2), () {
+        print('getDeviceInfo');
+        getDeviceInfo();
+      });
+
+      return;
+    } else if (Platform.isIOS) {
+      // Mfi.initMfi();
+      Mfi.initMfi();
+      Mfi.getDeviceStatusStream().listen((event) {
+        print("Device Status Stream");
+        print(event);
+        alert(
+          context,
+          title: Text('Alert5'),
+          content: Text(event.toString()),
+          textOK: Text('Yes'),
+        );
+      });
+
+      Mfi.getSpikeStatusStream().listen((samples) {
+        List<int> visibleSamples = [];
+        for (int sample in samples) {
+          visibleSamples.add(sample);
+        }
+
+        final divider = myArrTimescale[timeScaleBar] / 10;
+        final maxSampleRate = int.parse(CURRENT_DEVICE['maxSampleRate']);
+        level = calculateLevel(timeScale, sampleRate, innerWidth, skipCounts);
+
+        iSendPort.send([
+          isPaused ? List<int>.generate(0, (index) => 0) : visibleSamples,
+          level,
+          divider,
+          DISPLAY_CHANNEL,
+          sampleRate,
+          maxSampleRate,
+          CURRENT_START,
+          isPaused,
+          currentKey,
+          MediaQuery.of(context).size.width,
+          isLowPass,
+          isHighPass,
+          isNotch50,
+          isNotch60,
+          isThreshold,
+          snapshotAveragedSamples,
+          thresholdValue,
+        ]);
+        currentKey = "";
+      });
+
+      _receiveQueue.rest.listen((curSamples) {
+        // cBuffDouble = List<double>.from(curSamples);
+        channelsData = List<List<double>>.from(curSamples[0]);
+        cBuffIdx = curSamples[1];
+        markersData = curSamples[2];
+        setState(() {});
+      });
+
+      return;
+    }
+
+    //ELSE IF NOT ANDROID
+    var address = availablePorts.last;
+    serialPort = SerialPort(address);
+    // var data = asciiToUint8Array("c:"+channelParam.channelCount+";\n");
+    if (!serialPort.openReadWrite()) {
+      print("SerialPort.lastError");
+      print(SerialPort.lastError);
+    }
+
+    SerialPortConfig config = SerialPortConfig();
+    config.baudRate = 222222;
+    config.stopBits = 1;
+    config.dtr = 1;
+    config.rts = 1;
+    config.parity = 0;
+    config.bits = 8;
+    config.setFlowControl(SerialPortFlowControl.none);
+    serialPort.config = config;
+
+    print(serialPort.config.baudRate.toString());
+    Future.delayed(new Duration(seconds: 2), () {
+      getDeviceInfo();
+      // DISPLAY_CHANNEL = 4;
+      // numberOfChannels = DISPLAY_CHANNEL;
+      // var data = asciiToUint8Array("c:" + DISPLAY_CHANNEL.toString() + ";\n");
+      // serialPort.write(data);
+    });
+
+    serialReader = SerialPortReader(serialPort);
+    // bool isReceiving = false;
+    // Future.delayed(Duration(seconds:3),(){
+    //   isReceiving = true;
     // });
-    // this.deviceType = 1;
-    // closeIsolate();
-    // allEnvelopes = [];
-    // unitInitializeEnvelope(
-    //     6, allEnvelopes, envelopeSizes, size, SIZE, SIZE_LOGS2);
-    // int surfaceSize = ((_sampleRate * NUMBER_OF_SEGMENTS).floor());
+    serialReader.stream.listen((samples) {
+      // if (!isReceiving) return;
 
-    // Uint8List rawCircularBuffer = Uint8List(SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER);
-    // iReceiveDeviceInfoPort = ReceivePort();
-    // iReceiveExpansionDeviceInfoPort = ReceivePort();
+      bool first = true;
+      List<int> visibleSamples = [];
+      // change to rawBytes not visible Samples
+      for (int sample in samples) {
+        visibleSamples.add(sample);
+      }
 
-    // _isolate = await Isolate.spawn<List<dynamic>>(serialBufferingEntryPoint, [
-    //   _receivePort.sendPort,
-    //   allEnvelopes,
-    //   surfaceSize,
-    //   rawCircularBuffer,
-    //   deviceType,
-    //   DEVICE_CATALOG,
-    //   iReceiveDeviceInfoPort.sendPort,
-    //   iReceiveExpansionDeviceInfoPort.sendPort,
-    //   _sampleRate,
-    //   [217]
-    // ]);
-    // iSendPort = await _receiveQueue.next;
+      final divider = myArrTimescale[timeScaleBar] / 10;
+      int maxSampleRate = 1;
+      if (CURRENT_DEVICE['maxSampleRate'] != null) {
+        maxSampleRate = int.parse(CURRENT_DEVICE['maxSampleRate']);
+      } else {
+        maxSampleRate = sampleRate;
+      }
+      level = calculateLevel(timeScale, sampleRate, innerWidth, skipCounts);
 
-    // double innerWidth = MediaQuery.of(context).size.width;
-    // level = calculateLevel(10000, _sampleRate.toInt(), innerWidth, skipCounts);
-    // print("Serial Level : " + level.toString());
-    // int skipCount = skipCounts[level];
+      iSendPort.send([
+        isPaused ? List<int>.generate(0, (index) => 0) : visibleSamples,
+        level,
+        divider,
+        DISPLAY_CHANNEL,
+        sampleRate,
+        maxSampleRate,
+        CURRENT_START,
+        isPaused,
+        currentKey,
+        MediaQuery.of(context).size.width,
+        isLowPass,
+        isHighPass,
+        isNotch50,
+        isNotch60,
+        isThreshold,
+        snapshotAveragedSamples,
+        thresholdValue,
+      ]);
+      currentKey = "";
+    });
 
-    // iReceiveExpansionDeviceInfoPort.listen((message) {
-    //   EXPANSION_BOARD = message;
-    //   //change sample rate, channels
-    //   sampleRate = EXPANSION_BOARD['maxSampleRate'];
-    //   DISPLAY_CHANNEL = CURRENT_DEVICE['maxNumberOfChannels'] +
-    //       EXPANSION_BOARD['maxNumberOfChannels'];
-    //   DISPLAY_CHANNEL_FIX = CURRENT_DEVICE['maxNumberOfChannels'];
-    //   numberOfChannels = DISPLAY_CHANNEL;
-    // });
-    // iReceiveDeviceInfoPort.listen((message) {
-    //   print("DEVICE_CATALOG MESSAGE");
-    //   print(message);
+    _receiveQueue.rest.listen((curSamples) {
+      // channelsData = [];
+      // int viewChannel = min(DISPLAY_CHANNEL, curSamples.length);
+      // for (int i = 0; i < viewChannel; i++) {
+      //   var tempBuffDouble = List<double>.from(curSamples[0][i]);
+      //   channelsData.add(tempBuffDouble);
+      // }
+      // channelsData = List<Int16List>.from(curSamples[0]);
+      channelsData = [];
+      List<Int16List> convSamples = curSamples[0];
+      for (int i = 0; i < convSamples.length; i++) {
+        channelsData.add(
+            convSamples[i].map((e) => e.toDouble()).toList(growable: false));
+      }
 
-    //   CURRENT_DEVICE = DEVICE_CATALOG[message];
-    //   print(CURRENT_DEVICE);
-    //   minChannels = 1;
-    //   int maxExpansionChannels = 0;
-    //   List<int> sampleRates = [];
-    //   if (CURRENT_DEVICE["expansionBoards"].length > 0) {
-    //     minChannels = int.parse(CURRENT_DEVICE['maxNumberOfChannels']);
-    //     // sampleRates.add(int.parse(CURRENT_DEVICE["maxSampleRate"])/minChannels);
-    //     CURRENT_DEVICE['expansionBoards'].forEach((board) {
-    //       maxExpansionChannels = max(
-    //           maxExpansionChannels, int.parse(board['maxNumberOfChannels']));
-    //     });
-    //     maxChannels = minChannels + maxExpansionChannels;
-    //   } else if (maxExpansionChannels == 0) {
-    //     maxChannels = int.parse(CURRENT_DEVICE['maxNumberOfChannels']);
-    //     if (CURRENT_DEVICE["channels"].length > 5) {
-    //       minChannels = 1;
-    //     } else {
-    //       minChannels = int.parse(CURRENT_DEVICE['maxNumberOfChannels']);
-    //     }
-    //   }
+      cBuffIdx = curSamples[1];
+      markersData = curSamples[2];
+      // var cBuffDouble2 = List<double>.generate(
+      //     cBuffDouble.length, (index) => index.toDouble());
+      // channelsData[1] = cBuffDouble;
 
-    //   sampleRate =
-    //       (int.parse(CURRENT_DEVICE['maxSampleRate']) / minChannels).floor();
-    //   // print(sampleRate);
-    //   DISPLAY_CHANNEL_FIX = minChannels;
-    //   if (maxChannels > 5) {
-    //     DISPLAY_CHANNEL = 1;
-    //   } else {
-    //     // DISPLAY_CHANNEL = maxChannels;
-    //     DISPLAY_CHANNEL = minChannels;
-    //   }
-    //   numberOfChannels = DISPLAY_CHANNEL;
-
-    //   // List<int> channels = [];
-
-    //   // for (int i = minChannels; i <= maxChannels; i++) {
-    //   //   channels.add(i);
-    //   // }
-    //   // var params = {
-    //   //   "maxSamplingRate": 1000,
-    //   //   "minChannels": minChannels,
-    //   //   "maxChannels": maxChannels,
-    //   //   "channels": channels,
-    //   //   "sampleRates": [10000, 5000, 3333, 2500, 2000, 1666],
-    //   //   "baudRate": 222222,
-    //   // };
-    //   // '67_1240' : { //Muscle SpikerShield
-    //   //     "deviceIdx" : 4,
-    //   //     "maxSamplingRate" : 10000,
-    //   //     "minChannels" : 1,
-    //   //     "maxChannels" : 6,
-    //   //     "channels" : [1,2,3,4,5,6],
-    //   //     "sampleRates" : [10000,5000,3333,2500,2000,1666],
-    //   //     "baudRate" : 222222,
-    //   // },
-    //   // extraChannels = params[0];
-    //   // minChannels = params[1];
-    //   // maxChannels = params[2];
-    //   // settingParams["channelCount"] = minChannels;
-    //   for (int c = 0; c < maxChannels; c++) {
-    //     double idx = listIndexSerial[c];
-    //     channelGains[c] = listChannelSerial[idx.toInt()];
-    //   }
-    //   double heightFactor = (channelGains[0] / signalMultiplier);
-    //   thresholdValue[0] = ((thresholdMarkerTop[0] +
-    //                   12 -
-    //                   (levelMedian[0] == -1
-    //                       ? initialLevelMedian[0]
-    //                       : levelMedian[0]))
-    //               .floor() *
-    //           heightFactor)
-    //       .floor();
-
-    //   callbackGetDeviceInfo([maxExpansionChannels, minChannels, maxChannels]);
-    // });
-
-    // Int16List envelopeSamples = allEnvelopes[0][level];
-    // int divider = 60;
-    // int prevSegment = (envelopeSamples.length / divider).floor();
-
-    // cBuffDouble = List<double>.generate(prevSegment, (i) => 0);
-    // cBuff = List<double>.generate(prevSegment, (i) => 0);
-    // globalIdx = 0;
-    // int channelIdx = 0;
-    // if (Platform.isAndroid) {
-    //   List<UsbDevice> devices = await UsbSerial.listDevices();
-    //   print(devices);
-
-    //   // alert(context,title: Text('Alert5'),content: Text(devices.toString()),textOK: Text('Yes'),);
-    //   if (devices.length == 0) {
-    //     return;
-    //   }
-    //   port = (await devices[0].create())!;
-
-    //   bool openResult = await port.open();
-    //   if (!openResult) {
-    //     print("Failed to open");
-    //     // alert(context,title: Text('Failed'),content: Text("Failed to open"),textOK: Text('Yes'),);
-    //     return;
-    //   }
-
-    //   await port.setDTR(true);
-    //   await port.setRTS(true);
-
-    //   port.setPortParameters(
-    //       222222, UsbPort.DATABITS_8, UsbPort.STOPBITS_1, UsbPort.PARITY_NONE);
-
-    //   // print first result and close port.
-    //   bool isReceiving = false;
-    //   Future.delayed(Duration(seconds: 3), () {
-    //     isReceiving = true;
-    //   });
-    //   port.inputStream?.listen((Uint8List samples) {
-    //     if (!isReceiving) return;
-    //     List<int> visibleSamples = [];
-    //     for (int sample in samples) {
-    //       visibleSamples.add(sample);
-    //     }
-    //     final divider = myArrTimescale[timeScaleBar] / 10;
-    //     int maxSampleRate = 10000;
-    //     if (CURRENT_DEVICE.keys.length > 0) {
-    //       maxSampleRate = int.parse(CURRENT_DEVICE['maxSampleRate']);
-    //     }
-
-    //     // var timeScale = arrTimeScale[transformScale];
-    //     //10000;//
-    //     level = calculateLevel(timeScale, sampleRate, innerWidth, skipCounts);
-    //     iSendPort.send([
-    //       isPaused ? List<int>.generate(0, (index) => 0) : visibleSamples,
-    //       level,
-    //       divider,
-    //       DISPLAY_CHANNEL,
-    //       sampleRate,
-    //       maxSampleRate,
-    //       CURRENT_START,
-    //       isPaused,
-    //       currentKey,
-    //       MediaQuery.of(context).size.width,
-    //       isLowPass,
-    //       isHighPass,
-    //       isNotch50,
-    //       isNotch60,
-    //       isThreshold,
-    //       snapshotAveragedSamples,
-    //       thresholdValue,
-    //     ]);
-    //     currentKey = "";
-    //   });
-
-    //   _receiveQueue.rest.listen((curSamples) {
-    //     // cBuffDouble
-    //     // channelsData = List<Int16List>.from(curSamples[0]);
-    //     channelsData = [];
-    //     List<Int16List> convSamples = curSamples[0];
-    //     for (int i = 0; i < convSamples.length; i++) {
-    //       channelsData.add(
-    //           convSamples[i].map((e) => e.toDouble()).toList(growable: false));
-    //     }
-
-    //     cBuffIdx = curSamples[1];
-    //     markersData = curSamples[2];
-
-    //     setState(() {});
-    //   });
-
-    //   Future.delayed(new Duration(seconds: 2), () {
-    //     print('getDeviceInfo');
-    //     getDeviceInfo();
-    //   });
-
-    //   return;
-    // } else if (Platform.isIOS) {
-    //   // Mfi.initMfi();
-    //   Mfi.initMfi();
-    //   Mfi.getDeviceStatusStream().listen((event) {
-    //     print("Device Status Stream");
-    //     print(event);
-    //     alert(
-    //       context,
-    //       title: Text('Alert5'),
-    //       content: Text(event.toString()),
-    //       textOK: Text('Yes'),
-    //     );
-    //   });
-
-    //   Mfi.getSpikeStatusStream().listen((samples) {
-    //     List<int> visibleSamples = [];
-    //     for (int sample in samples) {
-    //       visibleSamples.add(sample);
-    //     }
-
-    //     final divider = myArrTimescale[timeScaleBar] / 10;
-    //     final maxSampleRate = int.parse(CURRENT_DEVICE['maxSampleRate']);
-    //     level = calculateLevel(timeScale, sampleRate, innerWidth, skipCounts);
-
-    //     iSendPort.send([
-    //       isPaused ? List<int>.generate(0, (index) => 0) : visibleSamples,
-    //       level,
-    //       divider,
-    //       DISPLAY_CHANNEL,
-    //       sampleRate,
-    //       maxSampleRate,
-    //       CURRENT_START,
-    //       isPaused,
-    //       currentKey,
-    //       MediaQuery.of(context).size.width,
-    //       isLowPass,
-    //       isHighPass,
-    //       isNotch50,
-    //       isNotch60,
-    //       isThreshold,
-    //       snapshotAveragedSamples,
-    //       thresholdValue,
-    //     ]);
-    //     currentKey = "";
-    //   });
-
-    //   _receiveQueue.rest.listen((curSamples) {
-    //     // cBuffDouble = List<double>.from(curSamples);
-    //     channelsData = List<List<double>>.from(curSamples[0]);
-    //     cBuffIdx = curSamples[1];
-    //     markersData = curSamples[2];
-    //     setState(() {});
-    //   });
-
-    //   return;
-    // }
-
-    // //ELSE IF NOT ANDROID
-    // var address = availablePorts.last;
-    // serialPort = SerialPort(address);
-    // // var data = asciiToUint8Array("c:"+channelParam.channelCount+";\n");
-    // if (!serialPort.openReadWrite()) {
-    //   print("SerialPort.lastError");
-    //   print(SerialPort.lastError);
-    // }
-
-    // SerialPortConfig config = SerialPortConfig();
-    // config.baudRate = 222222;
-    // config.stopBits = 1;
-    // config.dtr = 1;
-    // config.rts = 1;
-    // config.parity = 0;
-    // config.bits = 8;
-    // config.setFlowControl(SerialPortFlowControl.none);
-    // serialPort.config = config;
-
-    // print(serialPort.config.baudRate.toString());
-    // Future.delayed(new Duration(seconds: 2), () {
-    //   getDeviceInfo();
-    //   // DISPLAY_CHANNEL = 4;
-    //   // numberOfChannels = DISPLAY_CHANNEL;
-    //   // var data = asciiToUint8Array("c:" + DISPLAY_CHANNEL.toString() + ";\n");
-    //   // serialPort.write(data);
-    // });
-
-    // serialReader = SerialPortReader(serialPort);
-    // // bool isReceiving = false;
-    // // Future.delayed(Duration(seconds:3),(){
-    // //   isReceiving = true;
-    // // });
-    // serialReader.stream.listen((samples) {
-    //   // if (!isReceiving) return;
-
-    //   bool first = true;
-    //   List<int> visibleSamples = [];
-    //   // change to rawBytes not visible Samples
-    //   for (int sample in samples) {
-    //     visibleSamples.add(sample);
-    //   }
-
-    //   final divider = myArrTimescale[timeScaleBar] / 10;
-    //   int maxSampleRate = 1;
-    //   if (CURRENT_DEVICE['maxSampleRate'] != null) {
-    //     maxSampleRate = int.parse(CURRENT_DEVICE['maxSampleRate']);
-    //   } else {
-    //     maxSampleRate = sampleRate;
-    //   }
-    //   level = calculateLevel(timeScale, sampleRate, innerWidth, skipCounts);
-
-    //   iSendPort.send([
-    //     isPaused ? List<int>.generate(0, (index) => 0) : visibleSamples,
-    //     level,
-    //     divider,
-    //     DISPLAY_CHANNEL,
-    //     sampleRate,
-    //     maxSampleRate,
-    //     CURRENT_START,
-    //     isPaused,
-    //     currentKey,
-    //     MediaQuery.of(context).size.width,
-    //     isLowPass,
-    //     isHighPass,
-    //     isNotch50,
-    //     isNotch60,
-    //     isThreshold,
-    //     snapshotAveragedSamples,
-    //     thresholdValue,
-    //   ]);
-    //   currentKey = "";
-    // });
-
-    // _receiveQueue.rest.listen((curSamples) {
-    //   // channelsData = [];
-    //   // int viewChannel = min(DISPLAY_CHANNEL, curSamples.length);
-    //   // for (int i = 0; i < viewChannel; i++) {
-    //   //   var tempBuffDouble = List<double>.from(curSamples[0][i]);
-    //   //   channelsData.add(tempBuffDouble);
-    //   // }
-    //   // channelsData = List<Int16List>.from(curSamples[0]);
-    //   channelsData = [];
-    //   List<Int16List> convSamples = curSamples[0];
-    //   for (int i = 0; i < convSamples.length; i++) {
-    //     channelsData.add(
-    //         convSamples[i].map((e) => e.toDouble()).toList(growable: false));
-    //   }
-
-    //   cBuffIdx = curSamples[1];
-    //   markersData = curSamples[2];
-    //   // var cBuffDouble2 = List<double>.generate(
-    //   //     cBuffDouble.length, (index) => index.toDouble());
-    //   // channelsData[1] = cBuffDouble;
-
-    //   setState(() {});
-    // });
+      setState(() {});
+    });
   }
 
   void getMfiTest() async {
@@ -3965,7 +4103,7 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
         onPressed: () async {
           if (kIsWeb) {
-            js.context.callMethod('openReadWavFile', ["openReadWavFile"]);
+            // js.context.callMethod('openReadWavFile', ["openReadWavFile"]);
           }
           // _sendAnalyticsEvent("button_open_file", {"isOpeningFile": 1});
         },
@@ -4061,39 +4199,29 @@ class _MyHomePageState extends State<MyHomePage> {
                   print(isLowPass);
                   print(isHighPass);
 
-                  if (kIsWeb){
-                    js.context.callMethod('changeFilter',[
-                      channelsData.length,//'maxChannel': 
-                      isLowPass, //'isLowPass': 
-                      _lowPassFilter,//'lowPassFilter': 
-                      isHighPass,//'isHighPass': 
-                      _highPassFilter,//'highPassFilter': 
-                    ]);
-                  }
-
                   double result = -100;
 
-                  // if (isLowPass) {
-                  //   result = nativec.initLowPassFilter(maxOsChannel,
-                  //       sampleRate.toDouble(), _lowPassFilter, 0.5);
-                  //   print("result");
-                  //   print(result);
-                  // }
-                  // if (isHighPass) {
-                  //   result = nativec.initHighPassFilter(maxOsChannel,
-                  //       sampleRate.toDouble(), _highPassFilter, 0.5);
-                  //   print("result high");
-                  //   print(result);
-                  // }
+                  if (isLowPass) {
+                    result = nativec.initLowPassFilter(maxOsChannel,
+                        sampleRate.toDouble(), _lowPassFilter, 0.5);
+                    print("result");
+                    print(result);
+                  }
+                  if (isHighPass) {
+                    result = nativec.initHighPassFilter(maxOsChannel,
+                        sampleRate.toDouble(), _highPassFilter, 0.5);
+                    print("result high");
+                    print(result);
+                  }
 
-                  // if (isNotch50) {
-                  //   result = nativec.initNotchPassFilter(
-                  //       1, maxOsChannel, sampleRate.toDouble(), 50.0, 1.0);
-                  // }
-                  // if (isNotch60) {
-                  //   result = nativec.initNotchPassFilter(
-                  //       -1, maxOsChannel, sampleRate.toDouble(), 60.0, 1.0);
-                  // }
+                  if (isNotch50) {
+                    result = nativec.initNotchPassFilter(
+                        1, maxOsChannel, sampleRate.toDouble(), 50.0, 1.0);
+                  }
+                  if (isNotch60) {
+                    result = nativec.initNotchPassFilter(
+                        -1, maxOsChannel, sampleRate.toDouble(), 60.0, 1.0);
+                  }
 
                   if (channelsColor[1] != Color(0xff000000)) {
                     var data = {
@@ -4101,7 +4229,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     };
 
                     if (kIsWeb) {
-                      js.context.callMethod('changeChannel', [json.encode(data)]);
+                      // js.context.callMethod('changeChannel', [json.encode(data)]);
                     }
                   }
 
@@ -4184,7 +4312,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   if (params['commandType'] == 'update') {
                     params.remove('commandType');
                     if (kIsWeb) {
-                      js.context.callMethod('updateFirmware', ['hid']);
+                      // js.context.callMethod('updateFirmware', ['hid']);
                     } else {}
                     setState(() {});
                     return;
@@ -4218,14 +4346,14 @@ class _MyHomePageState extends State<MyHomePage> {
                         settingParams["defaultSerialColor6"] as int];
 
                   if (kIsWeb) {
-                    js.context.callMethod('setFlagChannelDisplay', [
-                      settingParams["flagDisplay1"],
-                      settingParams["flagDisplay2"],
-                      settingParams["flagDisplay3"],
-                      settingParams["flagDisplay4"],
-                      settingParams["flagDisplay5"],
-                      settingParams["flagDisplay6"]
-                    ]);
+                    // js.context.callMethod('setFlagChannelDisplay', [
+                    //   settingParams["flagDisplay1"],
+                    //   settingParams["flagDisplay2"],
+                    //   settingParams["flagDisplay3"],
+                    //   settingParams["flagDisplay4"],
+                    //   settingParams["flagDisplay5"],
+                    //   settingParams["flagDisplay6"]
+                    // ]);
                   }
 
                   setState(() {});
@@ -4571,49 +4699,46 @@ class _MyHomePageState extends State<MyHomePage> {
     //     ),
     //   },
     // },
-    // if (Platform.isMacOS) {
-    //   dataWidgets.add(
-    //     Positioned(
-    //       top: 10,
-    //       left: MediaQuery.of(context).size.width / 3,
-    //       child: ElevatedButton(
-    //         onPressed: () async {
-    //           if (Platform.isMacOS) {
-    //             // Stream<List<int>>? stream = await MicStream.microphone(
-    //             //     audioSource: AudioSource.DEFAULT,
-    //             //     sampleRate: 48000,
-    //             //     channelConfig: ChannelConfig.CHANNEL_IN_MONO,
-    //             //     audioFormat: AudioFormat.ENCODING_PCM_16BIT);
+    if (Platform.isMacOS) {
+      // dataWidgets.add(
+      //   Positioned(
+      //     top: 10,
+      //     left: MediaQuery.of(context).size.width / 3,
+      //     child: ElevatedButton(
+      //       onPressed: () async {
+      //         if (Platform.isMacOS) {
+      //           // Stream<List<int>>? stream = await MicStream.microphone(
+      //           //     audioSource: AudioSource.DEFAULT,
+      //           //     sampleRate: 48000,
+      //           //     channelConfig: ChannelConfig.CHANNEL_IN_MONO,
+      //           //     audioFormat: AudioFormat.ENCODING_PCM_16BIT);
 
-    //             // double _sampleRate = await MicStream.sampleRate!;
-    //             // MicStream.stopListening();
+      //           // double _sampleRate = await MicStream.sampleRate!;
+      //           // MicStream.stopListening();
 
-    //             // print("_sampleRate");
-    //             // print(_sampleRate);
-    //             // (Winaudio()).initBassAudio(48000);
-    //           }
-    //           // await (Winaudio()).initBassAudio(48000);
-    //           // Future.delayed(Duration(seconds: 1), () {
-    //           // await (Winaudio()).startRecording();
-    //           // });
-    //           // winAudioSubscription?.cancel();
-    //           // winAudioSubscription = Winaudio.audioData().listen((samples) {
-    //           //   // print(samples.length);
-    //           // });
+      //           // print("_sampleRate");
+      //           // print(_sampleRate);
+      //           // (Winaudio()).initBassAudio(48000);
+      //         }
+      //         // await (Winaudio()).initBassAudio(48000);
+      //         // Future.delayed(Duration(seconds: 1), () {
+      //         // await (Winaudio()).startRecording();
+      //         // });
+      //         // winAudioSubscription?.cancel();
+      //         // winAudioSubscription = Winaudio.audioData().listen((samples) {
+      //         //   // print(samples.length);
+      //         // });
 
-    //           closeRawSerial();
-    //           print("abcd");
-    //         },
-    //         child: Text("Close Serial"),
-    //       ),
-    //     ),
-    //   );
-    // }
+      //         closeRawSerial();
+      //         print("abcd");
+      //       },
+      //       child: Text("Close Serial"),
+      //     ),
+      //   ),
+      // );
+    }
     List<Widget> widgetsChannelGainLevel = [];
     Color curColor = Colors.white;
-    if (kIsWeb){
-
-    }else
     if (Platform.isIOS || Platform.isAndroid) {
       curColor = Colors.black;
     }
@@ -4635,14 +4760,14 @@ class _MyHomePageState extends State<MyHomePage> {
                           ? 1
                           : 0;
                   if (kIsWeb) {
-                    js.context.callMethod('setFlagChannelDisplay', [
-                      settingParams["flagDisplay1"],
-                      settingParams["flagDisplay2"],
-                      settingParams["flagDisplay3"],
-                      settingParams["flagDisplay4"],
-                      settingParams["flagDisplay5"],
-                      settingParams["flagDisplay6"]
-                    ]);
+                    // js.context.callMethod('setFlagChannelDisplay', [
+                    //   settingParams["flagDisplay1"],
+                    //   settingParams["flagDisplay2"],
+                    //   settingParams["flagDisplay3"],
+                    //   settingParams["flagDisplay4"],
+                    //   settingParams["flagDisplay5"],
+                    //   settingParams["flagDisplay6"]
+                    // ]);
                   }
                 }
                 _sendAnalyticsEvent("button_level_marker", {
@@ -4686,7 +4811,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 children: [
                   GestureDetector(
                     onTap: () {
-                      if (kIsWeb || Platform.isMacOS || Platform.isWindows) {
+                      if (Platform.isMacOS || Platform.isWindows) {
                         print("c");
                         print(c);
                         List<double> res = increaseGain(c);
@@ -4726,7 +4851,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                   GestureDetector(
                     onTap: () {
-                      if (kIsWeb || Platform.isMacOS || Platform.isWindows) {
+                      if (Platform.isMacOS || Platform.isWindows) {
                         // decreaseGain(c);
                         List<double> res = decreaseGain(c);
                         if (isThreshold) {
@@ -4796,8 +4921,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
               debouncer.run(() {
                 if (kIsWeb) {
-                  js.context.callMethod(
-                      'setScrollValue', [horizontalDragX, horizontalDragXFix]);
+                  // js.context.callMethod(
+                  //     'setScrollValue', [horizontalDragX, horizontalDragXFix]);
                 } else {}
               });
             },
@@ -4818,8 +4943,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
               debouncer.run(() {
                 if (kIsWeb) {
-                  js.context.callMethod(
-                      'setScrollValue', [horizontalDragX, horizontalDragXFix]);
+                  // js.context.callMethod(
+                  //     'setScrollValue', [horizontalDragX, horizontalDragXFix]);
                 } else {}
               });
             },
@@ -4999,8 +5124,8 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     dataWidgets.add(Positioned(
-        top: kIsWeb || Platform.isMacOS || Platform.isWindows ? 10 : 70,
-        left: kIsWeb || Platform.isMacOS || Platform.isWindows ? 200 : 10,
+        top: Platform.isMacOS || Platform.isWindows ? 10 : 70,
+        left: Platform.isMacOS || Platform.isWindows ? 200 : 10,
         child: ElevatedButton(
             style: ElevatedButton.styleFrom(
               fixedSize: const Size(50, 50),
@@ -5020,14 +5145,6 @@ class _MyHomePageState extends State<MyHomePage> {
               isThreshold = !isThreshold;
               CURRENT_START = 0;
               isZooming = false;
-              if (kIsWeb){
-                const selectedChannel = 0;
-                js.context.callMethod(
-                    'setThresholding', [selectedChannel, isThreshold?1:0, snapshotAveragedSamples[selectedChannel], thresholdValue[selectedChannel]]);
-              }
-
-
-
               for (int c = 0; c < 6; c++) {
                 initialLevelMedian[c] = MediaQuery.of(context).size.height / 2;
                 levelMedian[c] = MediaQuery.of(context).size.height / 2;
@@ -5074,13 +5191,6 @@ class _MyHomePageState extends State<MyHomePage> {
                         .floor() *
                     heightFactor)
                 .floor();
-
-            if (kIsWeb){
-              const selectedChannel = 0;
-              js.context.callMethod(
-                  'setThresholding', [selectedChannel, isThreshold?1:0, snapshotAveragedSamples[selectedChannel], thresholdValue[selectedChannel]]);
-            }
-
             print('channelGains[0]2222');
             // print(channelGains[0]);
             print(heightFactor);
@@ -5130,8 +5240,8 @@ class _MyHomePageState extends State<MyHomePage> {
           )));
 
       dataWidgets.add(Positioned(
-          top: kIsWeb || Platform.isMacOS || Platform.isWindows ? 10 : 70,
-          left: kIsWeb || Platform.isMacOS || Platform.isWindows ? 250 : 70,
+          top: Platform.isMacOS || Platform.isWindows ? 10 : 70,
+          left: Platform.isMacOS || Platform.isWindows ? 250 : 70,
           child: Container(
             width: 200,
             height: 50,
@@ -5178,8 +5288,8 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
           )));
       dataWidgets.add(Positioned(
-          top: kIsWeb || Platform.isMacOS || Platform.isWindows ? 25 : 85,
-          left: kIsWeb || Platform.isMacOS || Platform.isWindows ? 455 : 275,
+          top: Platform.isMacOS || Platform.isWindows ? 25 : 85,
+          left: Platform.isMacOS || Platform.isWindows ? 455 : 275,
           child: Text(snapshotAveragedSamples[0].floor().toString(),
               style: const TextStyle(color: Colors.white))));
     }
@@ -5216,8 +5326,8 @@ class _MyHomePageState extends State<MyHomePage> {
                     deviceTypeInt = 1;
                     deviceType = 1;
                     if (kIsWeb) {
-                      js.context.callMethod(
-                          'recordSerial', ['Flutter is calling upon JavaScript!']);
+                      // js.context.callMethod(
+                      //     'recordSerial', ['Flutter is calling upon JavaScript!']);
                     } else {
                       getSerialParsing();
                     }
@@ -5234,8 +5344,8 @@ class _MyHomePageState extends State<MyHomePage> {
                     deviceTypeInt = 0;
                     deviceType = 0;
                     if (kIsWeb) {
-                      js.context.callMethod(
-                          'recordAudio', ['Flutter is calling upon JavaScript!']);
+                      // js.context.callMethod(
+                      //     'recordAudio', ['Flutter is calling upon JavaScript!']);
                     } else {
                       closeRawSerial();
                       isThreshold = false;
@@ -5290,8 +5400,8 @@ class _MyHomePageState extends State<MyHomePage> {
                         deviceTypeInt = 2;
                         deviceType = 2;
                         if (kIsWeb) {
-                          js.context.callMethod('recordHid',
-                              ['Flutter is calling upon JavaScript!']);
+                          // js.context.callMethod('recordHid',
+                          //     ['Flutter is calling upon JavaScript!']);
                         } else {}
 
                         setState(() {});
@@ -5301,8 +5411,8 @@ class _MyHomePageState extends State<MyHomePage> {
                         deviceTypeInt = 0;
                         deviceType = 0;
                         if (kIsWeb) {
-                          js.context.callMethod('recordAudio',
-                              ['Flutter is calling upon JavaScript!']);
+                          // js.context.callMethod('recordAudio',
+                          //     ['Flutter is calling upon JavaScript!']);
                         } else {}
 
                         setState(() {});
@@ -5318,8 +5428,8 @@ class _MyHomePageState extends State<MyHomePage> {
                           deviceTypeInt = 2;
                           deviceType = 2;
                           if (kIsWeb) {
-                            js.context.callMethod('recordHid',
-                                ['Flutter is calling upon JavaScript!']);
+                            // js.context.callMethod('recordHid',
+                            //     ['Flutter is calling upon JavaScript!']);
                           } else {}
 
                           setState(() {});
@@ -5334,8 +5444,8 @@ class _MyHomePageState extends State<MyHomePage> {
                           deviceTypeInt = 0;
                           deviceType = 0;
                           if (kIsWeb) {
-                            js.context.callMethod('recordAudio',
-                                ['Flutter is calling upon JavaScript!']);
+                            // js.context.callMethod('recordAudio',
+                            //     ['Flutter is calling upon JavaScript!']);
                           } else {}
 
                           setState(() {});
@@ -5395,7 +5505,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   isPaused = false;
                   if (isOpeningFile == 0) {
                     if (kIsWeb) {
-                      js.context.callMethod('pauseResume', [3]);
+                      // js.context.callMethod('pauseResume', [3]);
                     } else {}
 
                     _sendAnalyticsEvent("return_play", {
@@ -5406,7 +5516,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   } else {
                     isOpeningFile = 1;
                     if (kIsWeb) {
-                      js.context.callMethod('playData', [3]);
+                      // js.context.callMethod('playData', [3]);
                     } else {}
 
                     _sendAnalyticsEvent("return_play", {
@@ -5424,7 +5534,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   CURRENT_START = 0;
                   if (isOpeningFile == 0) {
                     if (kIsWeb) {
-                      js.context.callMethod('pauseResume', [3]);
+                      // js.context.callMethod('pauseResume', [3]);
                     } else {}
 
                     _sendAnalyticsEvent("return_play", {
@@ -5435,7 +5545,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   } else {
                     isOpeningFile = 1;
                     if (kIsWeb) {
-                      js.context.callMethod('playData', [3]);
+                      // js.context.callMethod('playData', [3]);
                     } else {}
 
                     _sendAnalyticsEvent("return_play", {
@@ -5477,7 +5587,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               onPressed: () {
                 if (kIsWeb) {
-                  js.context.callMethod('resetPlayback', [1]);
+                  // js.context.callMethod('resetPlayback', [1]);
                 } else {}
 
                 setState(() {});
@@ -5530,7 +5640,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     if (isPlaying == 1) {
                       debouncerPlayback.run(() {
                         if (kIsWeb) {
-                          js.context.callMethod('pauseResume', [1]);
+                          // js.context.callMethod('pauseResume', [1]);
                         } else {}
                         isPaused = true;
 
@@ -5545,7 +5655,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     } else {
                       debouncerPlayback.run(() {
                         if (kIsWeb) {
-                          js.context.callMethod('pauseResume', [2]);
+                          // js.context.callMethod('pauseResume', [2]);
                         } else {}
                         isPaused = false;
 
@@ -5562,7 +5672,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     if (isPlaying == 1) {
                       debouncerPlayback.run(() {
                         if (kIsWeb) {
-                          js.context.callMethod('playData', [2]);
+                          // js.context.callMethod('playData', [2]);
                         } else {}
 
                         isPlaying = 2;
@@ -5576,7 +5686,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     } else {
                       debouncerPlayback.run(() {
                         if (kIsWeb) {
-                          js.context.callMethod('playData', [1]);
+                          // js.context.callMethod('playData', [1]);
                         } else {}
 
                         isPlaying = 1;
@@ -5792,7 +5902,6 @@ class _MyHomePageState extends State<MyHomePage> {
     return Listener(
         onPointerSignal: (PointerSignalEvent dragDetails) {
           // debouncerTimeZoom.run(() {
-          print('onPointerSignal Listener');
           if (dragDetails is PointerScrollEvent) {
             int tempTimeScaleBar = timeScaleBar;
             int direction = 0;
@@ -5847,10 +5956,8 @@ class _MyHomePageState extends State<MyHomePage> {
             double tempDivider = myArrTimescale[timeScaleBar] / 10;
             int tempLevel = calculateLevel(myArrTimescale[timeScaleBar],
                 sampleRate, MediaQuery.of(context).size.width, skipCounts);
-            // int prevSegment =
-            //     (allEnvelopes[0][tempLevel].length / tempDivider).floor();
-            print('onPointerSignal Listener 5');
-
+            int prevSegment =
+                (allEnvelopes[0][tempLevel].length / tempDivider).floor();
             // print(prevSegment);
             // if (prevSegment <= 2) {
             //   timeScaleBar = tempTimeScaleBar;
@@ -5858,14 +5965,11 @@ class _MyHomePageState extends State<MyHomePage> {
             // }
 
             int transformScale = (timeScaleBar / 10).floor();
-            print('onPointerSignal Listener 6');
             scaleBarWidth = MediaQuery.of(context).size.width /
                 (arrScaleBar[timeScaleBar]) *
                 arrTimeScale[transformScale] /
                 10;
-            print('onPointerSignal Listener 7');
             curTimeScaleBar = (arrTimeScale[transformScale] / 10);
-            print('onPointerSignal Listener 8');
             var data = {
               "timeScaleBar": arrTimeScale[transformScale], // label in UI
               "levelScale": timeScaleBar, //scrollIdx
@@ -5884,7 +5988,7 @@ class _MyHomePageState extends State<MyHomePage> {
             }
 
             if (kIsWeb) {
-              js.context.callMethod('setZoomLevel', [json.encode(data)]);
+              //   // js.context.callMethod('setZoomLevel', [json.encode(data)]);
               //   level = calculateLevel(
               //       timeScale, sampleRate, MediaQuery.of(context).size.width, skipCounts);
             } else {
@@ -6168,46 +6272,45 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   getDeviceInfo() async {
-    // if (kIsWeb) {
-    //   // js.context
-    //   //     .callMethod('changeSerialChannel', [json.encode(data)]);
-    // } else if (Platform.isAndroid) {
-    //   var data = asciiToUint8Array("b:;\n");
-    //   print(data);
-    //   port.write(data);
-    // } else {
-    //   var data = asciiToUint8Array("b:;\n");
-    //   print(data);
-    //   serialPort.write(data);
-    //   // print(serialPort.bytesToWrite);
-    //   print("getDeviceInfo()");
-    // }
+    if (kIsWeb) {
+      // js.context
+      //     .callMethod('changeSerialChannel', [json.encode(data)]);
+    } else if (Platform.isAndroid) {
+      var data = asciiToUint8Array("b:;\n");
+      print(data);
+      port.write(data);
+    } else {
+      var data = asciiToUint8Array("b:;\n");
+      print(data);
+      serialPort.write(data);
+      // print(serialPort.bytesToWrite);
+      print("getDeviceInfo()");
+    }
   }
 
   void callChangeSerialChannel(Map<String, int> params) {
-    // Platform isWeb
     if (kIsWeb) {
       // js.context
       //     .callMethod('changeSerialChannel', [json.encode(data)]);
     } else {
-      // DISPLAY_CHANNEL = params['channelCount'] as int;
-      // String str = "c:" + DISPLAY_CHANNEL.toString() + ";\n";
-      // var data = asciiToUint8Array(str);
-      // print("write serial data");
-      // print(str);
-      // print(data);
-      // if (Platform.isAndroid) {
-      //   port.write(data);
-      // } else {
-      //   serialPort.write(data);
-      // }
+      DISPLAY_CHANNEL = params['channelCount'] as int;
+      String str = "c:" + DISPLAY_CHANNEL.toString() + ";\n";
+      var data = asciiToUint8Array(str);
+      print("write serial data");
+      print(str);
+      print(data);
+      if (Platform.isAndroid) {
+        port.write(data);
+      } else {
+        serialPort.write(data);
+      }
 
-      // DISPLAY_CHANNEL = params["channelCount"] as int;
-      // sampleRate =
-      //     (int.parse(CURRENT_DEVICE['maxSampleRate']) / DISPLAY_CHANNEL)
-      //         .floor();
-      // cBuffIdx = -1;
-      // print(sampleRate);
+      DISPLAY_CHANNEL = params["channelCount"] as int;
+      sampleRate =
+          (int.parse(CURRENT_DEVICE['maxSampleRate']) / DISPLAY_CHANNEL)
+              .floor();
+      cBuffIdx = -1;
+      print(sampleRate);
     }
   }
 
@@ -6422,6 +6525,14 @@ class _MyHomePageState extends State<MyHomePage> {
       channelGains[c] = prevVal;
     }
     double heightFactor = (channelGains[0] / signalMultiplier);
+    // thresholdValue[0] = ((thresholdMarkerTop[0] +
+    //                 12 -
+    //                 // (MediaQuery.of(context).size.height / 2))
+    //                 levelMedian[0] == -1 ? initialLevelMedian[0] : levelMedian[0])
+    //                 // )
+    //             .floor() *
+    //         heightFactor)
+    //     .floor();
     thresholdValue[0] = ((thresholdMarkerTop[0] +
                     12 -
                     (levelMedian[0] == -1

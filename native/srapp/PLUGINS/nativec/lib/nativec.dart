@@ -61,6 +61,10 @@ typedef init_threshold_func = ffi.Double Function(
     ffi.Int, ffi.Double, ffi.Double, ffi.Double);
 typedef InitThresholdProcess = double Function(int, double, double, double);
 
+
+typedef get_threshold_hit_func = ffi.Int Function();
+typedef GetThresholdHitProcess = int Function();
+
 typedef set_threshold_parameters_func = ffi.Double Function(
     ffi.Int, ffi.Int, ffi.Double, ffi.Int, ffi.Int);
 typedef SetThresholdParametersProcess = double Function(
@@ -125,6 +129,7 @@ class Nativec {
   late InitThresholdProcess _initThresholdProcess;
   late SetThresholdParametersProcess _setThresholdParametersProcess;
   late GetSamplesThresholdProcess _getSamplesThresholdProcess;
+  late GetThresholdHitProcess _getThresholdHitProcess;
   late SetThresholdDartPortFunc _setThresholdDartPortFunc;
 
   // C++ to Dart
@@ -206,6 +211,11 @@ class Nativec {
     _getSamplesThresholdProcess = nativeLrsLib
         .lookup<ffi.NativeFunction<get_samples_threshold_func>>(
             'getSamplesThresholdProcess')
+        .asFunction();
+
+    _getThresholdHitProcess = nativeLrsLib
+        .lookup<ffi.NativeFunction<get_threshold_hit_func>>(
+            'getThresholdHitProcess')
         .asFunction();
 
     _applyLowPassFilterProcess = nativeLrsLib
@@ -466,5 +476,9 @@ class Nativec {
         sampleNeeded);
     // print(processedSample);
     return processedSample;
+  }
+
+  int getThresholdHitProcess(){
+    return _getThresholdHitProcess();
   }
 }

@@ -65,6 +65,11 @@ const DRAW_STATE = {
   'IS_HIGH_PASS_FILTER' : 52,
   'LOW_PASS_FILTER' : 53,
   'HIGH_PASS_FILTER' : 54,
+  
+  'IS_THRESHOLDING' : 55,
+  'AVERAGE_SNAPSHOT_THRESHOLDING' : 56,
+  'VALUE_THRESHOLDING' : 57,
+  'SELECTED_CHANNEL_THRESHOLDING' : 58,
 
 };
 
@@ -543,22 +548,33 @@ self.onmessage = function( event ) {
           }
           
           // console.log("_head : ", head);
-          onMessageFromWorker({
-            data : {
-              skipCounts : skipCounts,
-              head : head,
-              isFull : isFull,
-              array : envelopeSamples,
-              sampleRate : sampleRate,
-              maxSampleRate : maxSampleRate,
-              offsetHead : offsetHead,
-              globalPositionCap : globalPositionCap,
-              currentCap : currentCap,
-              channelIdx : c,
-              drawBuffer : vm.drawBuffers[c] ,
-              deviceType : type,
-            }
-          });
+          // if (!thresholding)
+          if (draw_states[c][DRAW_STATE.IS_THRESHOLDING] == 0){
+
+              onMessageFromWorker({
+                data : {
+                  skipCounts : skipCounts,
+                  head : head,
+                  isFull : isFull,
+                  array : envelopeSamples,
+                  sampleRate : sampleRate,
+                  maxSampleRate : maxSampleRate,
+                  offsetHead : offsetHead,
+                  globalPositionCap : globalPositionCap,
+                  currentCap : currentCap,
+                  channelIdx : c,
+                  drawBuffer : vm.drawBuffers[c] ,
+                  deviceType : type,
+                }
+              });            
+            
+          }else{
+            const thresholdEnvelopeSamples = new Int16Array(sabcs.sabThresholdEnvelopes[vm.level]);
+            // console.log(thresholdEnvelopeSamples);
+            vm.drawBuffers[c]=thresholdEnvelopeSamples.subarray(0, Math.floor(thresholdEnvelopeSamples.length/divider));
+            // vm.drawBuffers[c].fill(10000);
+
+          }
 
         
         
