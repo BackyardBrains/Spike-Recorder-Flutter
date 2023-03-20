@@ -811,11 +811,12 @@ EXTERNC FUNCTION_ATTRIBUTE auto getSamplesThresholdProcess(short channelIdx, con
 
         resetEnvelope(channelIdx, envelopes[channelIdx], forceLevel);
         
-        return sizeOfEnvelope;
+        return result;
 
     }catch(...){
         // debug_print("errror");
-        return 0;
+        auto result = val::global("Int16Array").new_(1);
+        return result;
     }   
 
 }

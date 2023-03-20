@@ -3649,7 +3649,7 @@ window.changeFilter = function(channelCount, isLowPass, lowPassFilter, isHighPas
 window.setThresholding = function(selectedChannel, isThresholding, averageSnapshotThresholding, valueThresholding){
   for (let c = 0; c < SERIAL_CHANNEL_COUNT_FIX; c++){
     let draw_state = new Int32Array(sabDraw.draw_states[c]);
-    console.log('selectedChannel : ',c, selectedChannel, c == selectedChannel, valueThresholding, averageSnapshotThresholding, isThresholding);
+    // console.log('selectedChannel : ',c, selectedChannel, c == selectedChannel, valueThresholding, averageSnapshotThresholding, isThresholding);
     if (c == selectedChannel){
       draw_state[DRAW_STATE.VALUE_THRESHOLDING] = Math.floor(valueThresholding);
       draw_state[DRAW_STATE.AVERAGE_SNAPSHOT_THRESHOLDING] = Math.floor(averageSnapshotThresholding);
@@ -3663,4 +3663,12 @@ window.setThresholding = function(selectedChannel, isThresholding, averageSnapsh
     }
   }
  
+}
+
+window.setCurrentStart = function(currentStart){
+  for (let c = 0; c < SERIAL_CHANNEL_COUNT_FIX; c++){
+    let draw_state = new Int32Array(sabDraw.draw_states[c]);
+    draw_state[DRAW_STATE.CURRENT_START] = currentStart;
+  }
+
 }

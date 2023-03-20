@@ -83,27 +83,27 @@ screenPositionToElementPosition(posX, part, level, skipCount,
   }else{
     curStart = head - (elementLength).floor();
   }
-  print("INNER WIDTH : " + innerWidth.toString() + " POS X  : "+ posX.toString() + " prev Segment : " + prevSegment.toString()+" LEVEL : " + level.toString() + " DIVIDER " + divider.toString() + " Samples per pixel : " + samplesPerPixel.toString() + "Skip Counts : " + skipCount.toString()+ "Element Length "+ elementLength.toString()+ "cur Start : "+ curStart.toString()+ "head : "+ head.toString()+ "Envelope Size : " + envelopeSize.toString());
-  print(" POS X  : " +
-      posX.toString() +
-      " prev Segment : " +
-      prevSegment.toString() +
-      " LEVEL : " +
-      level.toString() +
-      " DIVIDER " +
-      divider.toString() +
-      " Samples per pixel : " +
-      samplesPerPixel.toString() +
-      "Skip Counts : " +
-      skipCount.toString() +
-      "Element Length " +
-      elementLength.toString() +
-      "cur Start : " +
-      curStart.toString() +
-      "head : " +
-      head.toString() +
-      "Envelope Size : " +
-      envelopeSize.toString());
+  // print("INNER WIDTH : " + innerWidth.toString() + " POS X  : "+ posX.toString() + " prev Segment : " + prevSegment.toString()+" LEVEL : " + level.toString() + " DIVIDER " + divider.toString() + " Samples per pixel : " + samplesPerPixel.toString() + "Skip Counts : " + skipCount.toString()+ "Element Length "+ elementLength.toString()+ "cur Start : "+ curStart.toString()+ "head : "+ head.toString()+ "Envelope Size : " + envelopeSize.toString());
+  // print(" POS X  : " +
+  //     posX.toString() +
+  //     " prev Segment : " +
+  //     prevSegment.toString() +
+  //     " LEVEL : " +
+  //     level.toString() +
+  //     " DIVIDER " +
+  //     divider.toString() +
+  //     " Samples per pixel : " +
+  //     samplesPerPixel.toString() +
+  //     "Skip Counts : " +
+  //     skipCount.toString() +
+  //     "Element Length " +
+  //     elementLength.toString() +
+  //     "cur Start : " +
+  //     curStart.toString() +
+  //     "head : " +
+  //     head.toString() +
+  //     "Envelope Size : " +
+  //     envelopeSize.toString());
   if (curStart < 0) {
     curStart = 0;
   }
