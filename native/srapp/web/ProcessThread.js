@@ -72,6 +72,7 @@ let sharedFileContainerStatusInt;
 /* Serial */
 const SERIAL_CHANNEL_MAX = 6;
 let simulateEvent = 0;
+let prevThresholdCurrentLevel;
 
 let eventsCounterInt;
 let eventsInt;
@@ -252,6 +253,9 @@ const STATE = {
   //Audio Requirement
   'OPEN_FILE_REDRAW':12,
 
+  'THRESHOLD_PAUSE':13,
+
+
 };
 
 // const AUDIO_CONFIG = {
@@ -356,33 +360,44 @@ let arrMaxInt = new Int16Array(arrMax);
 size/=2;
 let i = 0;
 
-function thresholdingProcess(c, availableFrames, inputReadIndex){
+function thresholdingProcess(c, availableSamples, inputReadIndex, _arrMaxInt){
   // console.log("THRESHOLDING PROCESS");
   // console.log(allEnvelopesThreshold[0][drawState[DRAW_STATE.LEVEL]]);
   let tempIdx = inputReadIndex;
   let curIdx = 0;
-  let availableSamples = new Int16Array(availableFrames);
-  for (let i = 0 ; i < availableFrames ; i++){
-    availableSamples[curIdx] = InputRingBuffer[c][tempIdx];
-    curIdx++;
-    tempIdx++;
-    if (tempIdx == CONFIG.ringBufferLength){
-      tempIdx = 0;
-    }
-  }
+  const availableFrames = availableSamples.length;
 
   const divider = drawState[DRAW_STATE.DIVIDER] / 10;
   const sampleNeeded = Math.floor(allEnvelopesThreshold[c][drawState[DRAW_STATE.LEVEL]].length / divider);
   // console.log("THRESHOLDING PROCESS RESULT ", allEnvelopesThreshold[c][drawState[DRAW_STATE.LEVEL]].length,  drawState[DRAW_STATE.DIVIDER]/10, sampleNeeded, availableFrames);
   // console.log('appendSamplesThresholdProcess : ',drawStates[c][DRAW_STATE.VALUE_THRESHOLDING], drawStates[c][DRAW_STATE.AVERAGE_SNAPSHOT_THRESHOLDING]);
+  // Module.setThresholdParametersProcess(1, drawState[DRAW_STATE.LEVEL], SEGMENT_SIZE, divider, drawState[DRAW_STATE.CURRENT_START]);
 
   // const temp = Module.appendSamplesThresholdProcess(1, 1000, c, availableSamples, availableFrames, drawState[DRAW_STATE.DIVIDER]/10, drawState[DRAW_STATE.CURRENT_START], sampleNeeded);
-  if (c==drawStates[c][DRAW_STATE.SELECTED_CHANNEL_THRESHOLDING]){
-    const temp = Module.appendSamplesThresholdProcess(drawStates[c][DRAW_STATE.AVERAGE_SNAPSHOT_THRESHOLDING], drawStates[c][DRAW_STATE.VALUE_THRESHOLDING], c, availableSamples, availableFrames, drawState[DRAW_STATE.DIVIDER]/10, drawState[DRAW_STATE.CURRENT_START], sampleNeeded);
-    // console.log(temp);
+  if (drawStates[c][DRAW_STATE.IS_THRESHOLDING] == 1){
+    if (c==drawStates[c][DRAW_STATE.SELECTED_CHANNEL_THRESHOLDING]){
+      //if (level ==-1) _arrMaxInt = Module.appendSamplesThresholdProcess(1, 0, c, availableSamples, availableFrames, drawState[DRAW_STATE.DIVIDER]/10, drawState[DRAW_STATE.CURRENT_START], sampleNeeded);
+
+      // console.log(temp);
+      try{
+        // Module.setThresholdParametersProcess(1, drawState[DRAW_STATE.LEVEL], SEGMENT_SIZE, 6, 0);        
+        Module.setThresholdParametersProcess(1, drawState[DRAW_STATE.LEVEL], SEGMENT_SIZE, divider, drawState[DRAW_STATE.CURRENT_START]);
+
+        const temp = Module.appendSamplesThresholdProcess(drawStates[c][DRAW_STATE.AVERAGE_SNAPSHOT_THRESHOLDING], drawStates[c][DRAW_STATE.VALUE_THRESHOLDING], c, availableSamples, availableFrames, drawState[DRAW_STATE.DIVIDER]/10, drawState[DRAW_STATE.CURRENT_START], sampleNeeded);
+        allEnvelopesThreshold[c][drawState[DRAW_STATE.LEVEL]].set(temp);        
+      }catch(err){
+        console.log('err');
+        console.log(err);
+      }
+      // console.log(allEnvelopesThreshold[c][drawState[DRAW_STATE.LEVEL]]);
+    
+    }
+  }else
+  if (drawStates[c][DRAW_STATE.IS_THRESHOLDING] == 2){
+    // (short channelIdx, const val &data, short forceLevel,double _divider, int currentStart, int sampleNeeded){
+    const temp = Module.getSamplesThresholdProcess(
+      c, new Int16Array(1), drawStates[c][DRAW_STATE.LEVEL], drawStates[c][DRAW_STATE.DIVIDER] / 10, drawState[DRAW_STATE.CURRENT_START], sampleNeeded);
     allEnvelopesThreshold[c][drawState[DRAW_STATE.LEVEL]].set(temp);
-    // console.log(allEnvelopesThreshold[c][drawState[DRAW_STATE.LEVEL]]);
-  
   }
 }
 
@@ -887,64 +902,64 @@ function executeContentOfMessageBuffer(offset){
 
 }
 // FUNCTION REMOVAL
-// function testEscapeSequence(newByte, offset){
-//   if(weAreInsideEscapeSequence)
-//   {
+function testEscapeSequence(newByte, offset){
+  if(weAreInsideEscapeSequence)
+  {
 
-//       if(messageBufferIndex>=SIZE_OF_MESSAGES_BUFFER)
-//       {
-//           weAreInsideEscapeSequence = false; //end of escape sequence
-//           executeContentOfMessageBuffer(offset);
-//           escapeSequenceDetectorIndex = 0;//prepare for detecting begining of sequence
-//       }
-//       else if(endOfescapeSequence[escapeSequenceDetectorIndex] == newByte)
-//       {
-//           escapeSequenceDetectorIndex++;
-//           if(escapeSequenceDetectorIndex ==  ESCAPE_SEQUENCE_LENGTH)
-//           {
-//               weAreInsideEscapeSequence = false; //end of escape sequence
-//               executeContentOfMessageBuffer(offset);
-//               escapeSequenceDetectorIndex = 0;//prepare for detecting begining of sequence
-//           }
-//       }
-//       else
-//       {
-//           escapeSequenceDetectorIndex = 0;
-//       }
+      if(messageBufferIndex>=SIZE_OF_MESSAGES_BUFFER)
+      {
+          weAreInsideEscapeSequence = false; //end of escape sequence
+          executeContentOfMessageBuffer(offset);
+          escapeSequenceDetectorIndex = 0;//prepare for detecting begining of sequence
+      }
+      else if(endOfescapeSequence[escapeSequenceDetectorIndex] == newByte)
+      {
+          escapeSequenceDetectorIndex++;
+          if(escapeSequenceDetectorIndex ==  ESCAPE_SEQUENCE_LENGTH)
+          {
+              weAreInsideEscapeSequence = false; //end of escape sequence
+              executeContentOfMessageBuffer(offset);
+              escapeSequenceDetectorIndex = 0;//prepare for detecting begining of sequence
+          }
+      }
+      else
+      {
+          escapeSequenceDetectorIndex = 0;
+      }
 
-//   }
-//   else
-//   {
-//       if(escapeSequence[escapeSequenceDetectorIndex] == newByte)
-//       {
-//           escapeSequenceDetectorIndex++;
-//           if(escapeSequenceDetectorIndex ==  ESCAPE_SEQUENCE_LENGTH)
-//           {
-//               weAreInsideEscapeSequence = true; //found escape sequence
-//               for(let i=0;i<SIZE_OF_MESSAGES_BUFFER;i++)
-//               {
-//                   messagesBuffer[i] = 0;
-//               }
-//               messageBufferIndex = 0;//prepare for receiving message
-//               escapeSequenceDetectorIndex = 0;//prepare for detecting end of esc. sequence
+  }
+  else
+  {
+      if(escapeSequence[escapeSequenceDetectorIndex] == newByte)
+      {
+          escapeSequenceDetectorIndex++;
+          if(escapeSequenceDetectorIndex ==  ESCAPE_SEQUENCE_LENGTH)
+          {
+              weAreInsideEscapeSequence = true; //found escape sequence
+              for(let i=0;i<SIZE_OF_MESSAGES_BUFFER;i++)
+              {
+                  messagesBuffer[i] = 0;
+              }
+              messageBufferIndex = 0;//prepare for receiving message
+              escapeSequenceDetectorIndex = 0;//prepare for detecting end of esc. sequence
 
-//               //rewind writing head and effectively delete escape sequence from data
-//               for(let i=0;i<ESCAPE_SEQUENCE_LENGTH;i++)
-//               {
-//                   cBufHead--;
-//                   if(cBufHead<0)
-//                   {
-//                       cBufHead = CONFIG.ringBufferLength-1;
-//                   }
-//               }
-//           }
-//       }
-//       else
-//       {
-//           escapeSequenceDetectorIndex = 0;
-//       }
-//   }
-// }
+              //rewind writing head and effectively delete escape sequence from data
+              for(let i=0;i<ESCAPE_SEQUENCE_LENGTH;i++)
+              {
+                  cBufHead--;
+                  if(cBufHead<0)
+                  {
+                      cBufHead = CONFIG.ringBufferLength-1;
+                  }
+              }
+          }
+      }
+      else
+      {
+          escapeSequenceDetectorIndex = 0;
+      }
+  }
+}
 
 
 
@@ -1053,7 +1068,37 @@ function areWeAtTheEndOfFrame()
 
   const newDataLength = States[STATE.IB_FRAMES_AVAILABLE];
   // processedFrame = States[STATE.IB_FRAMES_AVAILABLE];
-  if (newDataLength<=0) return;
+  if (newDataLength<=0) {
+    if (States[0][STATE.THRESHOLD_PAUSE] >= 1) {
+      for (let c = 0; c < AUDIO_CHANNEL_MAX; c++){
+        let drawState = new Int32Array(drawStates[c]);
+        if (drawState[DRAW_STATE.IS_THRESHOLDING] >= 1){
+          let thresholdCurrentLevel = drawState[DRAW_STATE.LEVEL];
+          if (thresholdCurrentLevel<0){
+            thresholdCurrentLevel = prevThresholdCurrentLevel;
+            return;
+          }
+          const thresholdEnvelope = allEnvelopesThreshold[c][thresholdCurrentLevel];
+          try{
+            const sampleNeeded = thresholdEnvelope.length;
+            const temp = Module.getSamplesThresholdProcess(
+              c, new Int16Array(1), thresholdCurrentLevel, drawState[DRAW_STATE.DIVIDER] / 10, drawState[DRAW_STATE.CURRENT_START], sampleNeeded);
+            thresholdEnvelope.set(temp);
+    
+          }catch(exc){
+            console.log(exc);
+          }
+          prevThresholdCurrentLevel = thresholdCurrentLevel;
+          Atomics.notify(StatesDraw[c], STATE.REQUEST_SIGNAL_REFORM, 1);
+  
+        }
+      }
+      return;      
+  
+    }    
+    return;
+  }
+
   let buffer = new Uint8Array(newDataLength);
   
   // let d = (new Date()).getTime();
@@ -1150,13 +1195,13 @@ function areWeAtTheEndOfFrame()
         //   executeOneMessage("EVNT","7",Math.floor( ((i-(numberOfZeros>0?numberOfZeros+1:0))/2)/numberOfChannels-1))
         // }
         let oBuffHead = {"value":cBufHead};
-        functions.testEscapeSequence( buffer[i] & 0xFF,  Math.floor( ((i-(numberOfZeros>0?numberOfZeros+1:0))/2)/numberOfChannels-1),messagesBuffer,weAreInsideEscapeSequence, messageBufferIndex,escapeSequenceDetectorIndex,oBuffHead);
+        testEscapeSequence( buffer[i] & 0xFF,  Math.floor( ((i-(numberOfZeros>0?numberOfZeros+1:0))/2)/numberOfChannels-1),messagesBuffer,weAreInsideEscapeSequence, messageBufferIndex,escapeSequenceDetectorIndex,oBuffHead);
         // const calc = Math.floor( ((i-(numberOfZeros>0?numberOfZeros+1:0))/2)/numberOfChannels-1);
         // testEscapeSequence( buffer[i] & 0xFF,  calc);
         cBufHead = oBuffHead.value;
       }else{
         let oBuffHead = {"value":cBufHead};
-        functions.testEscapeSequence( buffer[i] & 0xFF,  Math.floor( ( (i) / 2 ) / numberOfChannels-1 ),messagesBuffer,weAreInsideEscapeSequence, messageBufferIndex,escapeSequenceDetectorIndex,oBuffHead);
+        testEscapeSequence( buffer[i] & 0xFF,  Math.floor( ( (i) / 2 ) / numberOfChannels-1 ),messagesBuffer,weAreInsideEscapeSequence, messageBufferIndex,escapeSequenceDetectorIndex,oBuffHead);
         // testEscapeSequence( buffer[i] ,  Math.floor( ( (i) / 2 ) / numberOfChannels-1 ));
         cBufHead = oBuffHead.value;
       }
@@ -1187,6 +1232,7 @@ function areWeAtTheEndOfFrame()
   
   let arr = [];
   let initialHeads = [];
+  let availableFrames = [];
   // console.log("LOG J, I :",j,i);
   for (j=0;j<SERIAL_CHANNEL_MAX;j++){
     initialHeads[j] =_arrHeadsInt[j];
@@ -1218,7 +1264,7 @@ function areWeAtTheEndOfFrame()
         weAlreadyProcessedBeginingOfTheFrame = false;
         numberOfParsedChannels = 0;
         // _arrHeadsInt.fill(0);
-        if(functions.checkIfHaveWholeFrame(circularBuffer,cBufTail,cBufHead))
+        if(checkIfHaveWholeFrame(circularBuffer,cBufTail,cBufHead))
         // if(checkIfHaveWholeFrame())
         {
             numberOfFrames++;
@@ -1331,6 +1377,8 @@ function areWeAtTheEndOfFrame()
                 envelopes = allEnvelopes[numberOfParsedChannels - 1];
                 _head = _arrHeadsInt[numberOfParsedChannels - 1];
                 try{
+                  // filterSample(c, availableFrames, inputReadIndex);
+                  availableFrames.push(sample);
                   envelopingSamples(_head, sample, envelopes);                  
                   // functions.enveloping(_head, sample, envelopes, SIZE_LOGS2, skipCounts);                  
                   // functions.envelopingSamples(_head, sample, envelopes, SIZE_LOGS2, skipCounts);                  
@@ -1406,7 +1454,7 @@ function areWeAtTheEndOfFrame()
                   }
                 }
 
-                if(functions.areWeAtTheEndOfFrame(circularBuffer,cBufTail))
+                if(areWeAtTheEndOfFrame(circularBuffer,cBufTail))
                 // if(areWeAtTheEndOfFrame())
                 {
                     break;
@@ -1442,6 +1490,14 @@ function areWeAtTheEndOfFrame()
     }
 
   }
+
+  for (let c = 0; c < SERIAL_CHANNEL_MAX; c++){
+    if (drawStates[c][DRAW_STATE.IS_THRESHOLDING] >= 1){
+      thresholdingProcess(c, availableFrames, inputReadIndex, arrMaxInt);
+      _arrHeadsInt[c] = allEnvelopesThreshold[c][drawState[DRAW_STATE.LEVEL]];
+    }
+  }
+
   
   // !!! this is because of each sample need 2 bytes, and need to be multiplied per channels
   if (sabDraw){
@@ -1545,6 +1601,8 @@ function initializeSerial(options) {
       CONFIG.kernelLength = 992 * 2;
       SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER = CONFIG.ringBufferLength * 8;
       // numberOfChannels = 2;
+      Module.setThresholdParametersProcess(1, drawState[DRAW_STATE.LEVEL], SEGMENT_SIZE, 6, 0);
+
     }
   }
   if (options.sabDraw){
@@ -1662,6 +1720,38 @@ function processAudioKernel(availableFrames) {
   StatesWrite[STATE.IB_READ_INDEX] = States[0][STATE.IB_READ_INDEX];
   let flagChannelDisplays = new Uint32Array(sabDraw.channelDisplays);
   const sum = flagChannelDisplays.reduce((pre,curr)=>pre+curr,0);
+  const newDataLength = States[STATE.IB_FRAMES_AVAILABLE];
+  if (newDataLength<=0 ){
+    return;
+  }else
+  if (States[0][STATE.THRESHOLD_PAUSE] >= 1) {
+    for (let c = 0; c < AUDIO_CHANNEL_MAX; c++){
+      let drawState = new Int32Array(drawStates[c]);
+      if (drawState[DRAW_STATE.IS_THRESHOLDING] >= 1){
+        let thresholdCurrentLevel = drawState[DRAW_STATE.LEVEL];
+        if (thresholdCurrentLevel<0){
+          thresholdCurrentLevel = prevThresholdCurrentLevel;
+          return;
+        }
+        const thresholdEnvelope = allEnvelopesThreshold[c][thresholdCurrentLevel];
+        try{
+          const sampleNeeded = thresholdEnvelope.length;
+          const temp = Module.getSamplesThresholdProcess(
+            c, new Int16Array(1), thresholdCurrentLevel, drawState[DRAW_STATE.DIVIDER] / 10, drawState[DRAW_STATE.CURRENT_START], sampleNeeded);
+          thresholdEnvelope.set(temp);
+  
+        }catch(exc){
+          console.log(exc);
+        }
+        prevThresholdCurrentLevel = thresholdCurrentLevel;
+        Atomics.notify(StatesDraw[c], STATE.REQUEST_SIGNAL_REFORM, 1);
+
+      }
+    }
+    return;      
+
+  }
+
   for (let c = 0 ;c < AUDIO_CHANNEL_MAX; c++){
     // console.log("States c ", States[c], STATE.IB_READ_INDEX);
     inputReadIndex = States[c][STATE.IB_READ_INDEX];
@@ -1724,7 +1814,17 @@ function processAudioKernel(availableFrames) {
 
     filterSample(c, availableFrames, inputReadIndex);
     if (drawState[DRAW_STATE.IS_THRESHOLDING] == 1){
-      thresholdingProcess(c, availableFrames, inputReadIndex);
+      let availableSamples = new Int16Array(availableFrames);
+      for (let i = 0 ; i < availableFrames ; i++){
+        availableSamples[curIdx] = InputRingBuffer[c][tempIdx];
+        curIdx++;
+        tempIdx++;
+        if (tempIdx == CONFIG.ringBufferLength){
+          tempIdx = 0;
+        }
+      }
+    
+      thresholdingProcess(c, availableSamples, inputReadIndex, _arrMaxInt);
     }
     // for (; i < CONFIG.kernelLength; ++i) {
     for (; i < availableFrames; ++i) {
@@ -1734,7 +1834,9 @@ function processAudioKernel(availableFrames) {
         // functions.envelopingSamples(_head, sample, _envelopes, SIZE_LOGS2, skipCounts);
         // console.log(functions);
         // envelopingSamples(_head, functions.multiply(sample,1), _envelopes);
-        envelopingSamples(_head, sample, _envelopes);
+        if (drawState[DRAW_STATE.IS_THRESHOLDING] ==0){
+          envelopingSamples(_head, sample, _envelopes);
+        }
 
         // if (_head % 51200 == 0){
         //   const tempLevel = 9;
@@ -1840,6 +1942,10 @@ function processAudioKernel(availableFrames) {
     // console.log("channel|sample end", c, _head, States[c][STATE.IB_FRAMES_AVAILABLE]);
 
     // console.log( "enveloping speed channel : ", (new Date()) - prevDate, availableFrames, _head, c );
+    if (drawState[DRAW_STATE.IS_THRESHOLDING] >= 1){
+      _head = 0;
+      offsetHead = 0;
+    }
 
     // if (c == 1){
     //   console.log("_envelopes : ", _head, offsetHead, _arrMaxInt[_head]);
@@ -1991,6 +2097,9 @@ function initializeAudio(options) {
     eventsInt = new Uint8Array(sabDraw.events);
     eventPositionInt = new Uint32Array(sabDraw.eventPosition);
     eventPositionResultInt = new Float32Array(sabDraw.eventPositionResult);
+
+    Module.setThresholdParametersProcess(1, drawState[DRAW_STATE.LEVEL], SEGMENT_SIZE, 6, 0);
+
   }
 
   // if (CONFIG.channelCount == 1 ){
@@ -2077,22 +2186,23 @@ function myTimeout(ms){
 
 onmessage = async (eventFromMain) => {
   if (eventFromMain.data.message === 'INITIALIZE_WORKER') {
+    
     //this causing the delay because sample rate is not using 5000 for human spikerbox
     deviceType = eventFromMain.data.options.deviceType;
     SEGMENT_SIZE = eventFromMain.data.options.sampleRate;
     arrCounts = eventFromMain.data.options.arrCounts;
     console.log("arrCounts : ", eventFromMain.data, arrCounts, SEGMENT_SIZE);
     skipCounts = new Uint32Array(arrCounts);
-
-
-        
+    
+    
+    
     // SEGMENT_SIZE = 10000;
     console.log("INITIALIZE WORKER z ", eventFromMain.data.options.sampleRate);
     await myTimeout(1000);
     // if (SEGMENT_SIZE != 10000)
     {
       SIZE = NUMBER_OF_SEGMENTS * SEGMENT_SIZE;
-    
+      
       size = SIZE;
       
       allArrMax = [];
@@ -2102,9 +2212,9 @@ onmessage = async (eventFromMain) => {
         allArrMax.push(arrTemp);
         allArrMaxInt.push(new Int16Array(arrTemp));
       }
-
+      
       size/=2;
-
+      
       allEnvelopes = [];
       allSabEnvelopes = [];
       allSabThresholdEnvelopes = [];
@@ -2115,56 +2225,76 @@ onmessage = async (eventFromMain) => {
       console.log("TOTAL CHANNEL : ", totalChannel);
       curChannel = totalChannel;
       if ( deviceType == 'audio' ){
-        // if (isLowPass) 
-        Module.createLowPassFilter(curChannel, SEGMENT_SIZE, SEGMENT_SIZE/2, 1/2);
-        //if (isHighPass) 
-        Module.createHighPassFilter(curChannel, SEGMENT_SIZE, 0, 1/2);
+        if (isLowPass) 
+          Module.createLowPassFilter(curChannel, SEGMENT_SIZE, SEGMENT_SIZE/2, 1/2);
+        if (isHighPass) 
+          Module.createHighPassFilter(curChannel, SEGMENT_SIZE, 0, 1/2);
         // createThresholdProcess(short _channelCount, uint32_t _sampleRate, short averagedSampleCount, short threshold){
-        Module.createThresholdProcess(curChannel, SEGMENT_SIZE, 1, 0);
-      }else{
-        if (isLowPass) Module.createLowPassFilter(totalChannel, SEGMENT_SIZE, SEGMENT_SIZE/2, 1/2);
-        if (isHighPass) Module.createHighPassFilter(totalChannel, SEGMENT_SIZE, SEGMENT_SIZE/2, 1/2);
-      }      
-
-      for (let c = 0; c < totalChannel ; c++){
-        var sabEnvelopes = [];
-        var sabThresholdEnvelopes = [];
-        var envelopes = [];
-        var envelopesThreshold = [];
-        size = SIZE / 2;
-        for (let i = 0 ; i < SIZE_LOGS2 ; i++){
-          let sz = Math.ceil(size);
-          if (sz % 2 == 1) sz++;
-          const buffer = new SharedArrayBuffer(CONFIG.bytesPerSample * sz);
-          const bufferThreshold = new SharedArrayBuffer(CONFIG.bytesPerSample * sz);
+          Module.createThresholdProcess(curChannel, SEGMENT_SIZE, 1, 0);
           
-          sabEnvelopes.push(buffer);
-          sabThresholdEnvelopes.push(bufferThreshold);
-          envelopes.push(new Int16Array(buffer));
-          envelopesThreshold.push(new Int16Array(bufferThreshold));
-      
-          size/=2;
-          envelopeSizes[i] = size;
-        }
+        }else{
+          if (isLowPass) Module.createLowPassFilter(totalChannel, SEGMENT_SIZE, SEGMENT_SIZE/2, 1/2);
+          if (isHighPass) Module.createHighPassFilter(totalChannel, SEGMENT_SIZE, SEGMENT_SIZE/2, 1/2);
+          Module.createThresholdProcess(curChannel, SEGMENT_SIZE, 1, 0);
+        }      
         
-        allSabThresholdEnvelopes.push(sabThresholdEnvelopes);
-        allSabEnvelopes.push(sabEnvelopes);
-        allEnvelopes.push(envelopes);
-        allEnvelopesThreshold.push(envelopesThreshold);
+        for (let c = 0; c < totalChannel ; c++){
+          var sabEnvelopes = [];
+          var sabThresholdEnvelopes = [];
+          var envelopes = [];
+          var envelopesThreshold = [];
+          size = SIZE / 2;
+          for (let i = 0 ; i < SIZE_LOGS2 ; i++){
+            let sz = Math.ceil(size);
+            if (sz % 2 == 1) sz++;
+            const buffer = new SharedArrayBuffer(CONFIG.bytesPerSample * sz);
+            const bufferThreshold = new SharedArrayBuffer(CONFIG.bytesPerSample * sz);
+            
+            sabEnvelopes.push(buffer);
+            sabThresholdEnvelopes.push(bufferThreshold);
+            envelopes.push(new Int16Array(buffer));
+            envelopesThreshold.push(new Int16Array(bufferThreshold));
+            
+            size/=2;
+            envelopeSizes[i] = size;
+          }
+          
+          allSabThresholdEnvelopes.push(sabThresholdEnvelopes);
+          allSabEnvelopes.push(sabEnvelopes);
+          allEnvelopes.push(envelopes);
+          allEnvelopesThreshold.push(envelopesThreshold);
+        }
+        console.log("allEnvelopes : ", allEnvelopes.length);
+        
       }
-      console.log("allEnvelopes : ", allEnvelopes.length);
-
+      
+      if ( deviceType == 'audio' ){
+        // console.log("initialize ", _arrMaxInt, allArrMaxInt.length);
+        initializeAudio(eventFromMain.data.options)
+      }else{
+        initializeSerial(eventFromMain.data.options);
+      }
+      
+      return;
     }
+    // else
+    // if (eventFromMain.data.message === 'REDRAW') {
+    //   for (let c = 0; c < CONFIG.channelCount; c++){
+    //     let drawState = new Int32Array(draw_states[c]);
+    //     if (isThresholding){
+    //       if (drawState[DRAW_STATE.IS_THRESHOLDING] >= 1){
+    //         const thresholdEnvelope = ( new Int16Array(this.sabcs[c].sabThresholdEnvelopes[drawState[DRAW_STATE.LEVEL]]) );
+    //         const sampleNeeded = thresholdEnvelope.length;
+    //         const temp = Module.getSamplesThresholdProcess(
+    //           c, new Int16Array(1), drawState[DRAW_STATE.LEVEL], drawState[DRAW_STATE.DIVIDER] / 10, drawState[DRAW_STATE.CURRENT_START], sampleNeeded);
+    //         thresholdEnvelope.set(temp);
+    //       }
+    //     }  
+    //   }
 
-    if ( deviceType == 'audio' ){
-      // console.log("initialize ", _arrMaxInt, allArrMaxInt.length);
-      initializeAudio(eventFromMain.data.options)
-    }else{
-      initializeSerial(eventFromMain.data.options);
-    }
-
-    return;
-  }
-
-  console.log('[SharedBufferWorker] Unknown message: ', eventFromMain);
-};
+    // }
+    
+    
+    console.log('[SharedBufferWorker] Unknown message: ', eventFromMain);
+  };
+  

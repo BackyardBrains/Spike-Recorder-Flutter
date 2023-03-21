@@ -21,7 +21,7 @@ let sbwNode;
 let sabEvents;
 let sabEventPositionResult;
 
-
+let isThreshold = false;
 let isInitHidChannel = true;
 
 let os;
@@ -197,6 +197,12 @@ async function pauseResume(flag){
       window.callbackErrorLog( ["error_general", deviceType + " Pausing - Resume Error"] );
       console.log("pause audio error " , err);
     }
+    for (let c = 0; c < SERIAL_CHANNEL_COUNT_FIX; c++){
+      let draw_state = new Int32Array(sabDraw.draw_states[c]);
+      if (draw_state[DRAW_STATE.IS_THRESHOLDING] == 1)
+        draw_state[DRAW_STATE.IS_THRESHOLDING] = 2;
+    }
+  
   }else
   if (flag == 2 || flag == 3){
     try{
@@ -218,6 +224,13 @@ async function pauseResume(flag){
       sabDrawingState[DRAW_STATE.CURRENT_START] = 0;
       window.callbackHorizontalDiff( [ 0 ]);
       // console.log("ARROW RIGHT");
+    }
+    for (let c = 0; c < SERIAL_CHANNEL_COUNT_FIX; c++){
+      let draw_state = new Int32Array(sabDraw.draw_states[c]);
+      if (draw_state[DRAW_STATE.IS_THRESHOLDING] == 2){
+        draw_state[DRAW_STATE.IS_THRESHOLDING] = 1;
+        sbwNode.clearThresholdPause();
+      }
     }
 
   }
@@ -636,7 +649,21 @@ function screenPositionToElementPosition(posX, part, level, skipCounts, envelope
   }
   const elementLength = Math.floor( (window.innerWidth - posX) * samplesPerPixel / division * skipCounts); 
 
-  let curStart = head - Math.floor(elementLength);
+  let curStart = 0;
+  if (isThreshold){
+    // int thresholdSamplesCanvas = (innerWidth * samplesPerPixel /division * skipCount).floor();
+    // curStart = thresholdSamplesCanvas - (elementLength).floor();
+
+    // curStart = (maxEnvelopeSize/6).floor() - (elementLength).floor();
+    // curStart = (envelopeSize).floor() - (elementLength).floor();
+    // curStart = (cBuffIdx).floor() - (elementLength).floor();
+    // curStart = (curStart).floor();
+    curStart = Math.floor((posX) * samplesPerPixel / division * skipCounts);
+    curStart = Math.floor(curStart);
+  }else{
+    curStart =   head - Math.floor(elementLength);
+  }
+
   // console.log("prev Segment : ", prevSegment, "Samples per pixel : ", samplesPerPixel, "Skip Counts : ", skipCounts, "Element Length ", elementLength, "cur Start : ", curStart, "head : ", head, "Envelope Size : ", envelopeSize);
   if (curStart < 0){
     curStart = 0;
@@ -659,7 +686,7 @@ async function setZoomLevel(data) {
   let level = sabDrawingState[DRAW_STATE.LEVEL];
 
   console.log("isPlaying : ", isPlaying, " isPlayingWav: ", isPlayingWav, "isOpeningFie : " , isOpeningFile);
-  if ( (isPlaying != 2 && isOpeningFile == 0) || (isPlayingWav && isPlaying == 2 ) ){
+  if ( (!isThreshold && isPlaying != 2 && isOpeningFile == 0) || (!isThreshold && isPlayingWav && isPlaying == 2 ) ){
     const curLevel = calculateLevel(row["timeScaleBar"]);
     timeScaleBar = row["timeScaleBar"];
     realTimeLevel = curLevel;
@@ -678,7 +705,7 @@ async function setZoomLevel(data) {
     skipCounts = sabDrawingState[DRAW_STATE.SKIP_COUNTS];
     level = sabDrawingState[DRAW_STATE.LEVEL];    
 
-    sbwNode.redraw();
+    sbwNode.redraw(isThreshold);
     return;
   }
 
@@ -711,6 +738,10 @@ async function setZoomLevel(data) {
   // console.log("INITIAL ", row["timeScaleBar"]);
 
   const curLevel = calculateLevel(row["timeScaleBar"]);
+  if (isThreshold && curLevel <0){
+    return;
+    
+  }
   timeScaleBar = row["timeScaleBar"];
   realTimeLevel = curLevel;
 
@@ -790,14 +821,19 @@ async function setZoomLevel(data) {
     let head = sabDrawingState[DRAW_STATE.CURRENT_HEAD];
     // const distanceX = (window.innerWidth - posX) * skipCounts;
     let curStart = head + diffPosition/2;
-    sabDrawingState[DRAW_STATE.CURRENT_START] += Math.floor( diffPosition);
-    // console.log("curStart : ",curStart, head, initialPosition, endingPosition,  diffPosition, sabDrawingState[DRAW_STATE.CURRENT_START]);  
+    if (isThreshold){
+      sabDrawingState[DRAW_STATE.CURRENT_START] += Math.floor( diffPosition / 2);
+    }else{
+      sabDrawingState[DRAW_STATE.CURRENT_START] += Math.floor( diffPosition );
+    }
+    console.log("curStart : ",sabDrawingState[DRAW_STATE.CURRENT_START], "head : ", head, "initial pos : ", initialPosition, " Ending pos: ",endingPosition,  " diff pos : ",diffPosition, " Cur Start : ",sabDrawingState[DRAW_STATE.CURRENT_START]);  
   }
 
   try{
-    if (isPlaying == 2)
-      sbwNode.redraw();
-    window.callbackHorizontalDiff( [ sabDrawingState[DRAW_STATE.CURRENT_START] ] );
+    if (isPlaying == 2){
+      sbwNode.redraw(isThreshold);
+    }
+    // window.callbackHorizontalDiff( [ sabDrawingState[DRAW_STATE.CURRENT_START] ] );
   }catch(err){
     console.log("err");
     console.log(err);
@@ -3647,6 +3683,7 @@ window.changeFilter = function(channelCount, isLowPass, lowPassFilter, isHighPas
 
 
 window.setThresholding = function(selectedChannel, isThresholding, averageSnapshotThresholding, valueThresholding){
+  isThreshold = isThresholding;
   for (let c = 0; c < SERIAL_CHANNEL_COUNT_FIX; c++){
     let draw_state = new Int32Array(sabDraw.draw_states[c]);
     // console.log('selectedChannel : ',c, selectedChannel, c == selectedChannel, valueThresholding, averageSnapshotThresholding, isThresholding);

@@ -1,3 +1,12 @@
+// import Module from ("build/web/a.out.js"); 
+// Module.onRuntimeInitialized = _ => {
+// }; 
+
+
+// let Module;
+// CModule().then(function(mymod) {
+//   Module = mymod;
+// });
 /* 
   THIS IS WHERE THE MULTICHANNEL WORKER CREATED
   1 Shared-buffer-worklet-node will create many shared-buffer-worker according to the channels
@@ -49,6 +58,8 @@
  * @extends AudioWorkletNode
  */
 
+
+
 const PROCESSOR_STATE = {
   STATUS : 0
 };
@@ -66,6 +77,7 @@ const STATE = {
   'REQUEST_WRITE_FILE': 10,
   'REQUEST_CLOSE_FILE': 11,  
   'OPEN_FILE_REDRAW':12,
+  'THRESHOLD_PAUSE':13,
 };
 
 const CONFIG = {
@@ -90,6 +102,7 @@ let eventGlobalPositionInt;
 let eventGlobalHeaderInt;
 let eventGlobalNumberInt;
 let drawState;
+let Module;
 
 let sharedFileContainer = new SharedArrayBuffer(1024 * 2*2 * Int16Array.BYTES_PER_ELEMENT);// *2 to make it easier to access
 let sharedFileContainerResult = new SharedArrayBuffer(1024 * 2*2 * Int16Array.BYTES_PER_ELEMENT);
@@ -136,9 +149,13 @@ class SharedBufferWorkletNode // eslint-disable-line no-unused-vars
     this._workers.push(_worker);
 
     this.port.onmessage = this._onProcessorInitialized.bind(this);
+    
 
 
     // Initialize the worker.
+    if (this._workerOptions.module !== undefined){
+      Module = this._workerOptions.module;
+    }
     const workerOptions1 = {
       deviceType : "audio",
       ringBufferLength: this._workerOptions.ringBufferLength,
@@ -150,6 +167,7 @@ class SharedBufferWorkletNode // eslint-disable-line no-unused-vars
       sharedFileContainerResult : sharedFileContainerResult,
       sharedFileContainerStatus : sharedFileContainerStatus,
       arrCounts:this._workerOptions.arrCounts,
+      module:this._workerOptions.module,
     };
     console.log("ARR COUNTS : ", sampleRate, this._workerOptions.arrCounts);
     if (this._workerOptions.directAction !== undefined){
@@ -176,16 +194,56 @@ class SharedBufferWorkletNode // eslint-disable-line no-unused-vars
 
   }
   
+  clearThresholdPause(){
+    const States = new Int32Array(this.sabcs[0].states);
+    States[STATE.THRESHOLD_PAUSE] = 0;
+    const States1 = new Int32Array(this.sabcs[1].states);
+    States1[STATE.THRESHOLD_PAUSE] = 0;
 
-  redraw(){
+  }
+  redraw(isThresholding){
     try{
+
+      // for (let c = 0; c< 2; c++){
+      //   let drawState = new Int32Array(this._workerOptions.sabDraw.draw_states[c]);
+      //   if (isThresholding){
+      //     if (drawState[DRAW_STATE.IS_THRESHOLDING] >= 1){
+      //       const thresholdEnvelope = ( new Int16Array(this.sabcs[c].sabThresholdEnvelopes[drawState[DRAW_STATE.LEVEL]]) );
+      //       const sampleNeeded = thresholdEnvelope.length;
+      //       const temp = Module.getSamplesThresholdProcess(
+      //         c, new Int16Array(1), drawState[DRAW_STATE.LEVEL], drawState[DRAW_STATE.DIVIDER] / 10, drawState[DRAW_STATE.CURRENT_START], sampleNeeded);
+      //       // allEnvelopesThreshold[c][drawState[DRAW_STATE.LEVEL]].set(temp);  
+      //       // allSabThresholdEnvelopes.push(sabThresholdEnvelopes);
+      //       thresholdEnvelope.set(temp);
+      //     }
+      //   }  
+      // }
       const StatesDraw = new Int32Array(this.sabcs[0].statesDraw);
-      Atomics.notify(StatesDraw, STATE.REQUEST_SIGNAL_REFORM, 1);
-      if (this.sabcs[1] !== undefined){
-        const StatesDraw2 = new Int32Array(this.sabcs[1].statesDraw);
-        Atomics.notify(StatesDraw2, STATE.REQUEST_SIGNAL_REFORM, 1);
-  
+      if (isThresholding){
+        const States = new Int32Array(this.sabcs[0].states);
+        States[STATE.THRESHOLD_PAUSE] = 1;
+        if (this.sabcs.length>1){
+          const States1 = new Int32Array(this.sabcs[1].states);
+          States1[STATE.THRESHOLD_PAUSE] = 1;
+          Atomics.notify(States1, STATE.REQUEST_RENDER, 1);
+
+        }
+        Atomics.notify(States, STATE.REQUEST_RENDER, 1);
+
+        // let _worker = this._workers[0];
+        // _worker.postMessage({
+        //   message: 'REDRAW',
+        // });
+    
+      }else{
+        Atomics.notify(StatesDraw, STATE.REQUEST_SIGNAL_REFORM, 1);
+        if (this.sabcs[1] !== undefined){
+          const StatesDraw2 = new Int32Array(this.sabcs[1].statesDraw);
+          Atomics.notify(StatesDraw2, STATE.REQUEST_SIGNAL_REFORM, 1);
+    
+        }
       }
+
   
     }catch(err){
       console.log("Audio redraw", err);

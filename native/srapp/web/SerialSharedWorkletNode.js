@@ -197,18 +197,32 @@ class SequentialSharedBufferWorkerNode // eslint-disable-line no-unused-vars
     this.fileWorker = options.worker.fileWorker;
 
   }
+  clearThresholdPause(){
+    const States = new Int32Array(this.sabcs[0].states);
+    States[STATE.THRESHOLD_PAUSE] = 0;
+    const States1 = new Int32Array(this.sabcs[1].states);
+    States1[STATE.THRESHOLD_PAUSE] = 0;
 
-  redraw(){
-    try{
-      const StatesDraw = new Int32Array(this.sabcs[0].statesDraw);
-      // const StatesDraw2 = new Int32Array(this.sabcs[1].statesDraw);
-      Atomics.notify(StatesDraw, STATE.REQUEST_SIGNAL_REFORM, 1);
-      // Atomics.notify(StatesDraw2, STATE.REQUEST_SIGNAL_REFORM, 1);
+  }
+
+  redraw(isThresholding){
+    if (isThresholding){
+      const States = new Int32Array(this.sabcs[0].states);
+      States[STATE.THRESHOLD_PAUSE] = 1;
+      Atomics.notify(States, STATE.REQUEST_RENDER, 1);
   
-    }catch(err){
-      console.log("serial err : ",err);
-    }
+    }else{
 
+      try{
+        const StatesDraw = new Int32Array(this.sabcs[0].statesDraw);
+        // const StatesDraw2 = new Int32Array(this.sabcs[1].statesDraw);
+        Atomics.notify(StatesDraw, STATE.REQUEST_SIGNAL_REFORM, 1);
+        // Atomics.notify(StatesDraw2, STATE.REQUEST_SIGNAL_REFORM, 1);
+    
+      }catch(err){
+        console.log("serial err : ",err);
+      }
+    }
     // console.log("REDRAW 1");
 
       // Atomics.wait(StatesDraw, STATE.REQUEST_SIGNAL_REFORM, 0);

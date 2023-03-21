@@ -518,12 +518,22 @@ self.onmessage = function( event ) {
           // const scrollHorizontalValue = draw_states[0][DRAW_STATE.HORIZONTAL_DRAG];
           const scrollHorizontalValue = playbackStates[PLAYBACK_STATE.DRAG_VALUE];
           const zoomHorizontalDifference = draw_states[0][DRAW_STATE.CURRENT_START];
-
-
           if (zoomHorizontalDifference != 0){
             head = head - Math.floor(zoomHorizontalDifference) ;
             offsetHead = offsetHead - Math.floor(zoomHorizontalDifference) ;
           }
+
+          // if (draw_states[c][DRAW_STATE.IS_THRESHOLDING] == 0){
+          //   if (zoomHorizontalDifference != 0){
+          //     head = head - Math.floor(zoomHorizontalDifference) ;
+          //     offsetHead = offsetHead - Math.floor(zoomHorizontalDifference) ;
+          //   }
+          // }else{
+          //   if (zoomHorizontalDifference != 0){
+          //     head = 0 - Math.floor(zoomHorizontalDifference) ;
+          //     offsetHead = 0 - Math.floor(zoomHorizontalDifference) ;
+          //   }
+          // }
           if (scrollHorizontalValue != 0){
             head = head - scrollHorizontalValue;
             offsetHead = offsetHead - scrollHorizontalValue;
@@ -571,7 +581,9 @@ self.onmessage = function( event ) {
           }else{
             const thresholdEnvelopeSamples = new Int16Array(sabcs.sabThresholdEnvelopes[vm.level]);
             // console.log(thresholdEnvelopeSamples);
-            vm.drawBuffers[c]=thresholdEnvelopeSamples.slice(0, Math.floor(thresholdEnvelopeSamples.length/divider));
+            const startHead = Math.floor(head/skipCounts * 2);
+            const endHead = startHead + Math.floor(thresholdEnvelopeSamples.length/divider);
+            vm.drawBuffers[c]=thresholdEnvelopeSamples.slice(startHead, endHead);
             // vm.drawBuffers[c].fill(10000);
 
           }

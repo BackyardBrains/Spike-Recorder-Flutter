@@ -1964,6 +1964,13 @@ class _MyHomePageState extends State<MyHomePage> {
     for (int i = 0; i < temp; i++){
       channelsData.add([]);
     }
+    if (temp<0){
+      // int mytemp = channelsData.length - len - 1;
+      for (int i = len-1; i < channelsData.length; i++){
+        channelsData.removeLast();
+      }
+    }
+
     for (int i = 0; i< len-1 ; i++){
       //channelsData
       if (settingParams['flagDisplay'+(i+1).toString()]== 1){
@@ -2342,6 +2349,43 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+
+  callbackSerialInit( params ) async {
+    deviceType = params[0];
+    isPlaying = params[1];
+    print('callbackSerialInit');
+    print(deviceType);
+    // startRecordingTime = (DateTime.now());
+    listIndexSerial=[5,5,5,5,5,5];
+    listIndexHid = [7,7,7,7,7,7];
+    listIndexAudio = [9,9];
+
+    if (deviceType == 2){
+      channelGains = [500,500,500,500,500,500];
+      _sendAnalyticsEvent("button_hid_connected", {
+        "device" : "HID",
+        "deviceType" : deviceType,
+        "isStartingHid" : 1,
+        "isStartingAudio" : 0
+      });
+
+    }else
+    if (deviceType == 1){
+      // channelGains = [1000,1000,1000,1000,1000,1000];
+      channelGains = [500,500,500,500,500,500];
+      _sendAnalyticsEvent("button_serial_connected", {
+        "device" : "Serial",
+        "deviceType" : deviceType,
+        "isStartingSerial" : 1,
+        "isStartingAudio" : 0
+      });
+    }else{
+
+    }
+    // await js.context.callMethod('setFlagChannelDisplay', [settingParams["flagDisplay1"],settingParams["flagDisplay2"],settingParams["flagDisplay3"],settingParams["flagDisplay4"],settingParams["flagDisplay5"],settingParams["flagDisplay6"] ]);
+    setState((){});
+  }  
+
   void getMicrophoneData() async {
     this.deviceType = 0;
     DISPLAY_CHANNEL_FIX = 2;
@@ -2356,6 +2400,7 @@ class _MyHomePageState extends State<MyHomePage> {
       js.context['callbackOpenWavFile'] = callbackOpenWavFile;
       js.context['callbackOpeningFile'] = callbackOpeningFile;
       js.context['callbackIsOpeningWavFile'] = callbackIsOpeningWavFile;
+      js.context['callbackSerialInit'] = callbackSerialInit;
       js.context['changeResetPlayback'] = changeResetPlayback;
       js.context['resetToAudio'] = resetToAudio;
       js.context['changeSampleRate'] = (params) {
@@ -2911,6 +2956,31 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     int transformScale = (timeScaleBar / 10).floor();
+
+
+    if (kIsWeb) {
+      const arrCounts = [ 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048 ];
+      int tempLevel = calculateLevel(timeScale, sampleRate, MediaQuery.of(context).size.width, arrCounts);
+
+      print('tempLevel zgesture');
+      print(tempLevel);
+      
+      if (isThreshold){
+        if (tempLevel < 0){
+          timeScaleBar = tempTimeScaleBar;
+          transformScale = (timeScaleBar / 10).floor();
+          if (timeScaleBar == -1) {
+            isZooming = false;
+            timeScale = 1;
+          } else {
+            isZooming = true;
+            timeScale = arrTimeScale[transformScale];
+          }
+          
+          return;
+        }
+      }
+    }
 
     scaleBarWidth = MediaQuery.of(context).size.width /
         (arrScaleBar[timeScaleBar]) *
@@ -5186,7 +5256,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     if (isRecording > 0 || isOpeningFile == 1) {
     } else {
-      if (DEVICE_CATALOG.keys.length > 0) {
+      if (kIsWeb || DEVICE_CATALOG.keys.length > 0) {
         dataWidgets.add(
           Positioned(
             top: 10,
@@ -5858,6 +5928,38 @@ class _MyHomePageState extends State<MyHomePage> {
             // }
 
             int transformScale = (timeScaleBar / 10).floor();
+
+            if (timeScaleBar == -1) {
+              isZooming = false;
+              timeScale = 1;
+            } else {
+              isZooming = true;
+              timeScale = arrTimeScale[transformScale];
+            }
+            if (kIsWeb) {
+              const arrCounts = [ 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048 ];
+              int tempLevel = calculateLevel(timeScale, sampleRate, MediaQuery.of(context).size.width, arrCounts);
+
+              print('tempLevel');
+              print(tempLevel);
+              if (isThreshold){
+                if (tempLevel < 0){
+                  timeScaleBar = tempTimeScaleBar;
+                  transformScale = (timeScaleBar / 10).floor();
+                  if (timeScaleBar == -1) {
+                    isZooming = false;
+                    timeScale = 1;
+                  } else {
+                    isZooming = true;
+                    timeScale = arrTimeScale[transformScale];
+                  }
+                  return;
+                }
+
+              }
+            }
+
+
             print('onPointerSignal Listener 6');
             scaleBarWidth = MediaQuery.of(context).size.width /
                 (arrScaleBar[timeScaleBar]) *
@@ -5875,15 +5977,9 @@ class _MyHomePageState extends State<MyHomePage> {
             print("data onPointerSignal");
             print(data);
 
-            if (timeScaleBar == -1) {
-              isZooming = false;
-              timeScale = 1;
-            } else {
-              isZooming = true;
-              timeScale = arrTimeScale[transformScale];
-            }
 
             if (kIsWeb) {
+
               js.context.callMethod('setZoomLevel', [json.encode(data)]);
               //   level = calculateLevel(
               //       timeScale, sampleRate, MediaQuery.of(context).size.width, skipCounts);

@@ -628,7 +628,10 @@ float envelopeSizes[SIZE_LOGS2];
 int forceLevel = 9;
 short channelCount;
 double sampleRate;
-const int skipCounts[10] = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512};
+// const int skipCounts[10] = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512};
+//if isWeb
+const int skipCounts[10] = {4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048};
+
 double divider = 6;
 int current_start = 0;
 short *tempData;
@@ -708,6 +711,8 @@ EXTERNC FUNCTION_ATTRIBUTE double setThresholdParametersProcess(short _channelCo
         // debug_print("setThresholdParameters 3");
 
         double size = SIZE * 2;
+        //if (isWeb)
+        size = size / 4;
         for (int i = 0; i < SIZE_LOGS2; i++) {
             envelopeSizes[i] = (size);
             for (int j = 0 ; j < channelCount ; j++){
