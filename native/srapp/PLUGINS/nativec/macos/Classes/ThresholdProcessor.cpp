@@ -1022,7 +1022,7 @@ EXTERNC FUNCTION_ATTRIBUTE double initThresholdProcess(short channelCount, doubl
 }
 
 
-EXTERNC FUNCTION_ATTRIBUTE double setThresholdParametersProcess(short _channelCount, short _forceLevel, double _sampleRate, int _divider, int _current_start){
+EXTERNC FUNCTION_ATTRIBUTE double setThresholdParametersProcess(short _channelCount, short _forceLevel, double _sampleRate, double _divider, int _current_start){
     channelCount = _channelCount;
     forceLevel = _forceLevel;
     divider = _divider;
@@ -1223,7 +1223,7 @@ EXTERNC FUNCTION_ATTRIBUTE int getThresholdHitProcess(){
     }
     return 0;
 }
-EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedSampleCount, short _threshold, short channelIdx, short *data, uint32_t sampleCount, short divider, int currentStart, int sampleNeeded){
+EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedSampleCount, short _threshold, short channelIdx, short *data, uint32_t sampleCount, double divider, int currentStart, int sampleNeeded){
     current_start = currentStart;
     // int layers = ((int)_averagedSampleCount);
     inSamplesPtr[0] = new short[sampleCount];

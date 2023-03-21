@@ -623,14 +623,14 @@ std::string *outEventNamesPtr = new std::string[1];
 short **inSamplesPtr = new short*[1];
 int *inSampleCounts = new int[1];
 
-const int SIZE_LOGS2 = 10;
+const int SIZE_LOGS2 = 12;
 float envelopeSizes[SIZE_LOGS2];
 int forceLevel = 9;
 short channelCount;
 double sampleRate;
 // const int skipCounts[10] = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512};
 //if isWeb
-const int skipCounts[10] = {4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048};
+const int skipCounts[12] = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048};
 
 double divider = 6;
 int current_start = 0;
@@ -662,7 +662,7 @@ EXTERNC FUNCTION_ATTRIBUTE double createThresholdProcess(short _channelCount, ui
     sampleRate = _sampleRate;
 
     for (int i = 0; i < _channelCount; i++){
-        envelopes[i] = new short*[10];
+        envelopes[i] = new short*[SIZE_LOGS2];
     }
 
     const int NUMBER_OF_SEGMENTS = timeSpan;
@@ -689,8 +689,7 @@ EXTERNC FUNCTION_ATTRIBUTE double initThresholdProcess(short channelCount, doubl
     return 1;
 }
 
-
-EXTERNC FUNCTION_ATTRIBUTE double setThresholdParametersProcess(short _channelCount, short _forceLevel, double _sampleRate, int _divider, int _current_start){
+EXTERNC FUNCTION_ATTRIBUTE double setThresholdParametersProcess(short _channelCount, short _forceLevel, double _sampleRate, double _divider, int _current_start){
     channelCount = _channelCount;
     forceLevel = _forceLevel;
     divider = _divider;
@@ -701,7 +700,7 @@ EXTERNC FUNCTION_ATTRIBUTE double setThresholdParametersProcess(short _channelCo
 
         // debug_print("setThresholdParameters 1");
         for (int i = 0; i < _channelCount; i++){
-            envelopes[i] = new short*[10];
+            envelopes[i] = new short*[SIZE_LOGS2];
         }
         // debug_print("setThresholdParameters 2");
 
@@ -800,7 +799,7 @@ EXTERNC FUNCTION_ATTRIBUTE auto getSamplesThresholdProcess(short channelIdx, con
                     }
                 }
                 int j = 0;
-                // resetEnvelope(channelIdx, envelopes[channelIdx], forceLevel);
+                resetEnvelope(channelIdx, envelopes[channelIdx], forceLevel);
 
                 for( int32_t jj = sampleStart; jj < sampleEnd; jj++ ){
                     envelopingSamples(j,tempSamplesPtr[i][jj], envelopes[i], SIZE_LOGS2, forceLevel);
@@ -833,7 +832,7 @@ EXTERNC FUNCTION_ATTRIBUTE int getThresholdHitProcess(){
     }
     return 0;
 }
-EXTERNC FUNCTION_ATTRIBUTE auto appendSamplesThresholdProcess(short _averagedSampleCount, short _threshold, short channelIdx, const val &data, uint32_t sampleCount, short divider, int currentStart, int sampleNeeded){
+EXTERNC FUNCTION_ATTRIBUTE auto appendSamplesThresholdProcess(short _averagedSampleCount, short _threshold, short channelIdx, const val &data, uint32_t sampleCount, double divider, int currentStart, int sampleNeeded){
     std::vector<short> raw = convertJSArrayToNumberVector<short>(data); 
     // val view{ typed_memory_view(raw.size(), raw.data()) };
     // auto result = val::global("Int16Array").new_(raw.size());
@@ -848,7 +847,7 @@ EXTERNC FUNCTION_ATTRIBUTE auto appendSamplesThresholdProcess(short _averagedSam
     resetOutSamples(0, outSamplesPtr,outSampleCounts[0]);
 
     // std::copy(data, data + sampleCount, inSamplesPtr[0]);
-    
+
     thresholdProcessor[0].process(outSamplesPtr,outSampleCounts, inSamplesPtr, inSampleCounts, nullData, nullData, 0);
     int rawSizeOfEnvelope = floor(sampleNeeded/2) * skipCounts[forceLevel];
     int maxEnvelopeSize = floor(envelopeSizes[0]/2);
@@ -873,7 +872,7 @@ EXTERNC FUNCTION_ATTRIBUTE auto appendSamplesThresholdProcess(short _averagedSam
                 if (sampleEnd > maxEnvelopeSize){
                 }
             }
-            resetEnvelope(0,envelopes[i], forceLevel);
+            resetEnvelope(i,envelopes[i], forceLevel);
             int j = 0;
             for( int32_t jj = sampleStart; jj < sampleEnd; jj++ ){
                 envelopingSamples(j,tempSamplesPtr[i][jj], envelopes[i], SIZE_LOGS2, forceLevel);
@@ -882,27 +881,37 @@ EXTERNC FUNCTION_ATTRIBUTE auto appendSamplesThresholdProcess(short _averagedSam
 
         }
     }
-    int sizeOfEnvelope = floor(envelopeSizes[forceLevel]/(divider/6));
+    // int sizeOfEnvelope = floor(envelopeSizes[forceLevel]/(divider/6));
+    int sizeOfEnvelope = sampleNeeded;
+
+    // suffix
     std::fill(envelopes[0][forceLevel]+ sizeOfEnvelope, envelopes[0][forceLevel] + sizeOfEnvelope * 2, 0);
     int envelopeCurrentStart = 0;
     // debug_print(std::to_string(sizeOfEnvelope).c_str() );
     if (current_start < 0){
+        // std::fill(envelopes[0][forceLevel], envelopes[0][forceLevel]+sizeOfEnvelope, 1000);
+        if (forceLevel == 4){
+            std::fill(envelopes[0][forceLevel], envelopes[0][forceLevel]+sizeOfEnvelope, skipCounts[forceLevel]);
+        }
         int skipCount = skipCounts[forceLevel];
         int difPos = 0;
         val view{ typed_memory_view(sizeOfEnvelope, envelopes[channelIdx][forceLevel]) };
         auto result = val::global("Int16Array").new_(sizeOfEnvelope);
         result.call<void>("set", view);
-        resetEnvelope(channelIdx, envelopes[0], forceLevel);
+        // resetEnvelope(channelIdx, envelopes[0], forceLevel);
         delete[] inSamplesPtr[0];
         // return sizeOfEnvelope;
         return result;
 
         // std::copy(envelopes[channelIdx][forceLevel]+difPos, envelopes[channelIdx][forceLevel] + difPos + sizeOfEnvelope, data);
     }else{
+        if (forceLevel == 4){
+            std::fill(envelopes[0][forceLevel], envelopes[0][forceLevel]+sizeOfEnvelope, skipCounts[forceLevel]);
+        }
         val view{ typed_memory_view(sizeOfEnvelope, envelopes[channelIdx][forceLevel]) };
         auto result = val::global("Int16Array").new_(sizeOfEnvelope);
         result.call<void>("set", view);
-        resetEnvelope(channelIdx, envelopes[0], forceLevel);
+        // resetEnvelope(channelIdx, envelopes[0], forceLevel);
         delete[] inSamplesPtr[0];
         // return sizeOfEnvelope;
         return result;

@@ -66,9 +66,9 @@ typedef get_threshold_hit_func = ffi.Int Function();
 typedef GetThresholdHitProcess = int Function();
 
 typedef set_threshold_parameters_func = ffi.Double Function(
-    ffi.Int, ffi.Int, ffi.Double, ffi.Int, ffi.Int);
+    ffi.Int, ffi.Int, ffi.Double, ffi.Double, ffi.Int);
 typedef SetThresholdParametersProcess = double Function(
-    int, int, double, int, int);
+    int, int, double, double, int);
 typedef get_samples_threshold_func = ffi.Double Function(
     ffi.Int, ffi.Pointer<ffi.Int16>, ffi.Int, ffi.Double, ffi.Int, ffi.Int);
 typedef GetSamplesThresholdProcess = double Function(
@@ -80,11 +80,11 @@ typedef append_samples_threshold_func = ffi.Double Function(
     ffi.Int16,
     ffi.Pointer<ffi.Int16>,
     ffi.Uint32,
-    ffi.Int16,
+    ffi.Double,
     ffi.Int32,
     ffi.Uint32);
 typedef AppendSamplesThresholdProcess = double Function(
-    int, int, int, ffi.Pointer<ffi.Int16>, int, int, int, int);
+    int, int, int, ffi.Pointer<ffi.Int16>, int, double, int, int);
 
 typedef set_threshold_dart_port_func = ffi.Double Function(ffi.Int64);
 typedef SetThresholdDartPortFunc = double Function(int);
@@ -429,7 +429,7 @@ class Nativec {
   double setThresholdParametersProcess(
       channelCount, forceLevel, sampleRate, divider, current_start) {
     return _setThresholdParametersProcess(channelCount, forceLevel,
-        sampleRate.toDouble(), divider.floor(), current_start.floor());
+        sampleRate.toDouble(), divider.toDouble(), current_start.floor());
   }
 
   double appendSamplesThresholdProcess(averagedSampleCount, threshold,
@@ -454,7 +454,7 @@ class Nativec {
         channelIdx,
         _dataThreshold,
         sampleCount,
-        divider.floor(),
+        divider.toDouble(),
         currentStart.floor(),
         sampleNeeded);
     // print(processedSample);
@@ -471,7 +471,7 @@ class Nativec {
         channelIdx,
         _dataThreshold,
         forceLevel.floor(),
-        divider,
+        divider.toDouble(),
         currentStart,
         sampleNeeded);
     // print(processedSample);

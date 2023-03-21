@@ -28,7 +28,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_audio_waveforms/flutter_audio_waveforms.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
-import 'package:fps_widget/fps_widget.dart';
+// import 'package:fps_widget/fps_widget.dart';
 import 'package:mfi/mfi.dart';
 
 import 'package:mic_stream/mic_stream.dart';
@@ -475,7 +475,7 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
           //     NUMBER_OF_SEGMENTS_THRESHOLD * 1000, sampleRate.floor(), surfaceWidth, skipCounts);
 
           try {
-            thresholdHit = nativec.getThresholdHitProcess();
+            // thresholdHit = nativec.getThresholdHitProcess();
             // print("thresholdHit");
             // print(thresholdHit);
             if (thresholdHit == 1){
@@ -3072,9 +3072,13 @@ class _MyHomePageState extends State<MyHomePage> {
     var data = {
       "timeScaleBar": arrTimeScale[transformScale], // label in UI
       "levelScale": timeScaleBar, //scrollIdx
+      // "posX": localPosition.dx,
       "posX": localPosition.dx,
       "direction": direction
     };
+    if (isThreshold){
+      data['posX'] = (MediaQuery.of(context).size.width/2).floor();
+    }
     // print("data");
     // print(data);
 
@@ -5976,6 +5980,10 @@ class _MyHomePageState extends State<MyHomePage> {
               "posX": dragDetails.localPosition.dx,
               "direction": direction
             };
+            if (isThreshold){
+              data['posX'] = (MediaQuery.of(context).size.width/2).floor();
+            }
+
             print("data onPointerSignal");
             print(data);
 

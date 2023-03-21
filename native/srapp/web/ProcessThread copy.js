@@ -1,7 +1,6 @@
 var functions;
 var isLowPass;
 var isHighPass;
-let shiftLevel = 2;
 self.importScripts("a.out.js"); 
 self.Module.onRuntimeInitialized = _ => {
   // console.log("LOW PASS FILTER", Module);
@@ -367,8 +366,7 @@ function thresholdingProcess(c, availableSamples, inputReadIndex, _arrMaxInt){
   const availableFrames = availableSamples.length;
 
   const divider = drawState[DRAW_STATE.DIVIDER] / 10;
-  const sampleNeeded = Math.floor(allEnvelopesThreshold[c][drawState[DRAW_STATE.LEVEL]].length / 2);
-  // const sampleNeeded = Math.floor(SEGMENT_SIZE * 60 * 2 / divider / skipCounts[drawState[DRAW_STATE.LEVEL]]);
+  const sampleNeeded = Math.floor(allEnvelopesThreshold[c][drawState[DRAW_STATE.LEVEL]].length / divider);
   // console.log("THRESHOLDING PROCESS RESULT ", allEnvelopesThreshold[c][drawState[DRAW_STATE.LEVEL]].length,  drawState[DRAW_STATE.DIVIDER]/10, sampleNeeded, availableFrames);
   // console.log('appendSamplesThresholdProcess : ',drawStates[c][DRAW_STATE.VALUE_THRESHOLDING], drawStates[c][DRAW_STATE.AVERAGE_SNAPSHOT_THRESHOLDING]);
   // Module.setThresholdParametersProcess(1, drawState[DRAW_STATE.LEVEL], SEGMENT_SIZE, divider, drawState[DRAW_STATE.CURRENT_START]);
@@ -381,23 +379,15 @@ function thresholdingProcess(c, availableSamples, inputReadIndex, _arrMaxInt){
       // console.log(temp);
       try{
         // currentStart = Math.floor( (allEnvelopesThreshold[c].length/2 - sampleNeeded * skipCounts[drawState[DRAW_STATE.LEVEL]] / 2) / skipCounts[drawState[DRAW_STATE.LEVEL]]);
-        // console.log('EnvelopeSize ',envelopeSizes);
-        // const maxEnvelopeSize = SEGMENT_SIZE * 10 * 2;
-        // console.log('drawState[DRAW_STATE.LEVEL] ', drawState[DRAW_STATE.LEVEL], maxEnvelopeSize, drawState[DRAW_STATE.CURRENT_START] + sampleNeeded, drawState[DRAW_STATE.CURRENT_START], divider, sampleNeeded, drawState[DRAW_STATE.CURRENT_START], allEnvelopesThreshold[c][drawState[DRAW_STATE.LEVEL]].length);
+        console.log('drawState[DRAW_STATE.LEVEL] ',SEGMENT_SIZE, drawState[DRAW_STATE.LEVEL], divider, sampleNeeded, drawState[DRAW_STATE.CURRENT_START], allEnvelopesThreshold[c][drawState[DRAW_STATE.LEVEL]].length);
         // Module.setThresholdParametersProcess(1, drawState[DRAW_STATE.LEVEL], SEGMENT_SIZE, 6, 0);        
-        Module.setThresholdParametersProcess(1, drawState[DRAW_STATE.LEVEL] + shiftLevel, SEGMENT_SIZE, divider, drawState[DRAW_STATE.CURRENT_START]);
+        Module.setThresholdParametersProcess(1, drawState[DRAW_STATE.LEVEL], SEGMENT_SIZE, divider, drawState[DRAW_STATE.CURRENT_START]);
         // Module.setThresholdParametersProcess(1, drawState[DRAW_STATE.LEVEL], SEGMENT_SIZE, divider, currentStart);
 
         var temp = Module.appendSamplesThresholdProcess(drawStates[c][DRAW_STATE.AVERAGE_SNAPSHOT_THRESHOLDING], drawStates[c][DRAW_STATE.VALUE_THRESHOLDING], c, availableSamples, availableFrames, divider, drawState[DRAW_STATE.CURRENT_START], sampleNeeded);
-        console.log("temp : ", temp[0]);
         // var temp = Module.appendSamplesThresholdProcess(drawStates[c][DRAW_STATE.AVERAGE_SNAPSHOT_THRESHOLDING], drawStates[c][DRAW_STATE.VALUE_THRESHOLDING], c, availableSamples, availableFrames, divider, currentStart, sampleNeeded);
-        // allEnvelopesThreshold[c][drawState[DRAW_STATE.LEVEL]].set(temp);        
-        // var temp = Module.getSamplesThresholdProcess(
-        //   c, new Int16Array(1), drawStates[c][DRAW_STATE.LEVEL] + shiftLevel, drawStates[c][DRAW_STATE.DIVIDER] / 10, drawState[DRAW_STATE.CURRENT_START], sampleNeeded);
-        // allEnvelopesThreshold[c][drawState[DRAW_STATE.LEVEL]].fill(0)
-        allEnvelopesThreshold[c][drawState[DRAW_STATE.LEVEL]].fill(0);
-        allEnvelopesThreshold[c][drawState[DRAW_STATE.LEVEL]].set(temp);
-        temp.fill(0);
+        
+        allEnvelopesThreshold[c][drawState[DRAW_STATE.LEVEL]].set(temp);        
       }catch(err){
         console.log('err');
         console.log(err);
@@ -409,7 +399,7 @@ function thresholdingProcess(c, availableSamples, inputReadIndex, _arrMaxInt){
   if (drawStates[c][DRAW_STATE.IS_THRESHOLDING] == 2){
     // (short channelIdx, const val &data, short forceLevel,double _divider, int currentStart, int sampleNeeded){
     const temp = Module.getSamplesThresholdProcess(
-      c, new Int16Array(1), drawStates[c][DRAW_STATE.LEVEL] + shiftLevel, drawStates[c][DRAW_STATE.DIVIDER] / 10, drawState[DRAW_STATE.CURRENT_START], sampleNeeded);
+      c, new Int16Array(1), drawStates[c][DRAW_STATE.LEVEL], drawStates[c][DRAW_STATE.DIVIDER] / 10, drawState[DRAW_STATE.CURRENT_START], sampleNeeded);
     allEnvelopesThreshold[c][drawState[DRAW_STATE.LEVEL]].set(temp);
   }
 }
@@ -1095,7 +1085,7 @@ function areWeAtTheEndOfFrame()
           try{
             const sampleNeeded = thresholdEnvelope.length;
             const temp = Module.getSamplesThresholdProcess(
-              c, new Int16Array(1), thresholdCurrentLevel + shiftLevel, drawState[DRAW_STATE.DIVIDER] / 10, drawState[DRAW_STATE.CURRENT_START], sampleNeeded);
+              c, new Int16Array(1), thresholdCurrentLevel, drawState[DRAW_STATE.DIVIDER] / 10, drawState[DRAW_STATE.CURRENT_START], sampleNeeded);
             thresholdEnvelope.set(temp);
     
           }catch(exc){
@@ -1507,7 +1497,7 @@ function areWeAtTheEndOfFrame()
   for (let c = 0; c < SERIAL_CHANNEL_MAX; c++){
     if (drawStates[c][DRAW_STATE.IS_THRESHOLDING] >= 1){
       thresholdingProcess(c, availableFrames, inputReadIndex, arrMaxInt);
-      _arrHeadsInt[c] = allEnvelopesThreshold[c][drawState[DRAW_STATE.LEVEL]].length;
+      _arrHeadsInt[c] = allEnvelopesThreshold[c][drawState[DRAW_STATE.LEVEL]];
     }
   }
 
@@ -1614,7 +1604,7 @@ function initializeSerial(options) {
       CONFIG.kernelLength = 992 * 2;
       SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER = CONFIG.ringBufferLength * 8;
       // numberOfChannels = 2;
-      Module.setThresholdParametersProcess(1, drawState[DRAW_STATE.LEVEL] + shiftLevel, SEGMENT_SIZE, 6, 0);
+      Module.setThresholdParametersProcess(1, drawState[DRAW_STATE.LEVEL], SEGMENT_SIZE, 6, 0);
 
     }
   }
@@ -1748,12 +1738,11 @@ function processAudioKernel(availableFrames) {
         }
         const thresholdEnvelope = allEnvelopesThreshold[c][thresholdCurrentLevel];
         try{
-
-          const sampleNeeded = thresholdEnvelope.length/2;
-          const divider = drawState[DRAW_STATE.DIVIDER] / 10;
-          Module.setThresholdParametersProcess(1, thresholdCurrentLevel + shiftLevel, SEGMENT_SIZE, divider, drawState[DRAW_STATE.CURRENT_START]);          
+          const sampleNeeded = thresholdEnvelope.length;
+          // const divider = drawState[DRAW_STATE.DIVIDER] / 10;
+          // Module.setThresholdParametersProcess(1, drawState[DRAW_STATE.LEVEL], SEGMENT_SIZE, divider, drawState[DRAW_STATE.CURRENT_START]);          
           const temp = Module.getSamplesThresholdProcess(
-            c, new Int16Array(1), thresholdCurrentLevel + shiftLevel, drawState[DRAW_STATE.DIVIDER] / 10, drawState[DRAW_STATE.CURRENT_START], sampleNeeded);
+            c, new Int16Array(1), thresholdCurrentLevel, drawState[DRAW_STATE.DIVIDER] / 10, drawState[DRAW_STATE.CURRENT_START], sampleNeeded);
           thresholdEnvelope.set(temp);
   
         }catch(exc){
@@ -2117,7 +2106,7 @@ function initializeAudio(options) {
     eventPositionInt = new Uint32Array(sabDraw.eventPosition);
     eventPositionResultInt = new Float32Array(sabDraw.eventPositionResult);
 
-    Module.setThresholdParametersProcess(1, drawState[DRAW_STATE.LEVEL] + shiftLevel, SEGMENT_SIZE, 6, 0);
+    Module.setThresholdParametersProcess(1, drawState[DRAW_STATE.LEVEL], SEGMENT_SIZE, 6, 0);
 
   }
 

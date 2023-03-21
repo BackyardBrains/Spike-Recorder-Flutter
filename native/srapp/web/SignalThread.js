@@ -581,7 +581,8 @@ self.onmessage = function( event ) {
           }else{
             const thresholdEnvelopeSamples = new Int16Array(sabcs.sabThresholdEnvelopes[vm.level]);
             // console.log(thresholdEnvelopeSamples);
-            const startHead = Math.floor(head/skipCounts * 2);
+            const tempHead = 0 - zoomHorizontalDifference;
+            const startHead = Math.floor(tempHead/skipCounts * 2);
             const endHead = startHead + Math.floor(thresholdEnvelopeSamples.length/divider);
             vm.drawBuffers[c]=thresholdEnvelopeSamples.slice(startHead, endHead);
             // vm.drawBuffers[c].fill(10000);

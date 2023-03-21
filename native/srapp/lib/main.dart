@@ -3001,6 +3001,10 @@ class _MyHomePageState extends State<MyHomePage> {
       "posX": localPosition.dx,
       "direction": direction
     };
+    if (isThreshold){
+      data['posX'] = (MediaQuery.of(context).size.width/2).floor();
+    }
+
     print("data");
     print(data);
 
@@ -5974,6 +5978,10 @@ class _MyHomePageState extends State<MyHomePage> {
               "posX": dragDetails.localPosition.dx,
               "direction": direction
             };
+            if (isThreshold){
+              data['posX'] = (MediaQuery.of(context).size.width/2).floor();
+            }
+
             print("data onPointerSignal");
             print(data);
 
