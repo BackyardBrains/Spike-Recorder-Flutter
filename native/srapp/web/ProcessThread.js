@@ -1094,6 +1094,7 @@ function areWeAtTheEndOfFrame()
           const thresholdEnvelope = allEnvelopesThreshold[c][thresholdCurrentLevel];
           try{
             const sampleNeeded = thresholdEnvelope.length;
+            Module.setThresholdParametersProcess(1, drawState[DRAW_STATE.LEVEL] + shiftLevel, SEGMENT_SIZE, divider, drawState[DRAW_STATE.CURRENT_START]);
             const temp = Module.getSamplesThresholdProcess(
               c, new Int16Array(1), thresholdCurrentLevel + shiftLevel, drawState[DRAW_STATE.DIVIDER] / 10, drawState[DRAW_STATE.CURRENT_START], sampleNeeded);
             thresholdEnvelope.set(temp);
@@ -1207,16 +1208,16 @@ function areWeAtTheEndOfFrame()
         //   console.log("ZEROES : ", "7", Math.floor( ((i-(numberOfZeros>0?numberOfZeros+1:0))/2)/numberOfChannels-1));
         //   executeOneMessage("EVNT","7",Math.floor( ((i-(numberOfZeros>0?numberOfZeros+1:0))/2)/numberOfChannels-1))
         // }
-        let oBuffHead = {"value":cBufHead};
-        testEscapeSequence( buffer[i] & 0xFF,  Math.floor( ((i-(numberOfZeros>0?numberOfZeros+1:0))/2)/numberOfChannels-1),messagesBuffer,weAreInsideEscapeSequence, messageBufferIndex,escapeSequenceDetectorIndex,oBuffHead);
-        // const calc = Math.floor( ((i-(numberOfZeros>0?numberOfZeros+1:0))/2)/numberOfChannels-1);
-        // testEscapeSequence( buffer[i] & 0xFF,  calc);
-        cBufHead = oBuffHead.value;
+        // let oBuffHead = {"value":cBufHead};
+        // testEscapeSequence( buffer[i] & 0xFF,  Math.floor( ((i-(numberOfZeros>0?numberOfZeros+1:0))/2)/numberOfChannels-1),messagesBuffer,weAreInsideEscapeSequence, messageBufferIndex,escapeSequenceDetectorIndex,oBuffHead);
+        const calc = Math.floor( ((i-(numberOfZeros>0?numberOfZeros+1:0))/2)/numberOfChannels-1);
+        testEscapeSequence( buffer[i] & 0xFF,  calc);
+        // cBufHead = oBuffHead.value;
       }else{
-        let oBuffHead = {"value":cBufHead};
-        testEscapeSequence( buffer[i] & 0xFF,  Math.floor( ( (i) / 2 ) / numberOfChannels-1 ),messagesBuffer,weAreInsideEscapeSequence, messageBufferIndex,escapeSequenceDetectorIndex,oBuffHead);
-        // testEscapeSequence( buffer[i] ,  Math.floor( ( (i) / 2 ) / numberOfChannels-1 ));
-        cBufHead = oBuffHead.value;
+        // let oBuffHead = {"value":cBufHead};
+        // testEscapeSequence( buffer[i] & 0xFF,  Math.floor( ( (i) / 2 ) / numberOfChannels-1 ),messagesBuffer,weAreInsideEscapeSequence, messageBufferIndex,escapeSequenceDetectorIndex,oBuffHead);
+        testEscapeSequence( buffer[i] ,  Math.floor( ( (i) / 2 ) / numberOfChannels-1 ));
+        // cBufHead = oBuffHead.value;
       }
 
       //  testEscapeSequence(((unsigned int) buffer[i]) & 0xFF,  ((i-(numberOfZeros>0?numberOfZeros+1:0))/2)/_numberOfChannels-1);

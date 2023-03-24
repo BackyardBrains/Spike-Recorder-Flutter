@@ -88,21 +88,21 @@ calculateLevel(timescale, sampleRate, innerWidth, arrCounts) {
 late SendPort deviceInfoPort;
 late SendPort expansionDeviceInfoPort;
 // SERIAL
-const SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER = 4096;
+const SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER = 4096 * 2;
 const SIZE_OF_MESSAGES_BUFFER = 64;
 const ESCAPE_SEQUENCE_LENGTH = 6;
-const const_data = 4096;
+const const_data = 4096 * 2;
 
 // int cBufHead = 0;
 // int cBufTail = 0;
 
 // bool weAreInsideEscapeSequence = false;
-int escapeSequenceDetectorIndex = 0;
+// int escapeSequenceDetectorIndex = 0;
 // int messageBufferIndex = 0;
 
 var escapeSequence = [255, 255, 1, 1, 128, 255];
 var endOfescapeSequence = [255, 255, 1, 1, 129, 255];
-
+bool isThreshold = false;
 // endOfescapeSequence[0] = 255;
 // endOfescapeSequence[1] = 255;
 // endOfescapeSequence[2] = 1;
@@ -110,18 +110,18 @@ var endOfescapeSequence = [255, 255, 1, 1, 129, 255];
 // endOfescapeSequence[4] = 129;
 // endOfescapeSequence[5] = 255;
 
-executeOneMessage(typeOfMessage, valueOfMessage, offsetin) {
-  print("typeOfMessage");
-  print(typeOfMessage);
+executeOneMessage(String typeOfMessage, String valueOfMessage, int offsetin, Map<String, dynamic> writeResult) {
+  // print("typeOfMessage");
+  // print(typeOfMessage);
   if (typeOfMessage == "HWT") {
     var hardwareType = (valueOfMessage);
-    print(hardwareType.length);
-    print("MUSCLESS".length);
-    print(DEVICE_CATALOG[hardwareType] != null);
-    print(DEVICE_CATALOG[hardwareType]);
-    print(DEVICE_CATALOG.containsKey("MUSCLESS"));
-    // print(DEVICE_CATALOG);
-    print(deviceInfoPort);
+    // print(hardwareType.length);
+    // print("MUSCLESS".length);
+    // print(DEVICE_CATALOG[hardwareType] != null);
+    // print(DEVICE_CATALOG[hardwareType]);
+    // print(DEVICE_CATALOG.containsKey("MUSCLESS"));
+    // // print(DEVICE_CATALOG);
+    // print(deviceInfoPort);
 
     if (DEVICE_CATALOG[hardwareType] != null) {
       CURRENT_DEVICE = DEVICE_CATALOG[hardwareType];
@@ -132,6 +132,24 @@ executeOneMessage(typeOfMessage, valueOfMessage, offsetin) {
   } else if (typeOfMessage == "EVNT") {
     // try{
     var mkey = valueOfMessage.codeUnitAt(0) - 48;
+    if (writeResult['eventsData'] == null){
+      writeResult['eventsData'] = {};
+      writeResult['eventsData']['indices'] = List<int>.filled(0, 0, growable: true);
+      writeResult['eventsData']['numbers'] =List<String>.filled(0, "", growable: true);
+      writeResult['eventsData']['positions'] = List<double>.filled(0, 0.0, growable: true);
+      writeResult['eventsData']['counter'] = 0;
+    }
+
+    writeResult['eventsData']['indices'].add(mkey);
+    writeResult['eventsData']['numbers'].add(mkey.toString());
+    // print("event triggerred - writeResult['cBuffIdx']" );
+    // print(writeResult['cBuffIdx'] );
+    // print( offsetin );
+
+    // writeResult['eventsData']['positions'].add(writeResult['cBufHead'].toDouble() + offsetin);
+    writeResult['eventsData']['positions'].add(writeResult['cBuffIdx'].toDouble() );
+    writeResult['eventsData']['counter']++;
+
     // if (sabDraw) {
     //   var ctr = drawState[DRAW_STATE.EVENT_COUNTER];
     //   eventsInt[ctr] = mkey;
@@ -580,7 +598,7 @@ executeOneMessage(typeOfMessage, valueOfMessage, offsetin) {
   // }
 }
 
-executeContentOfMessageBuffer(offset, messagesBuffer) {
+executeContentOfMessageBuffer(int offset,Uint8List messagesBuffer, Map<String, dynamic> writeResult) {
   var stillProcessing = true;
   var currentPositionInString = 0;
 //   let message = new Uint8Array(SIZE_OF_MESSAGES_BUFFER);
@@ -595,17 +613,17 @@ executeContentOfMessageBuffer(offset, messagesBuffer) {
         // if (message[k] == ':'.codeUnitAt(0)) {
         if (message[k] == 58) {
           //   const str = String.fromCharCode(...message);
-          print("message execute");
-          print(message.sublist(0, currentPositionInString));
-          print(k);
+          // print("message execute");
+          // print(message.sublist(0, currentPositionInString));
+          // print(k);
           var str = utf8.decode(message.sublist(0, currentPositionInString));
-          print(str);
+          // print(str);
           var arrStr = str.split(':');
           var typeOfMessage = arrStr[0];
           var valueOfMessage = arrStr[1];
           var offsetMessage = offset;
 
-          executeOneMessage(typeOfMessage, valueOfMessage, offsetMessage);
+          executeOneMessage(typeOfMessage, valueOfMessage, offsetMessage, writeResult);
           break;
         }
       }
@@ -625,24 +643,28 @@ executeContentOfMessageBuffer(offset, messagesBuffer) {
   }
 }
 
-testEscapeSequence(newByte, offset, messagesBuffer, weAreInsideEscapeSequence,
-    messageBufferIndex, _escapeSequenceDetectorIndex, oBuffHead) {
+testEscapeSequence(int newByte,int offset,Uint8List messagesBuffer, bool weAreInsideEscapeSequence,
+    _messageBufferIndex, escapeSequenceDetectorIndex, writeResult, _isThreshold) {
+
+  var cBufHead = writeResult['cBufHead'];
+  var messageBufferIndex = writeResult['messageBufferIndex'];
+  isThreshold = _isThreshold;
   if (weAreInsideEscapeSequence) {
     if (messageBufferIndex >= SIZE_OF_MESSAGES_BUFFER) {
       weAreInsideEscapeSequence = false; //end of escape sequence
-      executeContentOfMessageBuffer(offset, messagesBuffer);
+      executeContentOfMessageBuffer(offset, messagesBuffer, writeResult);
       escapeSequenceDetectorIndex = 0;
       //prepare for detecting begining of sequence
-      oBuffHead['weAreInsideEscapeSequence'] = weAreInsideEscapeSequence;
+      writeResult['weAreInsideEscapeSequence'] = weAreInsideEscapeSequence;
     } else if (endOfescapeSequence[escapeSequenceDetectorIndex] == newByte) {
       escapeSequenceDetectorIndex++;
       if (escapeSequenceDetectorIndex == ESCAPE_SEQUENCE_LENGTH) {
         weAreInsideEscapeSequence = false; //end of escape sequence
-        executeContentOfMessageBuffer(offset, messagesBuffer);
+        executeContentOfMessageBuffer(offset, messagesBuffer,writeResult);
         escapeSequenceDetectorIndex = 0;
         //prepare for detecting begining of sequence
 
-        oBuffHead['weAreInsideEscapeSequence'] = weAreInsideEscapeSequence;
+        writeResult['weAreInsideEscapeSequence'] = weAreInsideEscapeSequence;
       }
     } else {
       escapeSequenceDetectorIndex = 0;
@@ -661,25 +683,29 @@ testEscapeSequence(newByte, offset, messagesBuffer, weAreInsideEscapeSequence,
         //prepare for detecting end of esc. sequence
 
         //rewind writing head and effectively delete escape sequence from data
-        var cBufHead = 0;
+        
         for (var i = 0; i < ESCAPE_SEQUENCE_LENGTH; i++) {
           cBufHead--;
           if (cBufHead < 0) {
             cBufHead = const_data - 1;
           }
         }
-        oBuffHead['value'] = cBufHead;
-        oBuffHead['weAreInsideEscapeSequence'] = weAreInsideEscapeSequence;
+        writeResult['cBufHead'] = cBufHead;
+        writeResult['weAreInsideEscapeSequence'] = weAreInsideEscapeSequence;
       }
     } else {
       escapeSequenceDetectorIndex = 0;
     }
   }
+
+  writeResult['escapeSequenceDetectorIndex'] = escapeSequenceDetectorIndex;
+  writeResult['messageBufferIndex'] = messageBufferIndex;
+
   // print("messagesBuffer");
   // print(messagesBuffer.sublist(0, 30));
 }
 
-frameHasAllBytes(_numberOfChannels, circularBuffer, cBufTail) {
+frameHasAllBytes(int _numberOfChannels,Uint8List circularBuffer, int cBufTail) {
   var tempTail = cBufTail + 1;
   if (tempTail >= SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER) {
     tempTail = 0;
@@ -698,7 +724,7 @@ frameHasAllBytes(_numberOfChannels, circularBuffer, cBufTail) {
   return true;
 }
 
-checkIfHaveWholeFrame(circularBuffer, cBufTail, cBufHead) {
+checkIfHaveWholeFrame(Uint8List circularBuffer,int cBufTail,int cBufHead) {
   var tempTail = cBufTail + 1;
   if (tempTail >= SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER)
   // if(tempTail>= CONFIG.ringBufferLength)
@@ -720,7 +746,7 @@ checkIfHaveWholeFrame(circularBuffer, cBufTail, cBufHead) {
   return false;
 }
 
-areWeAtTheEndOfFrame(circularBuffer, cBufTail) {
+areWeAtTheEndOfFrame(Uint8List circularBuffer, int cBufTail) {
   var tempTail = cBufTail + 1;
   if (tempTail >= SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER)
   // if(tempTail>= CONFIG.ringBufferLength)
@@ -735,23 +761,24 @@ areWeAtTheEndOfFrame(circularBuffer, cBufTail) {
   return false;
 }
 
-serialParsing(rawCircularBuffer, allEnvelopes, map, surfaceSize, SIZE_LOGS2,
-    skipCounts, isThresholding, snapshotAveragedSamples, thresholdValue) {
+serialParsing(Uint8List rawCircularBuffer,List<List<Int16List>> allEnvelopes,Map<String, dynamic> map,int surfaceSize, int SIZE_LOGS2,
+    List<int> skipCounts, bool isThresholding, List<double> snapshotAveragedSamples, List<int> thresholdValue) {
   var LSB;
   var MSB;
-  var haveData = true;
-  var weAlreadyProcessedBeginingOfTheFrame = false;
-  var sample;
-  var cBufTail = map['cBufTail'];
-  var numberOfParsedChannels = map['numberOfParsedChannels'];
-  var numberOfChannels = map['numberOfChannels'];
-  var numberOfFrames = map['numberOfFrames'];
-  var cBufHead = map['cBufHead'];
-  var deviceType = map['deviceType'];
-  var cBuffIdx = map['cBuffIdx'];
-  var globalIdx = map['globalIdx'];
-  var arrHeads = map['arrHeads'];
-  var writeInteger = 0;
+  bool haveData = true;
+  bool weAlreadyProcessedBeginingOfTheFrame = false;
+  int sample;
+  int cBufTail = map['cBufTail'];
+  int numberOfParsedChannels = map['numberOfParsedChannels'];
+  int numberOfChannels = map['numberOfChannels'];
+  int numberOfFrames = map['numberOfFrames'];
+  int cBufHead = map['cBufHead'];
+  String deviceType = map['deviceType'];
+  // int cBuffIdx = map['cBuffIdx'];
+  int cBuffIdx;
+  int globalIdx = map['globalIdx'];
+  List<int> arrHeads = map['arrHeads'];
+  int writeInteger = 0;
 
   List<List<int>> processedSamples = List.generate(6, (index) => []);
 
@@ -764,8 +791,9 @@ serialParsing(rawCircularBuffer, allEnvelopes, map, surfaceSize, SIZE_LOGS2,
       numberOfParsedChannels = 0;
       if (checkIfHaveWholeFrame(rawCircularBuffer, cBufTail, cBufHead)) {
         numberOfFrames++;
-        var idxChannelLoop = 0;
+        /* var idxChannelLoop = 0; */
         while (true) {
+          /*
           if (deviceType != "hid") {
             // console.log("SERIAL ? ",deviceType);
             MSB = (rawCircularBuffer[cBufTail]) & 0xFF;
@@ -774,6 +802,7 @@ serialParsing(rawCircularBuffer, allEnvelopes, map, surfaceSize, SIZE_LOGS2,
               break; //continue as if we have new frame
             }
           }
+          */
 
           MSB = (rawCircularBuffer[cBufTail]) & 0x7F;
           weAlreadyProcessedBeginingOfTheFrame = true;
@@ -785,12 +814,16 @@ serialParsing(rawCircularBuffer, allEnvelopes, map, surfaceSize, SIZE_LOGS2,
           LSB = (rawCircularBuffer[cBufTail]) & 0xFF;
           if (LSB > 127) {
             numberOfFrames--;
+            /*
             if (deviceType == 'hid') {
               return;
             } else {
+            */
               // print("BREAKING !");
               break;
+              /*
             }
+            */
           }
           LSB = (rawCircularBuffer[cBufTail]) & 0x7F;
 
@@ -804,6 +837,7 @@ serialParsing(rawCircularBuffer, allEnvelopes, map, surfaceSize, SIZE_LOGS2,
           //   print(numberOfParsedChannels);
           // }
 
+          /*
           if (deviceType == 'hid') {
             if (numberOfParsedChannels > numberOfChannels) {
               break;
@@ -817,6 +851,7 @@ serialParsing(rawCircularBuffer, allEnvelopes, map, surfaceSize, SIZE_LOGS2,
           if (deviceType == 'hid') {
             sample = -((writeInteger - 512));
           } else {
+          */
             // if (deviceIds[0] == 4){
             //   sample =  (-(writeInteger - 8192)); // SpikeDesktop 448
             // }else{
@@ -825,7 +860,10 @@ serialParsing(rawCircularBuffer, allEnvelopes, map, surfaceSize, SIZE_LOGS2,
             sample = -((writeInteger - 512)); // SpikeDesktop 448
             // sample = -((writeInteger)); // SpikeDesktop 448
             // }
+            /*
           }
+          */
+          
           //
           // put function postProcessing or additionalProcessing();
           // communicate with other isolate and send this sample to another receiverport
@@ -964,11 +1002,14 @@ serialParsing(rawCircularBuffer, allEnvelopes, map, surfaceSize, SIZE_LOGS2,
   map['arrHeads'] = arrHeads;
   // if (isThresholding){
   // List<Int16List> newSamples = List<Int16List>.generate(6, (index) => Int16List(processedSamples[index].length));
-  List<List<int>> newSamples = List<List<int>>.generate(6, (index) => []);
-  for (int i = 0; i < 6; i++) {
-    // newSamples[i] = Int16List.fromList(processedSamples[i]);
-    newSamples[i] = List<int>.from(processedSamples[i]);
+  List<List<int>> newSamples = List<List<int>>.filled(6, []);
+  if (isThresholding){
+    for (int i = 0; i < 6; i++) {
+      // newSamples[i] = Int16List.fromList(processedSamples[i]);
+      newSamples[i] = List<int>.from(processedSamples[i]);
+    }
   }
   map['processedSamples'] = newSamples;
+
   // }
 }

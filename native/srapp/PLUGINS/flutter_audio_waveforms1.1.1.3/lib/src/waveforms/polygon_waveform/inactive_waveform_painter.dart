@@ -61,7 +61,7 @@ class PolygonInActiveWaveformPainter extends InActiveWaveformPainter {
       final TextPainter tp = new TextPainter(
           text: span,
           textAlign: TextAlign.center,
-          textDirection: TextDirection.ltr);
+          textDirection: TextDirection.ltr,);
       tp.layout();
       textPainters.add(tp);
     }
@@ -142,12 +142,12 @@ class PolygonInActiveWaveformPainter extends InActiveWaveformPainter {
       // canvas.drawLine(offsetLeft, offsetRight, mypaint);
 
       // print("Channels : " + channelIdx.toString() + "_ "+ channelActive.toString());
-      if (eventMarkersPosition.length > 0 && channelIdx == channelActive) {
+      if (eventMarkersPosition.isNotEmpty && channelIdx == channelActive) {
         // int n = eventMarkersPosition.length - 1;
         // for ( i = n; i >= 0  ; i--){
         // print("Level Median " + levelMedian.toString());
 
-        int n = eventMarkersPosition.length;
+        var n = eventMarkersPosition.length;
         double prevX = -1;
         double counterStacked = 10;
         double evY = 0;
@@ -155,47 +155,52 @@ class PolygonInActiveWaveformPainter extends InActiveWaveformPainter {
           evY = -50;
         }
 
-        for (i = 0; i < n; i++) {
-          if (eventMarkersPosition[i] == 0) {
-            continue;
+        // try{
+          for (i = 0; i < n; i++) {
+            if (eventMarkersPosition[i] == 0) {
+              continue;
+            }
+
+            // final evX = eventMarkersPosition[i] * sampleWidth;
+            final evX = eventMarkersPosition[i];
+
+            // final linePath = Path();
+            // linePath.moveTo(evX, 0);
+            // linePath.lineTo(evX, 900);
+            // sign = sign * -1;
+
+            // canvas.drawPath(linePath, MARKER_PAINT[ eventMarkersNumber[i] ]);
+
+            // final linePath = Path();
+            final offset1 = new Offset(evX, evY);
+            final offset2 = new Offset(evX, 2900);
+            // final offset2 = new Offset(evX, size.height * 2);
+            // linePath.lineTo(evX, 900);
+            // sign = sign * -1;
+
+            canvas.drawLine(
+              offset1,
+              offset2,
+              MARKER_PAINT[eventMarkersNumber[i]],
+            );
+
+            // final strMarkerNumber = " "+eventMarkersNumber[i].toString()+" ";
+            // final TextSpan span = new TextSpan(style: new TextStyle(color: Colors.black,backgroundColor: MARKER_COLORS[ eventMarkersNumber[i] ] ), text: strMarkerNumber, );
+            // final TextPainter tp = new TextPainter(text: span, textAlign: TextAlign.center, textDirection: TextDirection.ltr);
+            // tp.layout();
+            final TextPainter tp = textPainters[eventMarkersNumber[i]];
+            if (i > 0 && evX - 20 <= prevX) {
+              counterStacked += 30;
+            } else {
+              counterStacked = 100;
+            }
+            prevX = evX;
+            tp.paint(canvas, new Offset(evX - 3, counterStacked));
           }
-
-          // final evX = eventMarkersPosition[i] * sampleWidth;
-          final evX = eventMarkersPosition[i];
-
-          // final linePath = Path();
-          // linePath.moveTo(evX, 0);
-          // linePath.lineTo(evX, 900);
-          // sign = sign * -1;
-
-          // canvas.drawPath(linePath, MARKER_PAINT[ eventMarkersNumber[i] ]);
-
-          // final linePath = Path();
-          final offset1 = new Offset(evX, evY);
-          final offset2 = new Offset(evX, 2900);
-          // final offset2 = new Offset(evX, size.height * 2);
-          // linePath.lineTo(evX, 900);
-          // sign = sign * -1;
-
-          canvas.drawLine(
-            offset1,
-            offset2,
-            MARKER_PAINT[eventMarkersNumber[i]],
-          );
-
-          // final strMarkerNumber = " "+eventMarkersNumber[i].toString()+" ";
-          // final TextSpan span = new TextSpan(style: new TextStyle(color: Colors.black,backgroundColor: MARKER_COLORS[ eventMarkersNumber[i] ] ), text: strMarkerNumber, );
-          // final TextPainter tp = new TextPainter(text: span, textAlign: TextAlign.center, textDirection: TextDirection.ltr);
-          // tp.layout();
-          final TextPainter tp = textPainters[eventMarkersNumber[i]];
-          if (i > 0 && evX - 20 <= prevX) {
-            counterStacked += 30;
-          } else {
-            counterStacked = 100;
-          }
-          prevX = evX;
-          tp.paint(canvas, new Offset(evX - 3, counterStacked));
-        }
+        // }catch(err){
+        //   print('err');
+        //   print(err);
+        // }
       }
     } catch (err) {
       print("errx");

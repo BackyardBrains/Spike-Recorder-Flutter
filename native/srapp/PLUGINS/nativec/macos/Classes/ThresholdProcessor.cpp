@@ -356,7 +356,7 @@ public:
 
     void process(short **outSamples, int *outSamplesCounts, short **inSamples,
                                     const int *inSampleCounts,
-                                    const int *inEventIndices, const int *inEvents, const int inEventCount) {
+                                    const short *inEventIndices, const short *inEvents, const short inEventCount) {
         if (paused) return;
 
         bool shouldReset = false;
@@ -1022,6 +1022,11 @@ EXTERNC FUNCTION_ATTRIBUTE double initThresholdProcess(short channelCount, doubl
 }
 
 
+EXTERNC FUNCTION_ATTRIBUTE double setTriggerTypeProcess(short channelIdx, short triggerType){
+    thresholdProcessor[channelIdx].setTriggerType(triggerType);
+    return triggerType;
+}
+
 EXTERNC FUNCTION_ATTRIBUTE double setThresholdParametersProcess(short _channelCount, short _forceLevel, double _sampleRate, double _divider, int _current_start){
     channelCount = _channelCount;
     forceLevel = _forceLevel;
@@ -1223,7 +1228,7 @@ EXTERNC FUNCTION_ATTRIBUTE int getThresholdHitProcess(){
     }
     return 0;
 }
-EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedSampleCount, short _threshold, short channelIdx, short *data, uint32_t sampleCount, double divider, int currentStart, int sampleNeeded){
+EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedSampleCount, short _threshold, short channelIdx, short *data, uint32_t sampleCount, double divider, int currentStart, int sampleNeeded, short* eventIndices, short* events, short eventCount){
     current_start = currentStart;
     // int layers = ((int)_averagedSampleCount);
     inSamplesPtr[0] = new short[sampleCount];
@@ -1233,9 +1238,13 @@ EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedS
     thresholdProcessor[0].setThreshold(_threshold);
     thresholdProcessor[0].setAveragedSampleCount(_averagedSampleCount);
     resetOutSamples(0, outSamplesPtr,outSampleCounts[0]);
+    // short *eventIndices = new short[eventCount];    
+    // short *events = new short[eventCount];    
 
 // ****
     std::copy(data, data + sampleCount, inSamplesPtr[0]);
+    // std::copy(event, data + sampleCount, inSamplesPtr[0]);
+    // std::copy(data, data + sampleCount, inSamplesPtr[0]);
     // debug_print("trying to envelope5");
 
 // ****
@@ -1249,7 +1258,7 @@ EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedS
     // thresholdProcessor[0].process(outSamplesPtr, layers, data, sampleCount, channelIdx, nullData,nullData,0);
     
 // ****
-    thresholdProcessor[0].process(outSamplesPtr,outSampleCounts, inSamplesPtr, inSampleCounts, nullData, nullData, 0);
+    thresholdProcessor[0].process(outSamplesPtr,outSampleCounts, inSamplesPtr, inSampleCounts, eventIndices, events, eventCount);
 // ****
 
     // for (short i = 0;i<count ; i++){

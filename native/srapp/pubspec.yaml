@@ -34,15 +34,15 @@ dependencies:
   # quick_usb: ^0.4.0  
   mfi: 
     path: ./PLUGINS/mfi
-  # # COMMENT FOR WEB
-  # usb_serial: 0.4.0
-  # flutter_libserialport: 0.3.0
-  # winaudio: 
-  #   path: ./PLUGINS/winaudio
-  # desktop_window: 0.4.0
-  # nativec: 
-  #   path: ./PLUGINS/nativec/
-  # gesture_x_detector: 1.1.1
+  # COMMENT FOR WEB
+  usb_serial: 0.4.0
+  flutter_libserialport: 0.3.0
+  winaudio: 
+    path: ./PLUGINS/winaudio
+  desktop_window: 0.4.0
+  nativec: 
+    path: ./PLUGINS/nativec/
+  gesture_x_detector: 1.1.1
 
   flutter:
     sdk: flutter

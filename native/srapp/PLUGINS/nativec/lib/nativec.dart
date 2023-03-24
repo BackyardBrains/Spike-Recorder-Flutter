@@ -62,6 +62,10 @@ typedef init_threshold_func = ffi.Double Function(
 typedef InitThresholdProcess = double Function(int, double, double, double);
 
 
+typedef set_trigger_type_func = ffi.Double Function(ffi.Int, ffi.Int);
+typedef SetTriggerTypeProcess = double Function(int, int);
+
+
 typedef get_threshold_hit_func = ffi.Int Function();
 typedef GetThresholdHitProcess = int Function();
 
@@ -82,9 +86,13 @@ typedef append_samples_threshold_func = ffi.Double Function(
     ffi.Uint32,
     ffi.Double,
     ffi.Int32,
-    ffi.Uint32);
+    ffi.Uint32,
+    ffi.Pointer<ffi.Int16>,
+    ffi.Pointer<ffi.Int16>, 
+    ffi.Int16
+    );
 typedef AppendSamplesThresholdProcess = double Function(
-    int, int, int, ffi.Pointer<ffi.Int16>, int, double, int, int);
+    int, int, int, ffi.Pointer<ffi.Int16>, int, double, int, int,ffi.Pointer<ffi.Int16>,ffi.Pointer<ffi.Int16>, int);
 
 typedef set_threshold_dart_port_func = ffi.Double Function(ffi.Int64);
 typedef SetThresholdDartPortFunc = double Function(int);
@@ -131,6 +139,7 @@ class Nativec {
   late GetSamplesThresholdProcess _getSamplesThresholdProcess;
   late GetThresholdHitProcess _getThresholdHitProcess;
   late SetThresholdDartPortFunc _setThresholdDartPortFunc;
+  late SetTriggerTypeProcess _setTriggerTypeProcess;
 
   // C++ to Dart
   // late final registerCallback1 = nativeLrsLib.lookupFunction<
@@ -152,12 +161,22 @@ class Nativec {
   static int totalBytes = 1024 * 8;
   static int timeSpan = 10;
   static int totalThresholdBytes = (timeSpan * 44100);
+  static int totalEventIndicesBytes = 300;
+  static int totalEventsBytes = 300;
   static ffi.Pointer<ffi.Int16> _data = allocate<ffi.Int16>(
       count: totalBytes, sizeOfType: ffi.sizeOf<ffi.Int16>());
   static ffi.Pointer<ffi.Int16> _dataThreshold = allocate<ffi.Int16>(
       count: totalThresholdBytes, sizeOfType: ffi.sizeOf<ffi.Int16>());
+
+  static ffi.Pointer<ffi.Int16> _dataEventIndices = allocate<ffi.Int16>(
+      count: totalEventIndicesBytes, sizeOfType: ffi.sizeOf<ffi.Int16>());
+  static ffi.Pointer<ffi.Int16> _dataEvents = allocate<ffi.Int16>(
+      count: totalEventsBytes, sizeOfType: ffi.sizeOf<ffi.Int16>());
+
   late Int16List _bytes;
   late Int16List _thresholdBytes;
+  late Int16List _thresholdEventIndices;
+  late Int16List _thresholdEvents;
 
   late ReceivePort thresholdPublication;
 
@@ -243,6 +262,11 @@ class Nativec {
         .asFunction();
     _setNotchProcess = nativeLrsLib
         .lookup<ffi.NativeFunction<set_notch_func>>('setNotch')
+        .asFunction();
+
+    _setTriggerTypeProcess = nativeLrsLib
+        .lookup<ffi.NativeFunction<set_trigger_type_func>>(
+            'setTriggerTypeProcess')
         .asFunction();
 
     // C++ to Flutter
@@ -416,6 +440,8 @@ class Nativec {
     Nativec.totalThresholdBytes = (timeSpan * sampleRate).floor();
     _dataThreshold = dataThreshold;
     _thresholdBytes = _dataThreshold.asTypedList(Nativec.totalThresholdBytes);
+    _thresholdEventIndices = _dataEventIndices.asTypedList(Nativec.totalEventIndicesBytes);
+    _thresholdEvents = _dataEvents.asTypedList(Nativec.totalEventsBytes);
     // _thresholdBytes.fillRange(0, Nativec.totalThresholdBytes, 0);
 
     _createThresholdProcess(
@@ -433,8 +459,10 @@ class Nativec {
   }
 
   double appendSamplesThresholdProcess(averagedSampleCount, threshold,
-      channelIdx, samples, sampleCount, divider, currentStart, sampleNeeded) {
+      channelIdx, samples, sampleCount, divider, currentStart, sampleNeeded, eventIndices, events, eventCount) {
     _thresholdBytes.fillRange(0, Nativec.totalThresholdBytes, 0);
+    _thresholdEventIndices.fillRange(0, Nativec.totalEventIndicesBytes, 0);
+    _thresholdEvents.fillRange(0, Nativec.totalEventsBytes, 0);
     // int len = samples.length;
     // int len = sampleCount;
     // print(len);
@@ -442,6 +470,8 @@ class Nativec {
     //   _thresholdBytes[i] = samples[i];
     // }
     _thresholdBytes.setAll(0, samples);
+    _thresholdEventIndices.setAll(0, eventIndices);
+    _thresholdEvents.setAll(0, events);
 
     // for (int i = 0; i < Nativec.totalThresholdBytes; i++) {
     //   _thresholdBytes[i] = i;
@@ -456,7 +486,8 @@ class Nativec {
         sampleCount,
         divider.toDouble(),
         currentStart.floor(),
-        sampleNeeded);
+        sampleNeeded, 
+        _dataEventIndices, _dataEvents, eventCount);
     // print(processedSample);
     return processedSample;
     // print(_thresholdBytes.length);
@@ -480,5 +511,8 @@ class Nativec {
 
   int getThresholdHitProcess(){
     return _getThresholdHitProcess();
+  }
+  void setTriggerTypeProcess(int channelIdx,int type){
+    _setTriggerTypeProcess(channelIdx, type);
   }
 }
