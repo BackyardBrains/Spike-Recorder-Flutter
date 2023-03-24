@@ -1028,11 +1028,20 @@ double simulateCurrentStartPosition( int sampleRate, int cBuffIdx, row, level, s
 }
 
 void serialBufferingEntryPoint(List<dynamic> values) {
+  final UINT8_BYTES_PER_ELEMENT = 1;
+
   final iReceivePort = ReceivePort();
   SendPort sendPort = values[0];
   List<List<Int16List>> allEnvelopes = values[1];
   int cBufferSize = values[2];
-  Uint8List rawCircularBuffer = values[3];
+  // Uint8List circularBuffer = values[3];
+  int rawInputReadIndex = 0;
+  int inputReadIndex = 0;
+  Uint8List circularBuffer = Uint8List(SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER);
+  setCircularBuffer(circularBuffer);
+  int processedFrame = 0;
+  int framesAvailable = 0;
+
   String deviceType = values[4];
   // print(values[5]);
   DEVICE_CATALOG = values[5];
@@ -1089,193 +1098,19 @@ void serialBufferingEntryPoint(List<dynamic> values) {
   int escapeSequenceDetectorIndex = 0;
   int messageBufferIndex = 0;
 
-  List<int> escapeSequence = [255, 255, 1, 1, 129, 255];
+  int batchCounter = 0;
+  int batchModulo = -1;
+  bool debugError = false;
+
+  // List<int> escapeSequence = [255, 255, 1, 1, 129, 255];
 
   sendPort.send(iReceivePort.sendPort);
-  // int deviceWidth = 800;
-  // executeOneMessage(typeOfMessage,valueOfMessage,offsetin) {  
-  //   print('executeOneMessage');
-  // if (typeOfMessage == "HWT") {
-  //   var hardwareType = (valueOfMessage);
-  //   print(hardwareType.length);
-  //   print("MUSCLESS".length);
-  //   print(DEVICE_CATALOG[hardwareType] != null);
-  //   print(DEVICE_CATALOG[hardwareType]);
-  //   print(DEVICE_CATALOG.containsKey("MUSCLESS"));
-  //   // print(DEVICE_CATALOG);
-  //   print(deviceInfoPort);
 
-  //   if (DEVICE_CATALOG[hardwareType] != null) {
-  //     CURRENT_DEVICE = DEVICE_CATALOG[hardwareType];
-  //     //SEND INTO STREAM, REDRAW
-  //     deviceInfoPort.send(hardwareType);
-  //     // libDeviceBloc.changeDeviceStatus(hardwareType);
-  //   }
-  // } else if (typeOfMessage == "EVNT") {
-  //     var mkey = valueOfMessage.codeUnitAt(0) - 48;
-  //       if (isThresholding){
-  //         arrMarkers.clear();          
-  //         arrIntMarkers.clear();
-  //         arrMarkers.add(mkey.toString());
-  //         arrIntMarkers.add(mkey);
-  //         eventPositionInt.fillRange(0, max_markers,0);
-  //         eventPositionResultInt.fillRange(0, max_markers,0);
-  //         eventGlobalPositionInt.fillRange(0, max_markers,0);
-
-  //         eventPositionInt[arrMarkers.length] = (deviceWidth/2).floorToDouble();
-  //         eventPositionResultInt[arrMarkers.length] = (deviceWidth/2).floorToDouble();
-  //         eventGlobalPositionInt[arrMarkers.length] = (deviceWidth/2).floor();
-
-  //       }
-  //       else{
-  //         if (arrMarkers.length + 1 >= max_markers) {
-  //           arrMarkers.clear();
-  //         }
-
-  //         arrMarkers.add(mkey.toString());
-  //         arrIntMarkers.add(mkey);
-
-  //         cBuffIdx = arrHeads[0];
-  //         int globalPositionCap = 0;
-  //         eventPositionInt[arrMarkers.length] = cBuffIdx.toDouble();
-  //         eventPositionResultInt[arrMarkers.length] = cBuffIdx.toDouble();
-  //         eventGlobalPositionInt[arrMarkers.length] = globalPositionCap + cBuffIdx;
-
-  //       }
-      
-  //   }
-  //   else if (typeOfMessage == "BRD") {
-  //     var newAddOnBoard = valueOfMessage.toString().codeUnitAt(0) - 48;
-  //     CURRENT_DEVICE["expansionBoards"].forEach((board) {
-  //       if (board["boardType"] == newAddOnBoard) {
-  //         expansionDeviceInfoPort.send(board);
-  //       }
-  //     });    
-  //   }
-  // }
-
-  // executeContentOfMessageBuffer(offset){
-  //   // print('executeContentOfMessageBuffer');
-  //   var stillProcessing = true;
-  //   var currentPositionInString = 0;
-  // //   let message = new Uint8Array(SIZE_OF_MESSAGES_BUFFER);
-  //   List<int> message = generateArray(SIZE_OF_MESSAGES_BUFFER, 0);
-  //   var endOfMessage = 0;
-  //   var startOfMessage = 0;
-
-  //   while(stillProcessing)
-  //   {
-  //       if (messagesBuffer[currentPositionInString] == 59) {
-  //           for (var k = 0; k < endOfMessage - startOfMessage; k++) {
-  //             // if (message[k] == ':'.codeUnitAt(0)) {
-  //             if (message[k] == 58) {
-
-  //                   // std::string typeOfMessage(messa  ge, k);
-  //                   // std::string valueOfMessage(message+k+1, (endOfMessage-startOfMessage)-k-1);
-  //                   print("message execute");
-  //                   // print(message.sublist(0, currentPositionInString));
-  //                   // print(k);
-  //                   var str = utf8.decode(message.sublist(0, currentPositionInString));
-  //                   print(str);
-  //                   var arrStr = str.split(':');
-  //                   var typeOfMessage = arrStr[0];
-  //                   var valueOfMessage = arrStr[1];
-  //                   var offsetMessage = offset;
-  //                   executeOneMessage(typeOfMessage, valueOfMessage, offsetMessage);
-  //                   break;
-  //               }
-  //           }
-  //           startOfMessage = endOfMessage+1;
-  //           currentPositionInString++;
-  //           endOfMessage++;
-
-  //       }
-  //       else
-  //       {
-  //           message[currentPositionInString-startOfMessage] = messagesBuffer[currentPositionInString];
-  //           currentPositionInString++;
-  //           endOfMessage++;
-
-  //       }
-
-  //       if(currentPositionInString>=SIZE_OF_MESSAGES_BUFFER)
-  //       {
-  //           stillProcessing = false;
-  //       }
-  //   }
-
-
-  // }
-
-  // testEscapeSequence(newByte, offset){
-  //   if(weAreInsideEscapeSequence)
-  //   {
-  //     // print('weAreInsideEscapeSequence');
-  //     // print(messageBufferIndex);
-  //     // print(newByte);
-  //     // print(escapeSequenceDetectorIndex);
-
-  //       if(messageBufferIndex>=SIZE_OF_MESSAGES_BUFFER)
-  //       {
-  //           weAreInsideEscapeSequence = false; //end of escape sequence
-  //           executeContentOfMessageBuffer(offset);
-  //           escapeSequenceDetectorIndex = 0;//prepare for detecting begining of sequence
-  //       }
-  //       else if(endOfescapeSequence[escapeSequenceDetectorIndex] == newByte)
-  //       {
-  //           escapeSequenceDetectorIndex++;
-  //           if(escapeSequenceDetectorIndex ==  ESCAPE_SEQUENCE_LENGTH)
-  //           {
-  //               weAreInsideEscapeSequence = false; //end of escape sequence
-  //               executeContentOfMessageBuffer(offset);
-  //               escapeSequenceDetectorIndex = 0;//prepare for detecting begining of sequence
-  //           }
-  //       }
-  //       else
-  //       {
-  //           escapeSequenceDetectorIndex = 0;
-  //       }
-
-  //   }
-  //   else
-  //   {
-
-  //       if(escapeSequence[escapeSequenceDetectorIndex] == newByte)
-  //       {
-
-  //           escapeSequenceDetectorIndex++;
-  //           if(escapeSequenceDetectorIndex ==  ESCAPE_SEQUENCE_LENGTH)
-  //           {
-  //               weAreInsideEscapeSequence = true; //found escape sequence
-  //               for(var i=0;i<SIZE_OF_MESSAGES_BUFFER;i++)
-  //               {
-  //                   messagesBuffer[i] = 0;
-  //               }
-  //               messageBufferIndex = 0;//prepare for receiving message
-  //               escapeSequenceDetectorIndex = 0;//prepare for detecting end of esc. sequence
-
-  //               //rewind writing head and effectively delete escape sequence from data
-  //               for(var i=0;i<ESCAPE_SEQUENCE_LENGTH;i++)
-  //               {
-  //                   cBufHead--;
-  //                   if(cBufHead<0)
-  //                   {
-  //                       cBufHead = const_data - 1;
-  //                   }
-  //               }
-  //           }
-  //       }
-  //       else
-  //       {
-  //           escapeSequenceDetectorIndex = 0;
-  //       }
-  //   }
-  // }  
 
   iReceivePort.listen((Object? message) async {
     // cBufHead = 0;
     // cBufTail = 0;
-    // rawCircularBuffer.fillRange(0, SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER, 0);
+    // circularBuffer.fillRange(0, SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER, 0);
     // messageBufferIndex = 0;  
     // weAreInsideEscapeSequence = false;    
 
@@ -1365,19 +1200,48 @@ void serialBufferingEntryPoint(List<dynamic> values) {
 
     Int16List curSamples = new Int16List(0);
     if (!isPaused) {
-      int len = samples.length;
+      cBufHead = 0;
+      cBufTail = 0;
+      circularBuffer.fillRange(0, SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER, 0);
+      // messagesBuffer.fillRange(0, SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER, 0);
+      messageBufferIndex = 0;  
+      weAreInsideEscapeSequence = false;    
+
+/*
+      framesAvailable += samples.length;
+      int len = framesAvailable;
+      // print("framesAvailable : " + framesAvailable.toString());
+      // inputReadIndex is catching the rawInputReadIndex
+      for (int readIndex = 0; readIndex < samples.length ; readIndex++){
+        circularBuffer[rawInputReadIndex] = samples[readIndex];
+        rawInputReadIndex++;
+        if (rawInputReadIndex >= RAW_SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER){
+          rawInputReadIndex = 0;
+        }
+      }
+*/
       int i = 0;
+      int rawIndex;
+      int len = samples.length;
+      // int sample;
         // print('TestEscape Sequence start');
         // print( (DateTime.now()).millisecondsSinceEpoch );
-
+      // int tempInputReadIndex = inputReadIndex;
       for (i = 0; i < len; i++) {
         int sample = samples[i];
+        // rawIndex = (tempInputReadIndex++) % RAW_SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER;
+        // int sample = circularBuffer[rawIndex];
+        // if (rawIndex < 10){
+
+        //   print(rawIndex);
+        // }
 
         if (weAreInsideEscapeSequence) {
           messagesBuffer[messageBufferIndex] = sample;
+          // print(messageBufferIndex.toString() + ' : main weareinsideES true : '+sample.toString());
           messageBufferIndex++;
         } else {
-          rawCircularBuffer[cBufHead++] = sample;
+          circularBuffer[cBufHead++] = sample;
           //uint debugMSB  = ((uint)(buffer[i])) & 0xFF;
 
           if (cBufHead >= SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER)
@@ -1391,6 +1255,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
           "cBufHead": cBufHead,
           "messageBufferIndex": messageBufferIndex,
           "weAreInsideEscapeSequence": weAreInsideEscapeSequence,
+          "escapeSequenceDetectorIndex": escapeSequenceDetectorIndex,
           'cBuffIdx' : arrHeads[0]
         };
         if (deviceType == "serial") {
@@ -1402,10 +1267,14 @@ void serialBufferingEntryPoint(List<dynamic> values) {
           } else {
             lastWasZero = 0;
           }
-
+          // offsetIn = (((i) / 2) / numberOfChannels - 1).floor();
           offsetIn = (((i - (numberOfZeros > 0 ? numberOfZeros + 1 : 0)) / 2) /
                       numberOfChannels -
                   1).floor();
+
+          writeResult['numberOfZeros'] = numberOfZeros;
+          writeResult['numberOfChannels'] = numberOfChannels;
+          writeResult['offsetIn'] = offsetIn;
 
           // testEscapeSequence(
           //     sample & 0xFF,
@@ -1421,8 +1290,12 @@ void serialBufferingEntryPoint(List<dynamic> values) {
               isThreshold);
           cBufHead = writeResult["cBufHead"]!;
           weAreInsideEscapeSequence = writeResult["weAreInsideEscapeSequence"]!;
+          // print("writer result esc "+ weAreInsideEscapeSequence.toString());
           messageBufferIndex = writeResult["messageBufferIndex"]!;
           escapeSequenceDetectorIndex = writeResult["escapeSequenceDetectorIndex"]!;
+          if (writeResult['debugError'] != null){
+            debugError = true;
+          }
         } else {
           offsetIn = (((i) / 2) / numberOfChannels - 1).floor();
 
@@ -1444,6 +1317,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
           messageBufferIndex = writeResult["messageBufferIndex"]!;
           escapeSequenceDetectorIndex = writeResult["escapeSequenceDetectorIndex"]!;
         }
+        // inputReadIndex = ( inputReadIndex + processedFrame ) % RAW_SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER;
 
         if (isThresholding){
           if (writeResult['eventsData'] != null){
@@ -1468,13 +1342,13 @@ void serialBufferingEntryPoint(List<dynamic> values) {
               arrIntMarkers.clear();
             }
 
-            arrMarkers.add(writeResult['eventsData']['numbers'][0]);
-            arrIntMarkers.add(writeResult['eventsData']['indices'][0]);
+            // arrMarkers.add(writeResult['eventsData']['numbers'][0]);
+            // arrIntMarkers.add(writeResult['eventsData']['indices'][0]);
 
-            cBuffIdx = arrHeads[0];
-            eventPositionInt[arrMarkers.length - 1] = cBuffIdx.toDouble();
-            eventPositionResultInt[arrMarkers.length - 1] = cBuffIdx.toDouble();
-            eventGlobalPositionInt[arrMarkers.length - 1] = globalPositionCap + cBuffIdx;
+            // cBuffIdx = arrHeads[0];
+            // eventPositionInt[arrMarkers.length - 1] = cBuffIdx.toDouble();
+            // eventPositionResultInt[arrMarkers.length - 1] = cBuffIdx.toDouble();
+            // eventGlobalPositionInt[arrMarkers.length - 1] = globalPositionCap + cBuffIdx;
 
             // eventPositionInt[arrMarkers.length] = writeResult['cBufHead'].toDouble() + offsetIn;
             // eventPositionResultInt[arrMarkers.length] = writeResult['cBufHead'].toDouble() + offsetIn;
@@ -1487,9 +1361,20 @@ void serialBufferingEntryPoint(List<dynamic> values) {
           }
 
         }
-
+      }
+      /*
+      int writeBytes = len - cBufHead;
+      if (writeBytes>0){
+        print('len');
+        print(writeBytes);
 
       }
+      // print(len);
+      // print(cBufHead);
+      // int writeBytes = messageBufferIndex * UINT8_BYTES_PER_ELEMENT;
+      processedFrame = writeBytes;
+      */
+
       // print('TestEscape Sequence End');
       // print( (DateTime.now()).millisecondsSinceEpoch );
 
@@ -1518,7 +1403,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
        int prevTime = (DateTime.now()).millisecondsSinceEpoch;
 
       serialParsing(
-          rawCircularBuffer,
+          // circularBuffer,
           allEnvelopes,
           map,
           cBufferSize,
@@ -1530,7 +1415,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
 
       // print('END Serial Parsing');
       int diffTime = (DateTime.now()).millisecondsSinceEpoch - prevTime;
-      if (diffTime > 2){
+      if (diffTime > 1){
         print( diffTime );
       }
 
@@ -1544,6 +1429,41 @@ void serialBufferingEntryPoint(List<dynamic> values) {
       // cBuffIdx = map['cBuffIdx'];
       globalIdx = map['globalIdx'];
       arrHeads = map['arrHeads'];
+      // 16 bit?
+      /*
+      int readFrame = (numberOfFrames * 2 * numberOfChannels);
+      // int readFrame = (numberOfFrames * 2);
+      processedFrame += readFrame;
+      // print('writeBytes');
+      // print(writeBytes);
+      // print(readFrame);
+      framesAvailable -= processedFrame;
+      batchCounter++;
+      if (writeBytes>0){
+        print('batchCounter');
+        print(batchCounter);
+      }
+      if (debugError){
+        print('len');
+        print(batchCounter);
+        batchModulo = batchCounter + 2;
+        print(len);
+        print(writeBytes);
+        print(readFrame);
+        print(rawInputReadIndex);
+        print(inputReadIndex);
+        print(framesAvailable);
+        // print(circularBuffer.sublist(0, (inputReadIndex + processedFrame) + 50));
+        print(circularBuffer.sublist(inputReadIndex, inputReadIndex + processedFrame));
+        print(circularBuffer.sublist(inputReadIndex, rawInputReadIndex));
+        
+      }
+      inputReadIndex = ( inputReadIndex + processedFrame ) % RAW_SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER;
+      if (debugError){
+        iReceivePort.close();
+
+      }
+      */
 
       // List<Int16List> zamples = map['processedSamples'];
       List<List<int>> zamples = map['processedSamples'];
@@ -1899,8 +1819,10 @@ void serialBufferingEntryPoint(List<dynamic> values) {
       }
       buffers.add(cBuff);
     }
+
     sendPort.send([buffers, arrHeads[0], eventPositionResultInt, arrIntMarkers]);
   });
+
 }
 
 class MyApp extends StatelessWidget {
@@ -3910,7 +3832,8 @@ class _MyHomePageState extends State<MyHomePage> {
         6, allEnvelopes, envelopeSizes, size, SIZE, SIZE_LOGS2);
     int surfaceSize = ((_sampleRate * NUMBER_OF_SEGMENTS).floor());
 
-    Uint8List rawCircularBuffer = Uint8List(SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER);
+    // Uint8List circularBuffer = Uint8List(RAW_SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER);
+    Uint8List circularBuffer = Uint8List(0);
     iReceiveDeviceInfoPort = ReceivePort();
     iReceiveExpansionDeviceInfoPort = ReceivePort();
 
@@ -3918,7 +3841,7 @@ class _MyHomePageState extends State<MyHomePage> {
       _receivePort.sendPort,
       allEnvelopes,
       surfaceSize,
-      rawCircularBuffer,
+      circularBuffer,
       deviceType,
       DEVICE_CATALOG,
       iReceiveDeviceInfoPort.sendPort,

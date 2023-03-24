@@ -3,7 +3,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
   SendPort sendPort = values[0];
   List<List<List<double>>> allEnvelopes = values[1];
   int surfaceSize = values[2];
-  Uint8List rawCircularBuffer = values[3];
+  Uint8List circularBuffer = values[3];
   String deviceType = values[4];
   Uint8List messagesBuffer = Uint8List(SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER);
 
@@ -40,7 +40,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
         messagesBuffer[messageBufferIndex] = sample;
         messageBufferIndex++;
       } else {
-        rawCircularBuffer[cBufHead++] = sample;
+        circularBuffer[cBufHead++] = sample;
         //uint debugMSB  = ((uint)(buffer[i])) & 0xFF;
 
         if (cBufHead >= SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER)
@@ -93,33 +93,33 @@ void serialBufferingEntryPoint(List<dynamic> values) {
     int sample;
 
     while (haveData) {
-      MSB = (rawCircularBuffer[cBufTail]) & 0xFF;
+      MSB = (circularBuffer[cBufTail]) & 0xFF;
       bool additionalFlag = true;
       if (MSB > 127 && additionalFlag) //if we are at the begining of frame
       {
         weAlreadyProcessedBeginingOfTheFrame = false;
         numberOfParsedChannels = 0;
-        if (checkIfHaveWholeFrame(rawCircularBuffer, cBufTail, cBufHead)) {
+        if (checkIfHaveWholeFrame(circularBuffer, cBufTail, cBufHead)) {
           numberOfFrames++;
           int idxChannelLoop = 0;
           while (true) {
             if (deviceType != "hid") {
               // console.log("SERIAL ? ",deviceType);
-              MSB = (rawCircularBuffer[cBufTail]) & 0xFF;
+              MSB = (circularBuffer[cBufTail]) & 0xFF;
               if (weAlreadyProcessedBeginingOfTheFrame && MSB > 127) {
                 numberOfFrames--;
                 break; //continue as if we have new frame
               }
             }
 
-            MSB = (rawCircularBuffer[cBufTail]) & 0x7F;
+            MSB = (circularBuffer[cBufTail]) & 0x7F;
             weAlreadyProcessedBeginingOfTheFrame = true;
 
             cBufTail++;
             if (cBufTail >= SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER) {
               cBufTail = 0;
             }
-            LSB = (rawCircularBuffer[cBufTail]) & 0xFF;
+            LSB = (circularBuffer[cBufTail]) & 0xFF;
             if (LSB > 127) {
               numberOfFrames--;
               if (deviceType == 'hid') {
@@ -128,7 +128,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
                 break;
               }
             }
-            LSB = (rawCircularBuffer[cBufTail]) & 0x7F;
+            LSB = (circularBuffer[cBufTail]) & 0x7F;
 
             MSB = MSB << 7;
             writeInteger = LSB | MSB;
@@ -239,7 +239,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
             //   }
             // }
 
-            if (areWeAtTheEndOfFrame(rawCircularBuffer, cBufTail)) {
+            if (areWeAtTheEndOfFrame(circularBuffer, cBufTail)) {
               break;
             } else {
               cBufTail++;

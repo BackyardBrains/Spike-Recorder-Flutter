@@ -660,7 +660,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
   SendPort sendPort = values[0];
   List<List<List<double>>> allEnvelopes = values[1];
   int cBufferSize = values[2];
-  Uint8List rawCircularBuffer = values[3];
+  Uint8List circularBuffer = values[3];
   String deviceType = values[4];
   // print(values[5]);
   DEVICE_CATALOG = values[5];
@@ -736,7 +736,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
           messagesBuffer[messageBufferIndex] = sample;
           messageBufferIndex++;
         } else {
-          rawCircularBuffer[cBufHead++] = sample;
+          circularBuffer[cBufHead++] = sample;
           //uint debugMSB  = ((uint)(buffer[i])) & 0xFF;
 
           if (cBufHead >= SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER)
@@ -805,7 +805,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
         'arrHeads': arrHeads,
       };
 
-      serialParsing(rawCircularBuffer, allEnvelopes, map, cBufferSize,
+      serialParsing(circularBuffer, allEnvelopes, map, cBufferSize,
           SIZE_LOGS2, skipCounts);
       cBufTail = map['cBufTail'];
       numberOfParsedChannels = map['numberOfParsedChannels'];
@@ -2703,7 +2703,7 @@ class _MyHomePageState extends State<MyHomePage> {
         6, allEnvelopes, envelopeSizes, size, SIZE, SIZE_LOGS2);
     int surfaceSize = ((_sampleRate * NUMBER_OF_SEGMENTS).floor());
 
-    Uint8List rawCircularBuffer = Uint8List(SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER);
+    Uint8List circularBuffer = Uint8List(SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER);
     iReceiveDeviceInfoPort = ReceivePort();
     iReceiveExpansionDeviceInfoPort = ReceivePort();
 
@@ -2711,7 +2711,7 @@ class _MyHomePageState extends State<MyHomePage> {
       _receivePort.sendPort,
       allEnvelopes,
       surfaceSize,
-      rawCircularBuffer,
+      circularBuffer,
       deviceType,
       DEVICE_CATALOG,
       iReceiveDeviceInfoPort.sendPort,

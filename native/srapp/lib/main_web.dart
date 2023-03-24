@@ -1479,7 +1479,7 @@ class _MyHomePageState extends State<MyHomePage> {
         6, allEnvelopes, envelopeSizes, size, SIZE, SIZE_LOGS2);
     int surfaceSize = ((_sampleRate * NUMBER_OF_SEGMENTS).floor());
 
-    Uint8List rawCircularBuffer = Uint8List(SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER);
+    Uint8List circularBuffer = Uint8List(SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER);
     iReceiveDeviceInfoPort = ReceivePort();
     iReceiveExpansionDeviceInfoPort = ReceivePort();
 

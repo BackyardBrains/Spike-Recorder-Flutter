@@ -495,7 +495,7 @@ return true;
 return false;
 }
 
-function serialParsing(rawCircularBuffer, allEnvelopes, map, surfaceSize, SIZE_LOGS2,skipCounts){var LSB;
+function serialParsing(circularBuffer, allEnvelopes, map, surfaceSize, SIZE_LOGS2,skipCounts){var LSB;
 var MSB;
 var haveData = true;
 var weAlreadyProcessedBeginingOfTheFrame = false;
@@ -512,33 +512,33 @@ var writeInteger = 0 ;
 
 
 while (haveData) {
-MSB = (rawCircularBuffer[cBufTail]) & 0xFF;
+MSB = (circularBuffer[cBufTail]) & 0xFF;
 var additionalFlag = true;
 if (MSB > 127 && additionalFlag) //if we are at the begining of frame
 {
 weAlreadyProcessedBeginingOfTheFrame = false;
 numberOfParsedChannels = 0;
-if (checkIfHaveWholeFrame(rawCircularBuffer, cBufTail, cBufHead)) {
+if (checkIfHaveWholeFrame(circularBuffer, cBufTail, cBufHead)) {
 numberOfFrames++;
 var idxChannelLoop = 0;
 while (true) {
 if (deviceType != "hid") {
 // console.log("SERIAL ? ",deviceType);
-MSB = (rawCircularBuffer[cBufTail]) & 0xFF;
+MSB = (circularBuffer[cBufTail]) & 0xFF;
 if (weAlreadyProcessedBeginingOfTheFrame && MSB > 127) {
 numberOfFrames--;
 break; //continue as if we have new frame
 }
 }
 
-MSB = (rawCircularBuffer[cBufTail]) & 0x7F;
+MSB = (circularBuffer[cBufTail]) & 0x7F;
 weAlreadyProcessedBeginingOfTheFrame = true;
 
 cBufTail++;
 if (cBufTail >= SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER) {
 cBufTail = 0;
 }
-LSB = (rawCircularBuffer[cBufTail]) & 0xFF;
+LSB = (circularBuffer[cBufTail]) & 0xFF;
 if (LSB > 127) {
 numberOfFrames--;
 if (deviceType == 'hid') {
@@ -547,7 +547,7 @@ return;
 break;
 }
 }
-LSB = (rawCircularBuffer[cBufTail]) & 0x7F;
+LSB = (circularBuffer[cBufTail]) & 0x7F;
 
 MSB = MSB << 7;
 writeInteger = LSB | MSB;
@@ -658,7 +658,7 @@ globalIdx++;
 //   }
 // }
 
-if (areWeAtTheEndOfFrame(rawCircularBuffer, cBufTail)) {
+if (areWeAtTheEndOfFrame(circularBuffer, cBufTail)) {
 break;
 } else {
 cBufTail++;
