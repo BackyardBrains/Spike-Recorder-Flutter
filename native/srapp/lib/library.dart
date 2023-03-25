@@ -88,11 +88,11 @@ calculateLevel(timescale, sampleRate, innerWidth, arrCounts) {
 late SendPort deviceInfoPort;
 late SendPort expansionDeviceInfoPort;
 // SERIAL
-const RAW_SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER = 10000 * 10;
-const SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER = 10000 * 10;
+const RAW_SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER = 4096 * 4;
+const SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER = 4096 * 4;
 const SIZE_OF_MESSAGES_BUFFER = 64;
 const ESCAPE_SEQUENCE_LENGTH = 6;
-const const_data = 10000 * 10;
+const const_data = 4096 * 4;
 // const const_data = 4096 * 4;
 
 // int cBufHead = 0;
@@ -139,11 +139,14 @@ executeOneMessage(String typeOfMessage, String valueOfMessage, int offsetin, Map
   } else if (typeOfMessage == "EVNT") {
     // try{
     var mkey = valueOfMessage.codeUnitAt(0) - 48;
+    // print('mkey');
+    // print(mkey);
     if (writeResult['eventsData'] == null){
       writeResult['eventsData'] = {};
       writeResult['eventsData']['indices'] = List<int>.filled(0, 0, growable: true);
       writeResult['eventsData']['numbers'] =List<String>.filled(0, "", growable: true);
       writeResult['eventsData']['positions'] = List<double>.filled(0, 0.0, growable: true);
+      writeResult['eventsData']['eventIndices'] = List<int>.filled(0, 0, growable: true);
       writeResult['eventsData']['counter'] = 0;
     }
 
@@ -153,8 +156,9 @@ executeOneMessage(String typeOfMessage, String valueOfMessage, int offsetin, Map
     // print(writeResult['cBuffIdx'] );
     // print( offsetin );
 
-    // writeResult['eventsData']['positions'].add(writeResult['cBufHead'].toDouble() + offsetin);
-    writeResult['eventsData']['positions'].add(writeResult['cBuffIdx'].toDouble() );
+    writeResult['eventsData']['positions'].add(writeResult['cBufHead'].toDouble() + offsetin);
+    writeResult['eventsData']['eventIndices'].add(writeResult['posCurSample']);
+    // writeResult['eventsData']['positions'].add(writeResult['cBuffIdx'].toDouble() );
     writeResult['eventsData']['counter']++;
 
     // if (sabDraw) {
@@ -672,6 +676,7 @@ testEscapeSequence(int newByte,int offset,Uint8List messagesBuffer, bool weAreIn
     _messageBufferIndex, escapeSequenceDetectorIndex, writeResult, _isThreshold) {
 
   int cBufHead = writeResult['cBufHead'];
+  int cBufTail = writeResult['cBufTail'];
   int messageBufferIndex = writeResult['messageBufferIndex'];
   isThreshold = _isThreshold;
   if (weAreInsideEscapeSequence) {
@@ -687,6 +692,9 @@ testEscapeSequence(int newByte,int offset,Uint8List messagesBuffer, bool weAreIn
       escapeSequenceDetectorIndex++;
       if (escapeSequenceDetectorIndex == ESCAPE_SEQUENCE_LENGTH) {
         weAreInsideEscapeSequence = false; //end of escape sequence
+        // print('executing');
+        // print(messagesBuffer.sublist(0, messageBufferIndex));
+
         // print('weAreInsideEscapeSequence false2');
         executeContentOfMessageBuffer(offset, messagesBuffer,writeResult);
         escapeSequenceDetectorIndex = 0;
@@ -703,28 +711,47 @@ testEscapeSequence(int newByte,int offset,Uint8List messagesBuffer, bool weAreIn
       escapeSequenceDetectorIndex++;
 
       if (escapeSequenceDetectorIndex == ESCAPE_SEQUENCE_LENGTH) {
+        // print('reverting');
+        // print(messagesBuffer.sublist(0, messageBufferIndex));
+        
         weAreInsideEscapeSequence = true; //found escape sequence
-        for (var i = 0; i < SIZE_OF_MESSAGES_BUFFER; i++) {
-          messagesBuffer[i] = 0;
-        }
+        // for (var i = 0; i < SIZE_OF_MESSAGES_BUFFER; i++) {
+        //   messagesBuffer[i] = 0;
+        // }
+        messagesBuffer.fillRange(0,SIZE_OF_MESSAGES_BUFFER,0);
+        // print(messagesBuffer.sublist(0, messageBufferIndex));
         messageBufferIndex = 0; //prepare for receiving message
         escapeSequenceDetectorIndex = 0;
         //prepare for detecting end of esc. sequence
 
         //rewind writing head and effectively delete escape sequence from data
-        
         for (int i = 0; i < ESCAPE_SEQUENCE_LENGTH; i++) {
           cBufHead--;
           if (cBufHead < 0) {
             cBufHead = const_data - 1;
           }
+          cBufTail--;
+          if (cBufTail < 0) {
+            cBufTail = 0;
+          }
+
         }
+        // writeResult['messagesBuffer'] = messagesBuffer;
         writeResult['cBufHead'] = cBufHead;
+        writeResult['cBufTail'] = cBufTail;
         // print('weAreInsideEscapeSequence true '+cBufHead.toString());
         writeResult['weAreInsideEscapeSequence'] = weAreInsideEscapeSequence;
       }
     } else {
       escapeSequenceDetectorIndex = 0;
+      if (escapeSequence[escapeSequenceDetectorIndex] == newByte){
+        print('newByte');
+        print(newByte);
+        print(escapeSequence[escapeSequenceDetectorIndex]);
+        escapeSequenceDetectorIndex++;
+        cBufHead--;
+        writeResult['cBufHead'] = cBufHead;
+      }
     }
   }
 
@@ -800,6 +827,10 @@ serialParsing(List<List<Int16List>> allEnvelopes,Map<String, dynamic> map,int su
     List<int> skipCounts, bool isThresholding, List<double> snapshotAveragedSamples, List<int> thresholdValue) {
   var LSB;
   var MSB;
+
+  bool weAtTheEndOfFrame = false;
+  bool breakBeginningFrameMSB = false;
+  bool breakLSB = false;
   bool haveData = true;
   bool weAlreadyProcessedBeginingOfTheFrame = false;
   var sample;
@@ -837,6 +868,8 @@ serialParsing(List<List<Int16List>> allEnvelopes,Map<String, dynamic> map,int su
             MSB = (circularBuffer[cBufTail]) & 0xFF;
             if (weAlreadyProcessedBeginingOfTheFrame && MSB > 127) {
               numberOfFrames--;
+              breakBeginningFrameMSB = true;
+
               break; //continue as if we have new frame
             }
           // }
@@ -852,6 +885,10 @@ serialParsing(List<List<Int16List>> allEnvelopes,Map<String, dynamic> map,int su
           LSB = (circularBuffer[cBufTail]) & 0xFF;
           if (LSB > 127) {
             numberOfFrames--;
+            // print('circularBuffer.sublist(0, cBufTail)');
+            // print(circularBuffer.sublist(0, cBufTail));
+            // print(map['escapeSequenceDetectorIndex']);
+            breakLSB = true;
             /*
             if (deviceType == 'hid') {
               return;
@@ -870,14 +907,14 @@ serialParsing(List<List<Int16List>> allEnvelopes,Map<String, dynamic> map,int su
 
 
           numberOfParsedChannels++;
-          if(numberOfParsedChannels>numberOfChannels)
-          {
-              //we have more data in frame than we need
-              //something is wrong with this frame
-              //numberOfFrames--;
-              //std::cout<< "More channels than expected\n";
-              break;//continue as if we have new frame
-          }          
+          // if(numberOfParsedChannels>numberOfChannels)
+          // {
+          //     //we have more data in frame than we need
+          //     //something is wrong with this frame
+          //     //numberOfFrames--;
+          //     //std::cout<< "More channels than expected\n";
+          //     break;//continue as if we have new frame
+          // }          
           // if (numberOfParsedChannels > 1) {
           //   print("numberOfParsedChannels " + numberOfChannels.toString());
           //   print(deviceType);
@@ -965,7 +1002,8 @@ serialParsing(List<List<Int16List>> allEnvelopes,Map<String, dynamic> map,int su
               arrHeads[numberOfParsedChannels - 1] = cBuffIdx;
             } catch (err) {}
           } else {
-            processedSamples[numberOfParsedChannels - 1].add(sample);
+            if (numberOfParsedChannels<6)
+              processedSamples[numberOfParsedChannels - 1].add(sample);
           }
           // const interleavedHeadSignalIdx = _head * 2;
           // arrMaxInt[interleavedHeadSignalIdx] = sample;
@@ -1014,6 +1052,7 @@ serialParsing(List<List<Int16List>> allEnvelopes,Map<String, dynamic> map,int su
           // }
 
           if (areWeAtTheEndOfFrame(cBufTail)) {
+            weAtTheEndOfFrame = true;
             break;
           } else {
             cBufTail++;
@@ -1039,6 +1078,10 @@ serialParsing(List<List<Int16List>> allEnvelopes,Map<String, dynamic> map,int su
 
     if (cBufTail == cBufHead) {
       print('tail = head');
+      print(weAtTheEndOfFrame);
+      print(breakBeginningFrameMSB);
+      print(breakLSB);
+
       haveData = false;
       break;
     }

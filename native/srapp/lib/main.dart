@@ -1075,7 +1075,8 @@ void serialBufferingEntryPoint(List<dynamic> values) {
   //   cBufferSize = SIZE;
   // }
 
-  Uint8List messagesBuffer = Uint8List(SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER);
+  // Uint8List messagesBuffer = Uint8List(SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER);
+  Uint8List messagesBuffer = Uint8List(SIZE_OF_MESSAGES_BUFFER);
 
   int numberOfChannels = 1;
   //NEED to be an array
@@ -1085,6 +1086,8 @@ void serialBufferingEntryPoint(List<dynamic> values) {
   List<int> arrOffsetHeads = List<int>.generate(6, (index) => 0);
   List<String> arrMarkers = [];
   List<int> arrIntMarkers = [];
+  List<int> arrIndicesMarkers = [];
+  List<int> arrEventIndices = [];
   List<double> eventPositionInt = List<double>.filled(max_markers, 0.0);
   List<double> eventPositionResultInt = List<double>.filled(max_markers, 0.0);
   List<int> eventGlobalPositionInt = List<int>.filled(max_markers, 0);
@@ -1097,10 +1100,12 @@ void serialBufferingEntryPoint(List<dynamic> values) {
   bool weAreInsideEscapeSequence = false;
   int escapeSequenceDetectorIndex = 0;
   int messageBufferIndex = 0;
+  int resetHead = 0;
 
   int batchCounter = 0;
-  int batchModulo = -1;
+  int batchModulo = 2;
   bool debugError = false;
+
 
   // List<int> escapeSequence = [255, 255, 1, 1, 129, 255];
 
@@ -1200,12 +1205,12 @@ void serialBufferingEntryPoint(List<dynamic> values) {
 
     Int16List curSamples = new Int16List(0);
     if (!isPaused) {
-      cBufHead = 0;
-      cBufTail = 0;
-      circularBuffer.fillRange(0, SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER, 0);
+      // cBufHead = 0;
+      // cBufTail = 0;
+      // circularBuffer.fillRange(0, SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER, 0);
       // messagesBuffer.fillRange(0, SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER, 0);
-      messageBufferIndex = 0;  
-      weAreInsideEscapeSequence = false;    
+      // messageBufferIndex = 0;  
+      // weAreInsideEscapeSequence = false;    
 
 /*
       framesAvailable += samples.length;
@@ -1227,6 +1232,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
         // print('TestEscape Sequence start');
         // print( (DateTime.now()).millisecondsSinceEpoch );
       // int tempInputReadIndex = inputReadIndex;
+      resetHead = 0;
       for (i = 0; i < len; i++) {
         int sample = samples[i];
         // rawIndex = (tempInputReadIndex++) % RAW_SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER;
@@ -1241,6 +1247,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
           // print(messageBufferIndex.toString() + ' : main weareinsideES true : '+sample.toString());
           messageBufferIndex++;
         } else {
+          resetHead++;
           circularBuffer[cBufHead++] = sample;
           //uint debugMSB  = ((uint)(buffer[i])) & 0xFF;
 
@@ -1253,9 +1260,12 @@ void serialBufferingEntryPoint(List<dynamic> values) {
         int offsetIn = 0;
         Map<String, dynamic> writeResult = {
           "cBufHead": cBufHead,
+          "cBufTail": cBufTail,
+          // "messagesBuffer": messagesBuffer,
           "messageBufferIndex": messageBufferIndex,
           "weAreInsideEscapeSequence": weAreInsideEscapeSequence,
           "escapeSequenceDetectorIndex": escapeSequenceDetectorIndex,
+          'posCurSample' : resetHead,
           'cBuffIdx' : arrHeads[0]
         };
         if (deviceType == "serial") {
@@ -1289,10 +1299,16 @@ void serialBufferingEntryPoint(List<dynamic> values) {
               writeResult,
               isThreshold);
           cBufHead = writeResult["cBufHead"]!;
+          cBufTail = writeResult["cBufTail"]!;
           weAreInsideEscapeSequence = writeResult["weAreInsideEscapeSequence"]!;
           // print("writer result esc "+ weAreInsideEscapeSequence.toString());
+          // messagesBuffer = writeResult["messagesBuffer"]!;
           messageBufferIndex = writeResult["messageBufferIndex"]!;
           escapeSequenceDetectorIndex = writeResult["escapeSequenceDetectorIndex"]!;
+          // if (weAreInsideEscapeSequence && messageBufferIndex == 0){
+          //   print('circularBuffer.sublist(0, cBufHead)');
+          //   print(circularBuffer.sublist(0, cBufHead));
+          // }
           if (writeResult['debugError'] != null){
             debugError = true;
           }
@@ -1313,7 +1329,9 @@ void serialBufferingEntryPoint(List<dynamic> values) {
               writeResult,
               isThreshold);
           cBufHead = writeResult["cBufHead"]!;
+          cBufTail = writeResult["cBufTail"]!;
           weAreInsideEscapeSequence = writeResult["weAreInsideEscapeSequence"]!;
+          // messagesBuffer = writeResult["messagesBuffer"]!;
           messageBufferIndex = writeResult["messageBufferIndex"]!;
           escapeSequenceDetectorIndex = writeResult["escapeSequenceDetectorIndex"]!;
         }
@@ -1323,8 +1341,15 @@ void serialBufferingEntryPoint(List<dynamic> values) {
           if (writeResult['eventsData'] != null){
             arrMarkers.clear();          
             arrIntMarkers.clear();
+            arrIndicesMarkers.clear();
+            arrEventIndices.clear();
             arrMarkers.add(writeResult['eventsData']['numbers'][0]);
-            arrIntMarkers.add(writeResult['eventsData']['indices'][0]);
+            arrIntMarkers.add(writeResult['eventsData']['positions'][0].floor());
+            arrIndicesMarkers.add(writeResult['eventsData']['indices'][0].floor());
+            // print('arrEventIndices.addAll()');
+            // print(writeResult['eventsData']['eventIndices'][0].floor());
+            arrEventIndices.add(writeResult['eventsData']['eventIndices'][0].floor());
+
             eventPositionInt.fillRange(0, max_markers,0);
             eventPositionResultInt.fillRange(0, max_markers,0);
             eventGlobalPositionInt.fillRange(0, max_markers,0);
@@ -1345,7 +1370,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
             // arrMarkers.add(writeResult['eventsData']['numbers'][0]);
             // arrIntMarkers.add(writeResult['eventsData']['indices'][0]);
 
-            // cBuffIdx = arrHeads[0];
+            // int cBuffIdx = arrHeads[0];
             // eventPositionInt[arrMarkers.length - 1] = cBuffIdx.toDouble();
             // eventPositionResultInt[arrMarkers.length - 1] = cBuffIdx.toDouble();
             // eventGlobalPositionInt[arrMarkers.length - 1] = globalPositionCap + cBuffIdx;
@@ -1396,6 +1421,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
         // 'cBuffIdx': cBuffIdx,
         'globalIdx': globalIdx,
         'arrHeads': arrHeads,
+        'escapeSequenceDetectorIndex': escapeSequenceDetectorIndex,
       };
 
       // print('Serial Parsing');
@@ -1504,7 +1530,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
               divider,
               CUR_START,
               (allEnvelopes[0][level].length / divider).floor(),
-              [arrIntMarkers[0]],[0], 1
+                [1],[0], arrEventIndices.length
               ));
 
           // curSamples = _thresholdBytes;
@@ -1648,7 +1674,8 @@ void serialBufferingEntryPoint(List<dynamic> values) {
         Int16List cBuff = curSamples;
         buffers.add(cBuff);
       }
-      sendPort.send([buffers, arrHeads[0], eventPositionResultInt, arrIntMarkers]);
+      // sendPort.send([buffers, arrHeads[0], arrIntMarkers.map((e)=> e.toDouble()).toList(), arrIndicesMarkers]);
+      sendPort.send([buffers, arrHeads[0], eventPositionResultInt, arrIndicesMarkers]);
 
       return;
     }
@@ -1820,7 +1847,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
       buffers.add(cBuff);
     }
 
-    sendPort.send([buffers, arrHeads[0], eventPositionResultInt, arrIntMarkers]);
+    sendPort.send([buffers, arrHeads[0], eventPositionResultInt, arrMarkers]);
   });
 
 }
@@ -3971,7 +3998,7 @@ class _MyHomePageState extends State<MyHomePage> {
         return;
       }
 
-      await port.setDTR(true);
+      await port.setDTR(false);
       await port.setRTS(true);
 
       port.setPortParameters(
@@ -3983,11 +4010,11 @@ class _MyHomePageState extends State<MyHomePage> {
         isReceiving = true;
       });
       port.inputStream?.listen((Uint8List samples) {
-        if (!isReceiving) return;
-        List<int> visibleSamples = [];
-        for (int sample in samples) {
-          visibleSamples.add(sample);
-        }
+        // if (!isReceiving) return;
+        // List<int> visibleSamples = [];
+        // for (int sample in samples) {
+        //   visibleSamples.add(sample);
+        // }
         final divider = myArrTimescale[timeScaleBar] / 10;
         int maxSampleRate = 10000;
         if (CURRENT_DEVICE.keys.length > 0) {
@@ -3998,7 +4025,8 @@ class _MyHomePageState extends State<MyHomePage> {
         //10000;//
         level = calculateLevel(timeScale, sampleRate, innerWidth, skipCounts);
         iSendPort.send([
-          isPaused ? List<int>.generate(0, (index) => 0) : visibleSamples,
+          // isPaused ? List<int>.generate(0, (index) => 0) : visibleSamples,
+          isPaused ? List<int>.generate(0, (index) => 0) : samples,
           level,
           divider,
           DISPLAY_CHANNEL,
@@ -4020,6 +4048,8 @@ class _MyHomePageState extends State<MyHomePage> {
       });
 
       _receiveQueue.rest.listen((curSamples) {
+        if (!isReceiving) return;
+
         // cBuffDouble
         // channelsData = List<Int16List>.from(curSamples[0]);
         channelsData = [];
@@ -4032,6 +4062,7 @@ class _MyHomePageState extends State<MyHomePage> {
         cBuffIdx = curSamples[1];
         markersData = List<double>.from(curSamples[2]);
         globalMarkers = List<int>.from(curSamples[3]);
+        print(globalMarkers);
 
         setState(() {});
       });
@@ -4192,6 +4223,9 @@ class _MyHomePageState extends State<MyHomePage> {
 
       cBuffIdx = curSamples[1];
       markersData = List<double>.from(curSamples[2]);
+      // print('curSamples');
+      // print(curSamples);
+      // markersData = (curSamples[2] as List<int>).map((e) => e.toDouble()).toList(growable:false);
       globalMarkers = List<int>.from(curSamples[3]);
 
       // var cBuffDouble2 = List<double>.generate(
@@ -5524,7 +5558,7 @@ class _MyHomePageState extends State<MyHomePage> {
               onPressed: () {
                 //popup and choose what triggerType
                 thresholdType = 0;
-                // nativec.setTriggerTypeProcess(0, 0);
+                nativec.setTriggerTypeProcess(0, 0);
                 setState(() {});
               })));
 
