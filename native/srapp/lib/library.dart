@@ -154,10 +154,11 @@ executeOneMessage(String typeOfMessage, String valueOfMessage, int offsetin, Map
     writeResult['eventsData']['numbers'].add(mkey.toString());
     // print("event triggerred - writeResult['cBuffIdx']" );
     // print(writeResult['cBuffIdx'] );
+    // print( 'offsetin' );
     // print( offsetin );
 
     writeResult['eventsData']['positions'].add(writeResult['cBufHead'].toDouble() + offsetin);
-    writeResult['eventsData']['eventIndices'].add(writeResult['posCurSample']);
+    writeResult['eventsData']['eventIndices'].add(writeResult['posCurSample']+offsetin);
     // writeResult['eventsData']['positions'].add(writeResult['cBuffIdx'].toDouble() );
     writeResult['eventsData']['counter']++;
 

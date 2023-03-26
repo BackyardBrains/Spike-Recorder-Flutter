@@ -144,7 +144,7 @@ Future showCustomAudioDialog(ctx, params) {
     try {
       _lowerValue = int.tryParse(controllerLowFilter.text)!.toDouble();
     } catch (err) {
-      print("err");
+      print("err lower Value");
       print(err);
       _lowerValue = 0;
       controllerLowFilter.text = tempLowerValue.floor().toString();
@@ -153,7 +153,7 @@ Future showCustomAudioDialog(ctx, params) {
     try {
       _highValue = int.tryParse(controllerHighFilter.text)!.toDouble();
     } catch (err) {
-      print("err");
+      print("err high value");
       print(err);
       _highValue = 0;
       controllerHighFilter.text = tempHighValue.floor().toString();

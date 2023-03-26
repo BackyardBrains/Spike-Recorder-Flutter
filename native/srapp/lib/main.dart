@@ -5,6 +5,7 @@ import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ffi' as ffi;
+import 'package:custom_pop_up_menu/custom_pop_up_menu.dart';
 import 'package:ffi/ffi.dart';
 import 'package:nativec/allocation.dart';
 
@@ -1105,6 +1106,8 @@ void serialBufferingEntryPoint(List<dynamic> values) {
   int batchCounter = 0;
   int batchModulo = 2;
   bool debugError = false;
+  int sendingEventCount = 0;
+
 
 
   // List<int> escapeSequence = [255, 255, 1, 1, 129, 255];
@@ -1142,7 +1145,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
     try {
       surfaceWidth = arr[9];
     } catch (err) {
-      print("err");
+      print("err surface width");
       print(err);
       // arr[9];
     }
@@ -1155,6 +1158,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
     isThresholding = arr[14];
     List<double> snapshotAveragedSamples = arr[15];
     List<int> thresholdValue = arr[16];
+    int thresholdingType = arr[17];
 
     int maxSize = (allEnvelopes[0][0]).length;
     int globalPositionCap = (globalIdx * maxSize / 2).floor();
@@ -1339,6 +1343,15 @@ void serialBufferingEntryPoint(List<dynamic> values) {
 
         if (isThresholding){
           if (writeResult['eventsData'] != null){
+            if (
+              thresholdingType == 0
+              ||
+              thresholdingType == writeResult['eventsData']['indices'][0].floor())
+                sendingEventCount = 1;
+            else{
+              sendingEventCount = 0;
+            }
+
             arrMarkers.clear();          
             arrIntMarkers.clear();
             arrIndicesMarkers.clear();
@@ -1350,30 +1363,40 @@ void serialBufferingEntryPoint(List<dynamic> values) {
             // print(writeResult['eventsData']['eventIndices'][0].floor());
             arrEventIndices.add(writeResult['eventsData']['eventIndices'][0].floor());
 
-            eventPositionInt.fillRange(0, max_markers,0);
-            eventPositionResultInt.fillRange(0, max_markers,0);
-            eventGlobalPositionInt.fillRange(0, max_markers,0);
+            if (thresholdingType != -1){
+              eventPositionInt.fillRange(0, max_markers,0);
+              eventPositionResultInt.fillRange(0, max_markers,0);
+              eventGlobalPositionInt.fillRange(0, max_markers,0);
+              eventPositionInt[arrMarkers.length - 1] = (surfaceWidth/2).floorToDouble();
+              eventPositionResultInt[arrMarkers.length - 1] = (surfaceWidth/2).floorToDouble();
+              eventGlobalPositionInt[arrMarkers.length - 1] = (surfaceWidth/2).floor();
+            }else{
+              eventPositionInt.fillRange(0, max_markers,surfaceWidth + 10);
+              eventPositionResultInt.fillRange(0, max_markers,surfaceWidth + 10);
+              eventGlobalPositionInt.fillRange(0, max_markers, (surfaceWidth + 10).floor());
 
-            eventPositionInt[arrMarkers.length - 1] = (surfaceWidth/2).floorToDouble();
-            eventPositionResultInt[arrMarkers.length - 1] = (surfaceWidth/2).floorToDouble();
-            eventGlobalPositionInt[arrMarkers.length - 1] = (surfaceWidth/2).floor();
+            }
 
           }
         }
         else{
           if (writeResult['eventsData'] != null){
             if (arrMarkers.length + 1 >= max_markers) {
-              arrMarkers.clear();
+              arrMarkers.clear();          
               arrIntMarkers.clear();
+              arrIndicesMarkers.clear();
+              arrEventIndices.clear();
             }
 
-            // arrMarkers.add(writeResult['eventsData']['numbers'][0]);
-            // arrIntMarkers.add(writeResult['eventsData']['indices'][0]);
+            arrMarkers.add(writeResult['eventsData']['numbers'][0]);
+            arrIntMarkers.add(writeResult['eventsData']['positions'][0].floor());
+            arrIndicesMarkers.add(writeResult['eventsData']['indices'][0].floor());
+            arrEventIndices.add(writeResult['eventsData']['eventIndices'][0].floor());
 
-            // int cBuffIdx = arrHeads[0];
-            // eventPositionInt[arrMarkers.length - 1] = cBuffIdx.toDouble();
-            // eventPositionResultInt[arrMarkers.length - 1] = cBuffIdx.toDouble();
-            // eventGlobalPositionInt[arrMarkers.length - 1] = globalPositionCap + cBuffIdx;
+            int cBuffIdx = arrHeads[0];
+            eventPositionInt[arrMarkers.length - 1] = cBuffIdx.toDouble();
+            eventPositionResultInt[arrMarkers.length - 1] = cBuffIdx.toDouble();
+            eventGlobalPositionInt[arrMarkers.length - 1] = globalPositionCap + cBuffIdx;
 
             // eventPositionInt[arrMarkers.length] = writeResult['cBufHead'].toDouble() + offsetIn;
             // eventPositionResultInt[arrMarkers.length] = writeResult['cBufHead'].toDouble() + offsetIn;
@@ -1521,6 +1544,8 @@ void serialBufferingEntryPoint(List<dynamic> values) {
           // curSamples = (nativec.appendSamplesThresholdProcess(2, 30000, 0, zamples[c], zamples[c].length));
           nativec.setThresholdParametersProcess(
               1, level, sampleRate, divider, CUR_START);
+          Uint8List filledArray = Uint8List(arrEventIndices.length);
+          filledArray.fillRange(0, arrEventIndices.length, 1);
           double processedSamplesCount = (nativec.appendSamplesThresholdProcess(
               snapshotAveragedSamples[0].floor(),
               thresholdValue[0],
@@ -1530,8 +1555,11 @@ void serialBufferingEntryPoint(List<dynamic> values) {
               divider,
               CUR_START,
               (allEnvelopes[0][level].length / divider).floor(),
-                [1],[0], arrEventIndices.length
+                arrEventIndices,[thresholdingType], sendingEventCount
               ));
+          sendingEventCount = 0;
+          // print('thresholdingType');
+          // print(thresholdingType);
 
           // curSamples = _thresholdBytes;
           curSamples =
@@ -1675,7 +1703,11 @@ void serialBufferingEntryPoint(List<dynamic> values) {
         buffers.add(cBuff);
       }
       // sendPort.send([buffers, arrHeads[0], arrIntMarkers.map((e)=> e.toDouble()).toList(), arrIndicesMarkers]);
-      sendPort.send([buffers, arrHeads[0], eventPositionResultInt, arrIndicesMarkers]);
+      if (thresholdingType == -1){
+        sendPort.send([buffers, arrHeads[0], Uint8List(0), Uint8List(0)]);
+      }else{
+        sendPort.send([buffers, arrHeads[0], eventPositionResultInt, arrIndicesMarkers]);
+      }
 
       return;
     }
@@ -1847,7 +1879,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
       buffers.add(cBuff);
     }
 
-    sendPort.send([buffers, arrHeads[0], eventPositionResultInt, arrMarkers]);
+    sendPort.send([buffers, arrHeads[0], eventPositionResultInt, arrIndicesMarkers]);
   });
 
 }
@@ -3785,6 +3817,60 @@ class _MyHomePageState extends State<MyHomePage> {
       // print(DEVICE_CATALOG);
     });
   }
+  List<ItemModel> menuItems = [
+    ItemModel(-1, 'Signal'),
+    ItemModel(1,'Event 1'),
+    ItemModel(2,'Event 2'),
+    ItemModel(3,'Event 3'),
+    ItemModel(4,'Event 4'),
+    ItemModel(5,'Event 5'),
+    ItemModel(6,'Event 6'),
+    ItemModel(7,'Event 7'),
+    ItemModel(8,'Event 8'),
+    ItemModel(9,'Event 9'),
+    ItemModel(0,'Events'),
+  ];
+  Widget _buildPopupMenu() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(5),
+      child: Container(
+        width: 120,
+        color: const Color(0xFF4C4C4C),
+        child: ListView(
+          padding: EdgeInsets.symmetric(horizontal: 5, vertical: 10),
+          // crossAxisCount: 5,
+          // crossAxisSpacing: 0,
+          // mainAxisSpacing: 10,
+          shrinkWrap: true,
+          physics: NeverScrollableScrollPhysics(),
+          children:menuItems
+              .map((item) => Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      GestureDetector(
+                        onTap:(){
+                          print("onpress");
+                          print(item.idx);
+                          thresholdType = item.idx;
+                          nativec.setTriggerTypeProcess(0, thresholdType);
+                          setState((){});
+
+                        },
+                        child: Container(
+                          margin: EdgeInsets.only(top: 5, bottom:5),
+                          child: Text(
+                            item.title,
+                            style: TextStyle(color: Colors.white, fontSize: 15),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ))
+              .toList(),
+        )
+      ),
+    );
+  }
 
   void initState() {
     super.initState();
@@ -4043,6 +4129,7 @@ class _MyHomePageState extends State<MyHomePage> {
           isThreshold,
           snapshotAveragedSamples,
           thresholdValue,
+          thresholdType,
         ]);
         currentKey = "";
       });
@@ -4115,6 +4202,7 @@ class _MyHomePageState extends State<MyHomePage> {
           isThreshold,
           snapshotAveragedSamples,
           thresholdValue,
+          thresholdType,
         ]);
         currentKey = "";
       });
@@ -4202,6 +4290,8 @@ class _MyHomePageState extends State<MyHomePage> {
         isThreshold,
         snapshotAveragedSamples,
         thresholdValue,
+        thresholdType,
+
       ]);
       currentKey = "";
     });
@@ -5542,6 +5632,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 :
                 Text( "E$thresholdType", style: fontThresholdStyle );
       
+      CustomPopupMenuController _controller = CustomPopupMenuController();
       dataWidgets.add(Positioned(
           top: Platform.isMacOS || Platform.isWindows ? 20 : 85,
           left: Platform.isMacOS || Platform.isWindows ? 245 : 75,
@@ -5554,13 +5645,25 @@ class _MyHomePageState extends State<MyHomePage> {
                 onPrimary: Colors.green,
                 onSurface: Colors.red,
               ),
-              child: triggerWidget,
+              child :CustomPopupMenu(
+                child:triggerWidget,
+                menuBuilder: _buildPopupMenu,
+                barrierColor: Colors.transparent,
+                pressType: PressType.singleClick,
+                controller:_controller,
+              ),
+              // child: triggerWidget,
               onPressed: () {
                 //popup and choose what triggerType
-                thresholdType = 0;
-                nativec.setTriggerTypeProcess(0, 0);
+                print('button press');
+                if (!_controller.menuIsShowing){
+                  // thresholdType = 0;
+                  // nativec.setTriggerTypeProcess(0, 0);
+                  _controller.toggleMenu();                  
+                }
                 setState(() {});
-              })));
+              }
+          )));
 
       dataWidgets.add(Positioned(
           top: Platform.isMacOS || Platform.isWindows ? 10 : 70,
@@ -6901,4 +7004,12 @@ class _MyHomePageState extends State<MyHomePage> {
       )
     );    
   }
+}
+
+
+class ItemModel {
+  int idx;
+  String title;
+ 
+  ItemModel(this.idx, this.title);
 }

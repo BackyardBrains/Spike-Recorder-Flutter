@@ -270,23 +270,24 @@ class Nativec {
         .asFunction();
 
     // C++ to Flutter
-    // final initializeApi = nativeLrsLib.lookupFunction<
-    //     ffi.IntPtr Function(ffi.Pointer<ffi.Void>),
-    //     int Function(ffi.Pointer<ffi.Void>)>("InitDartApiDL");
-    // final SetThresholdDartPortFunc _setDartPort = nativeLrsLib
-    //     .lookup<ffi.NativeFunction<set_threshold_dart_port_func>>(
-    //         "set_dart_port")
-    //     .asFunction();
+    final initializeApi = nativeLrsLib.lookupFunction<
+        ffi.IntPtr Function(ffi.Pointer<ffi.Void>),
+        int Function(ffi.Pointer<ffi.Void>)>("InitDartApiDL");
+    final SetThresholdDartPortFunc _setDartPort = nativeLrsLib
+        .lookup<ffi.NativeFunction<set_threshold_dart_port_func>>(
+            "set_dart_port")
+        .asFunction();
 
+    initializeApi(ffi.NativeApi.initializeApiDLData);
+    thresholdPublication = ReceivePort()
+      ..listen((message) {
+        // TODO: processing messages from C++ code
+        print("PRINT C++ MESSAGE : ");
+        print(message);
+      });
+    _setDartPort(thresholdPublication.sendPort.nativePort);
+    
     // cookie = _Dart_InitializeApiDL(ffi.NativeApi.initializeApiDLData);
-    // initializeApi(ffi.NativeApi.initializeApiDLData);
-    // thresholdPublication = ReceivePort()
-    //   ..listen((message) {
-    //     // TODO: processing messages from C++ code
-    //     // print("PRINT C++ MESSAGE : ");
-    //     // print(message);
-    //   });
-    // _setDartPort(thresholdPublication.sendPort.nativePort);
 
     // // Pass NativePort value (int) to C++ code
     // print("pub.sendPort.nativePort");
@@ -512,7 +513,7 @@ class Nativec {
   int getThresholdHitProcess(){
     return _getThresholdHitProcess();
   }
-  void setTriggerTypeProcess(int channelIdx,int type){
-    _setTriggerTypeProcess(channelIdx, type);
+  double setTriggerTypeProcess(int channelIdx,int type){
+    return _setTriggerTypeProcess(channelIdx, type);
   }
 }
