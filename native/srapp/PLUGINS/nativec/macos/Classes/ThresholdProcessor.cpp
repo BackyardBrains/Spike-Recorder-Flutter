@@ -138,6 +138,9 @@ public:
     void setTriggerType(int _triggerType) {
         if (triggerType == _triggerType) return;
         triggerType = _triggerType;
+        debug_print("SET TRIGGER TYPE C++" );
+        debug_print(std::to_string(triggerType).c_str() );
+
     }
 
     // Starts/stops processing heartbeat
@@ -356,7 +359,8 @@ public:
 
     void process(short **outSamples, int *outSamplesCounts, short **inSamples,
                                     const int *inSampleCounts,
-                                    const short *inEventIndices, const short *inEvents, const short inEventCount) {
+                                    // const short *inEventIndices, const short *inEvents, const short inEventCount) {
+                                    const short inEventIndices, const short inEvents, const short inEventCount) {
         if (paused) return;
 
         bool shouldReset = false;
@@ -468,6 +472,7 @@ public:
             currentSample = inSamples[selectedChannel][i];
 
             // heartbeat processing Can't add incoming to buffer, it's larger then buffer
+            /*
             if (processBpm && triggerType == TRIGGER_ON_THRESHOLD) {
                 sampleCounter++;
                 lastTriggerSampleCounter++;
@@ -475,10 +480,16 @@ public:
                 // check if minimum BPM reset period passed after last threshold hit and reset if necessary
                 if (lastTriggerSampleCounter > minBpmResetPeriodCount) resetBpm();
             }
+            */
             // end of heartbeat processing
-                
+            
+            // if (triggerType == 0){
+            //     debug_print("Event Trigger TYPE");
+            //     debug_print(std::to_string(triggerType).c_str() );
+            //     debug_print(std::to_string(inEventCount).c_str() );
+            // }
 
-            if (triggerType == TRIGGER_ON_THRESHOLD) { // triggering by a threshold value
+            if (triggerType == -1) { //TRIGGER_ON_THRESHOLD // triggering by a threshold value
                 if (!inDeadPeriod) {
                     // check if we hit the threshold
                     if ((triggerValue[selectedChannel] >= 0 && currentSample > triggerValue[selectedChannel] &&
@@ -515,23 +526,38 @@ public:
                     // debug_print("Index Iteration");
                     // debug_print(std::to_string(i).c_str() );
                 // if (isEventMarkerFound == 0){
+                    // if (i == inEventIndices) {
+                    //     if (triggerType == inEvents){
+                    //         debug_print("triggerType == inevents");
 
-                    for (j = 0; j < inEventCount; j++) {
-                        if (triggerType == TRIGGER_ON_EVENTS) {
-                            if (i == inEventIndices[j]) {
+                    //     }else{
+                    //         debug_print("Index equal inEventIndices !triggerType");
+                    //         debug_print(std::to_string(triggerType).c_str() );
+                    //         debug_print(std::to_string(inEvents).c_str() );
+
+                    //     }
+                    // }else
+                    // if (inEvents == 0){ // TRIGGER_ON_EVENTS
+                        // debug_print(std::to_string(triggerType).c_str() );
+                        // debug_print(std::to_string(inEvents).c_str() );
+
+                    // }
+
+
+                    // for (j = 0; j < inEventCount; j++) {
+                        if (inEvents == 0) {// TRIGGER_ON_EVENTS
+                            // if (i == inEventIndices[j]) {
+                            if (i == inEventIndices) {
                                 // create new samples for current threshold
                                 for (k = 0; k < channelCount; k++) {
                                     prepareNewSamples(inSamples[k], inSampleCounts[k], k, i);
                                 }
-                                // isEventMarkerFound = 1;
-                                // break;
                             }
                         } else {
-                            // debug_print(std::to_string(inEvents[j]).c_str() );
-                            if (i == inEventIndices[j] && triggerType == inEvents[j]) {
+                            if (i == inEventIndices && inEvents > 0) {
                                 // debug_print("123----------");
                                 // debug_print(std::to_string(i).c_str() );
-                                // debug_print(std::to_string(inEventIndices[j]).c_str() );
+                                // debug_print(std::to_string(inSampleCounts[0]).c_str() );
                                 // create new samples for current threshold
                                 for (k = 0; k < channelCount; k++) {
                                     prepareNewSamples(inSamples[k], inSampleCounts[k], k, i);
@@ -540,7 +566,7 @@ public:
                                 // break;
                             }
                         }
-                    }
+                    // }
                 // }else{
                 //     break;
                 // }
@@ -956,6 +982,13 @@ double divider = 6;
 int current_start = 0;
 short *tempData;
 
+
+void resetOutSamples(short channelIdx, short **outSamples, int outSampleCount){
+    
+    std::fill(outSamples[channelIdx], outSamples[channelIdx] + outSampleCount, 0);
+    // memset(envelopes[forceLevel],0,sizeOfEnvelope*sizeof(envelopes[forceLevel]));
+}
+
 EXTERNC FUNCTION_ATTRIBUTE double createThresholdProcess(short _channelCount, uint32_t _sampleRate, short averagedSampleCount, short threshold){
     // highPassFilters = new HighPassFilter[channelCount];
     // count = (int) 2.0f * sampleRate;
@@ -968,6 +1001,7 @@ EXTERNC FUNCTION_ATTRIBUTE double createThresholdProcess(short _channelCount, ui
     outSamplesPtr[0] = new short[count * 2];
     tempSamplesPtr[0] = new short[count * 2];
     outSampleCounts[0]=count;
+    resetOutSamples(0, outSamplesPtr,outSampleCounts[0]);
     // tempData = new short[ count * 2];
 
     // debug_print("create2");
@@ -1090,11 +1124,6 @@ void resetEnvelope(short channelIdx, short **envelopes, int forceLevel){
     // memset(envelopes[forceLevel],0,sizeOfEnvelope*sizeof(envelopes[forceLevel]));
 }
 //resetOutSamples(0, outSamplesPtr,outSampleCounts);
-void resetOutSamples(short channelIdx, short **outSamples, int outSampleCount){
-    
-    std::fill(outSamples[channelIdx], outSamples[channelIdx] + outSampleCount, 0);
-    // memset(envelopes[forceLevel],0,sizeOfEnvelope*sizeof(envelopes[forceLevel]));
-}
 
 // void envelopingSamples2(int _head, int sample, short **_envelopes, int SIZE_LOGS2, int forceLevel) {
 //     int j = forceLevel;
@@ -1248,7 +1277,10 @@ EXTERNC FUNCTION_ATTRIBUTE int getThresholdHitProcess(){
     }
     return 0;
 }
-EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedSampleCount, short _threshold, short channelIdx, short *data, uint32_t sampleCount, double divider, int currentStart, int sampleNeeded, short* eventIndices, short* events, short eventCount){
+EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedSampleCount, short _threshold, short channelIdx, short *data, uint32_t sampleCount, double divider, int currentStart, int sampleNeeded, 
+    // short* eventIndices, short* events, short eventCount){
+    short eventIndices, short events, short eventCount){
+        
     current_start = currentStart;
     // int layers = ((int)_averagedSampleCount);
     inSamplesPtr[0] = new short[sampleCount];
@@ -1278,6 +1310,11 @@ EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedS
     // thresholdProcessor[0].process(outSamplesPtr, layers, data, sampleCount, channelIdx, nullData,nullData,0);
     
 // ****
+    // void process(short **outSamples, int *outSamplesCounts, short **inSamples,
+    //                                 const int *inSampleCounts,
+    //                                 // const short *inEventIndices, const short *inEvents, const short inEventCount) {
+    //                                 const short inEventIndices, const short inEvents, const short inEventCount) {
+
     thresholdProcessor[0].process(outSamplesPtr,outSampleCounts, inSamplesPtr, inSampleCounts, eventIndices, events, eventCount);
 // ****
 
@@ -1309,13 +1346,16 @@ EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedS
             // debug_print(std::to_string(floor(samplesLength)).c_str());
 
             if (current_start != 0){
-                sampleStart = abs(current_start);
-                if (sampleStart <0) {
-                    sampleStart = 0;
-                }
-                sampleEnd = sampleStart + samplesLength;
-                if (sampleEnd > maxEnvelopeSize){
-                }
+                // sampleStart = abs(current_start);
+                // if (sampleStart <0) {
+                //     sampleStart = 0;
+                // }
+                // sampleEnd = sampleStart + samplesLength;
+                // if (sampleEnd > maxEnvelopeSize){
+                // }
+                sampleStart = floor(maxEnvelopeSize / 2 - samplesLength / 2);
+                sampleEnd = floor(maxEnvelopeSize / 2 + samplesLength / 2);
+
             }
             resetEnvelope(0,envelopes[i], forceLevel);
             int j = 0;

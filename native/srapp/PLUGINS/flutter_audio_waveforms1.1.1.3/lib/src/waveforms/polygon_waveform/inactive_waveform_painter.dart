@@ -198,7 +198,7 @@ class PolygonInActiveWaveformPainter extends InActiveWaveformPainter {
             tp.paint(canvas, new Offset(evX - 3, counterStacked));
           }
         }catch(err){
-          print('err');
+          print('err waveform');
           print(eventMarkersPosition.length);
           print(err);
         }

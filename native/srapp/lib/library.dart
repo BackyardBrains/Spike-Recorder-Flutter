@@ -141,12 +141,22 @@ executeOneMessage(String typeOfMessage, String valueOfMessage, int offsetin, Map
     var mkey = valueOfMessage.codeUnitAt(0) - 48;
     // print('mkey');
     // print(mkey);
+    if (writeResult['isThresholding']){
+
+      if (writeResult['thresholdingType'] == 0){
+
+      }else
+      if (writeResult['thresholdingType'] != mkey){
+        return;
+      }
+    }
     if (writeResult['eventsData'] == null){
       writeResult['eventsData'] = {};
       writeResult['eventsData']['indices'] = List<int>.filled(0, 0, growable: true);
-      writeResult['eventsData']['numbers'] =List<String>.filled(0, "", growable: true);
+      writeResult['eventsData']['numbers'] = List<String>.filled(0, "", growable: true);
       writeResult['eventsData']['positions'] = List<double>.filled(0, 0.0, growable: true);
       writeResult['eventsData']['eventIndices'] = List<int>.filled(0, 0, growable: true);
+      // writeResult['eventsData']['drawIndices'] = List<int>.filled(0, 0, growable: true);
       writeResult['eventsData']['counter'] = 0;
     }
 
@@ -158,7 +168,10 @@ executeOneMessage(String typeOfMessage, String valueOfMessage, int offsetin, Map
     // print( offsetin );
 
     writeResult['eventsData']['positions'].add(writeResult['cBufHead'].toDouble() + offsetin);
-    writeResult['eventsData']['eventIndices'].add(writeResult['posCurSample']+offsetin);
+    // writeResult['eventsData']['eventIndices'].add(writeResult['posCurSample']+offsetin);
+    writeResult['eventsData']['eventIndices'].add(writeResult['posCurSample']);
+    // writeResult['eventsData']['eventIndices'].add(writeResult['posCurSample']-offsetin);
+    // writeResult['eventsData']['drawIndices'].add(writeResult['posCurSample']);
     // writeResult['eventsData']['positions'].add(writeResult['cBuffIdx'].toDouble() );
     writeResult['eventsData']['counter']++;
 
@@ -678,6 +691,7 @@ testEscapeSequence(int newByte,int offset,Uint8List messagesBuffer, bool weAreIn
 
   int cBufHead = writeResult['cBufHead'];
   int cBufTail = writeResult['cBufTail'];
+  int resetHead = writeResult['resetHead'];
   int messageBufferIndex = writeResult['messageBufferIndex'];
   isThreshold = _isThreshold;
   if (weAreInsideEscapeSequence) {
@@ -731,6 +745,10 @@ testEscapeSequence(int newByte,int offset,Uint8List messagesBuffer, bool weAreIn
           if (cBufHead < 0) {
             cBufHead = const_data - 1;
           }
+          resetHead--;
+          if (resetHead < 0) {
+            resetHead = 0;
+          }
           cBufTail--;
           if (cBufTail < 0) {
             cBufTail = 0;
@@ -740,6 +758,7 @@ testEscapeSequence(int newByte,int offset,Uint8List messagesBuffer, bool weAreIn
         // writeResult['messagesBuffer'] = messagesBuffer;
         writeResult['cBufHead'] = cBufHead;
         writeResult['cBufTail'] = cBufTail;
+        writeResult['resetHead'] = resetHead;
         // print('weAreInsideEscapeSequence true '+cBufHead.toString());
         writeResult['weAreInsideEscapeSequence'] = weAreInsideEscapeSequence;
       }
@@ -974,7 +993,7 @@ serialParsing(List<List<Int16List>> allEnvelopes,Map<String, dynamic> map,int su
           // envelopingSamples(_head, sample, envelopes);
           // print(sample.toDouble());
           if (!isThresholding) {
-            try {
+            // try {
               cBuffIdx = arrHeads[numberOfParsedChannels - 1];
               // print('cBufHead');
               // print(cBufHead);
@@ -1001,10 +1020,11 @@ serialParsing(List<List<Int16List>> allEnvelopes,Map<String, dynamic> map,int su
                 // isFull = true;
               }
               arrHeads[numberOfParsedChannels - 1] = cBuffIdx;
-            } catch (err) {}
+            // } catch (err) {}
           } else {
-            if (numberOfParsedChannels<6)
+            if (numberOfParsedChannels<6) {
               processedSamples[numberOfParsedChannels - 1].add(sample);
+            }
           }
           // const interleavedHeadSignalIdx = _head * 2;
           // arrMaxInt[interleavedHeadSignalIdx] = sample;

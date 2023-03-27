@@ -78,8 +78,17 @@ screenPositionToElementPosition(posX, part, level, skipCount,
     // curStart = (envelopeSize).floor() - (elementLength).floor();
     // curStart = (cBuffIdx).floor() - (elementLength).floor();
     // curStart = (curStart).floor();
-    curStart = ((posX) * samplesPerPixel / division * skipCount).floor();
-    curStart = (curStart).floor();
+    // print('divider');
+    // print(divider);
+    // curStart = ( (maxEnvelopeSize / division / divider / 2) - envelopeSize / division / divider / 2 ).floor();
+
+
+    if (divider == 6){
+      curStart = (maxEnvelopeSize / 2 / divider / 2).floor();
+    }else{
+      curStart = ((posX) * samplesPerPixel / division * skipCount).floor();
+      curStart = (curStart).floor();
+    }
   }else{
     curStart = head - (elementLength).floor();
   }

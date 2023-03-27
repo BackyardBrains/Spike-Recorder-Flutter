@@ -87,12 +87,17 @@ typedef append_samples_threshold_func = ffi.Double Function(
     ffi.Double,
     ffi.Int32,
     ffi.Uint32,
-    ffi.Pointer<ffi.Int16>,
-    ffi.Pointer<ffi.Int16>, 
-    ffi.Int16
+    // ffi.Pointer<ffi.Int16>,
+    // ffi.Pointer<ffi.Int16>, 
+    ffi.Int16,
+    ffi.Int16,
+    ffi.Int16,
     );
 typedef AppendSamplesThresholdProcess = double Function(
-    int, int, int, ffi.Pointer<ffi.Int16>, int, double, int, int,ffi.Pointer<ffi.Int16>,ffi.Pointer<ffi.Int16>, int);
+    int, int, int, ffi.Pointer<ffi.Int16>, int, double, int, int,
+    // ffi.Pointer<ffi.Int16>,ffi.Pointer<ffi.Int16>, int
+    int,int,int
+  );
 
 typedef set_threshold_dart_port_func = ffi.Double Function(ffi.Int64);
 typedef SetThresholdDartPortFunc = double Function(int);
@@ -161,8 +166,8 @@ class Nativec {
   static int totalBytes = 1024 * 8;
   static int timeSpan = 10;
   static int totalThresholdBytes = (timeSpan * 44100);
-  static int totalEventIndicesBytes = 300;
-  static int totalEventsBytes = 300;
+  static int totalEventIndicesBytes = 1;
+  static int totalEventsBytes = 1;
   static ffi.Pointer<ffi.Int16> _data = allocate<ffi.Int16>(
       count: totalBytes, sizeOfType: ffi.sizeOf<ffi.Int16>());
   static ffi.Pointer<ffi.Int16> _dataThreshold = allocate<ffi.Int16>(
@@ -460,7 +465,10 @@ class Nativec {
   }
 
   double appendSamplesThresholdProcess(averagedSampleCount, threshold,
-      channelIdx, samples, sampleCount, divider, currentStart, sampleNeeded, eventIndices, events, eventCount) {
+      channelIdx, samples, sampleCount, divider, currentStart, sampleNeeded, 
+      // eventIndices, events, eventCount) {
+      eventIndex, events, eventCount) {
+        
     _thresholdBytes.fillRange(0, Nativec.totalThresholdBytes, 0);
     _thresholdEventIndices.fillRange(0, Nativec.totalEventIndicesBytes, 0);
     _thresholdEvents.fillRange(0, Nativec.totalEventsBytes, 0);
@@ -471,8 +479,18 @@ class Nativec {
     //   _thresholdBytes[i] = samples[i];
     // }
     _thresholdBytes.setAll(0, samples);
-    _thresholdEventIndices.setAll(0, eventIndices);
-    _thresholdEvents.setAll(0, events);
+    if (eventCount > 0){
+
+      // _thresholdEventIndices.fillRange(0, _thresholdEventIndices.length, eventIndices[0]);
+      // _thresholdEvents.fillRange(0, _thresholdEvents.length, events[0]);
+      print('_dataEventIndices');
+      print(eventCount);
+      print(eventIndex);
+      print(events[0]);
+    }else{
+      _thresholdEventIndices.fillRange(0, _thresholdEventIndices.length, 0);
+      _thresholdEvents.fillRange(0, _thresholdEvents.length, 0);
+    }
 
     // for (int i = 0; i < Nativec.totalThresholdBytes; i++) {
     //   _thresholdBytes[i] = i;
@@ -488,7 +506,8 @@ class Nativec {
         divider.toDouble(),
         currentStart.floor(),
         sampleNeeded, 
-        _dataEventIndices, _dataEvents, eventCount);
+        // _dataEventIndices, _dataEvents, eventCount);
+        eventIndex, events[0], eventCount);
     // print(processedSample);
     return processedSample;
     // print(_thresholdBytes.length);

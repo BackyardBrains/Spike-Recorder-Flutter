@@ -492,7 +492,7 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
                 int transformScaleIdx = (i / 10).floor();
                 double tempDivider = myArrTimescale[i] / 10;      
                 int simLevel = calculateLevel(myArrTimescale[transformScaleIdx], sampleRate,
-                    surfaceWidth, skipCounts);          
+                    surfaceWidth, skipCounts);
 
                 transformScaleIdx = ((i - 1) / 10).floor();
                 var row = {
@@ -601,7 +601,7 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
                 globalIdx++;
               }
             } catch (err) {
-              print("err");
+              print("err !isthresholding");
               print(err);
             }
           }
@@ -1264,12 +1264,15 @@ void serialBufferingEntryPoint(List<dynamic> values) {
         int offsetIn = 0;
         Map<String, dynamic> writeResult = {
           "cBufHead": cBufHead,
+          "resetHead": resetHead,
           "cBufTail": cBufTail,
           // "messagesBuffer": messagesBuffer,
           "messageBufferIndex": messageBufferIndex,
           "weAreInsideEscapeSequence": weAreInsideEscapeSequence,
           "escapeSequenceDetectorIndex": escapeSequenceDetectorIndex,
           'posCurSample' : resetHead,
+          'isThresholding' : isThresholding,
+          'thresholdingType' : thresholdingType,
           'cBuffIdx' : arrHeads[0]
         };
         if (deviceType == "serial") {
@@ -1303,6 +1306,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
               writeResult,
               isThreshold);
           cBufHead = writeResult["cBufHead"]!;
+          resetHead = writeResult["resetHead"]!;
           cBufTail = writeResult["cBufTail"]!;
           weAreInsideEscapeSequence = writeResult["weAreInsideEscapeSequence"]!;
           // print("writer result esc "+ weAreInsideEscapeSequence.toString());
@@ -1334,6 +1338,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
               isThreshold);
           cBufHead = writeResult["cBufHead"]!;
           cBufTail = writeResult["cBufTail"]!;
+          resetHead = writeResult["resetHead"]!;
           weAreInsideEscapeSequence = writeResult["weAreInsideEscapeSequence"]!;
           // messagesBuffer = writeResult["messagesBuffer"]!;
           messageBufferIndex = writeResult["messageBufferIndex"]!;
@@ -1371,9 +1376,9 @@ void serialBufferingEntryPoint(List<dynamic> values) {
               eventPositionResultInt[arrMarkers.length - 1] = (surfaceWidth/2).floorToDouble();
               eventGlobalPositionInt[arrMarkers.length - 1] = (surfaceWidth/2).floor();
             }else{
-              eventPositionInt.fillRange(0, max_markers,surfaceWidth + 10);
-              eventPositionResultInt.fillRange(0, max_markers,surfaceWidth + 10);
-              eventGlobalPositionInt.fillRange(0, max_markers, (surfaceWidth + 10).floor());
+              eventPositionInt.fillRange(0, max_markers,-1);
+              eventPositionResultInt.fillRange(0, max_markers,-1);
+              eventGlobalPositionInt.fillRange(0, max_markers, 0);
 
             }
 
@@ -1546,17 +1551,63 @@ void serialBufferingEntryPoint(List<dynamic> values) {
               1, level, sampleRate, divider, CUR_START);
           Uint8List filledArray = Uint8List(arrEventIndices.length);
           filledArray.fillRange(0, arrEventIndices.length, 1);
-          double processedSamplesCount = (nativec.appendSamplesThresholdProcess(
-              snapshotAveragedSamples[0].floor(),
-              thresholdValue[0],
-              0,
-              zamples[c],
-              zamples[c].length,
-              divider,
-              CUR_START,
-              (allEnvelopes[0][level].length / divider).floor(),
-                arrEventIndices,[thresholdingType], sendingEventCount
+          double processedSamplesCount = 0;
+          if (thresholdingType>-1){
+            int eventIndex = arrEventIndices.isEmpty ? 0 : arrEventIndices[0];
+            // if (thresholdingType == 0){
+            //   eventIndex = 1;
+            // }else
+            if (eventIndex >= len || eventIndex> 10){
+              print(' eventIndex wrong ');
+              // eventIndex=0;
+              eventIndex=(eventIndex/3).floor();
+            }
+            processedSamplesCount=(nativec.appendSamplesThresholdProcess(
+                snapshotAveragedSamples[0].floor(),
+                thresholdValue[0],
+                0,
+                zamples[c],
+                zamples[c].length,
+                divider,
+                CUR_START,
+                (allEnvelopes[0][level].length / divider).floor(),
+                  // [0],[thresholdingType], sendingEventCount
+                  // arrEventIndices.isEmpty ? [0] : arrEventIndices , [thresholdingType], arrEventIndices.isEmpty ? 0 : 1
+                  eventIndex , [thresholdingType], arrEventIndices.isEmpty ? 0 : 1
+                  // arrEventIndices.length > 0 ?arrEventIndices:[0],[thresholdingType], sendingEventCount
               ));
+            if (arrEventIndices.isNotEmpty){
+              print('eventIndex');
+              print(eventIndex);
+              print(len);
+              // print('arrEventIndices');
+              // print(arrEventIndices);
+              print('----------------------------');
+              // writeResult['eventsData']['eventIndices'][0] = 0;
+              // arrEventIndices[0] = 0;
+              arrEventIndices.clear();
+
+            }
+          }else{
+            processedSamplesCount=(nativec.appendSamplesThresholdProcess(
+                snapshotAveragedSamples[0].floor(),
+                thresholdValue[0],
+                0,
+                zamples[c],
+                zamples[c].length,
+                divider,
+                CUR_START,
+                (allEnvelopes[0][level].length / divider).floor(),
+                  // [0],[thresholdingType], sendingEventCount
+                  // [1],[-1], 0
+                  1,[-1], 0
+              ));
+
+          }
+
+          // print('reset Head when the EVNT triggered');
+          // print(arrEventIndices);
+          // print(len);
           sendingEventCount = 0;
           // print('thresholdingType');
           // print(thresholdingType);
@@ -3849,10 +3900,17 @@ class _MyHomePageState extends State<MyHomePage> {
                     children: <Widget>[
                       GestureDetector(
                         onTap:(){
+                          globalMarkers.clear();
+                          markersData.clear();
+
                           print("onpress");
                           print(item.idx);
                           thresholdType = item.idx;
                           nativec.setTriggerTypeProcess(0, thresholdType);
+
+                          globalMarkers.clear();
+                          markersData.clear();
+
                           setState((){});
 
                         },
@@ -3906,6 +3964,8 @@ class _MyHomePageState extends State<MyHomePage> {
       serialPort.close();
       serialPort.dispose();
       serialReader.close();
+      _isolate.close();
+      
     } catch (err) {}
   }
 
@@ -3914,6 +3974,7 @@ class _MyHomePageState extends State<MyHomePage> {
       winAudioSubscription?.cancel();
       audioListener?.cancel();
       audioQueueSubscription?.cancel();
+      _isolate.close();
     } catch (err) {}
   }
 
@@ -4092,11 +4153,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
       // print first result and close port.
       bool isReceiving = false;
-      Future.delayed(Duration(seconds: 3), () {
+      Future.delayed(Duration(seconds: 1), () {
         isReceiving = true;
       });
       port.inputStream?.listen((Uint8List samples) {
-        // if (!isReceiving) return;
+        if (!isReceiving) return;
         // List<int> visibleSamples = [];
         // for (int sample in samples) {
         //   visibleSamples.add(sample);
@@ -5508,30 +5569,38 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             child: Icon(
               Icons.stacked_line_chart,
-              color: deviceType == 1 && isPlaying == 1
+              color: isThreshold
                   ? Colors.amber.shade900
                   : Color(0xFF800000),
             ),
             onPressed: () {
-              isThreshold = !isThreshold;
-              if (isThreshold) thresholdType = -1;
-              CURRENT_START = 0;
-              isZooming = false;
-              for (int c = 0; c < 6; c++) {
-                initialLevelMedian[c] = MediaQuery.of(context).size.height / 2;
-                levelMedian[c] = MediaQuery.of(context).size.height / 2;
-              }
-              double heightFactor = (channelGains[0] / signalMultiplier);
-              thresholdValue[0] = ((thresholdMarkerTop[0] +
-                              12 -
-                              (levelMedian[0] == -1
-                                  ? initialLevelMedian[0]
-                                  : levelMedian[0]))
-                          .floor() *
-                      heightFactor)
-                  .floor();
+              try{
+                globalMarkers.clear();
+                markersData.clear();
+                isThreshold = !isThreshold;
+                // if (isThreshold) 
+                thresholdType = -1;
+                CURRENT_START = 0;
+                isZooming = false;
+                for (int c = 0; c < 6; c++) {
+                  initialLevelMedian[c] = MediaQuery.of(context).size.height / 2;
+                  levelMedian[c] = MediaQuery.of(context).size.height / 2;
+                }
+                double heightFactor = (channelGains[0] / signalMultiplier);
+                thresholdValue[0] = ((thresholdMarkerTop[0] +
+                                12 -
+                                (levelMedian[0] == -1
+                                    ? initialLevelMedian[0]
+                                    : levelMedian[0]))
+                            .floor() *
+                        heightFactor)
+                    .floor();
+                setState(() {});
 
-              setState(() {});
+
+              }catch(err){
+                print("error revert to audio");
+              }
             })));
     if (isThreshold) {
       // dataWidgets.add(
@@ -5622,7 +5691,7 @@ class _MyHomePageState extends State<MyHomePage> {
       Widget triggerWidget = thresholdType == - 1 ? 
                 Icon(
                   Icons.escalator_sharp,
-                  color: deviceType == 1 && isPlaying == 1
+                  color: !isThreshold
                       ? Colors.amber.shade900
                       : Color(0xFF800000),
                 )
@@ -5777,6 +5846,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     } else {
                       closeRawSerial();
                       isThreshold = false;
+                      thresholdType = -1;
                       getMicrophoneData();
                     }
 
