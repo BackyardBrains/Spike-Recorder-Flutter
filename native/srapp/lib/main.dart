@@ -335,6 +335,7 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
   int THRESHOLD_CHANNEL_COUNT = 1;
   int samplesLength = SIZE;
   bool isPrevThresholdingStatus = true;
+  String prevKey = "";
 
   ffi.Pointer<ffi.Int16> _dataThreshold = allocate<ffi.Int16>(
       count: samplesLength, sizeOfType: ffi.sizeOf<ffi.Int16>());
@@ -348,6 +349,9 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
   nativec.setThresholdParametersProcess(1, level, sampleRate, 6, 0);
 
   bool isThresholding = false;
+  int thresholdingType = -1;
+  int prevThresholdingType = thresholdingType;
+  int thresholdFlag = 1;
   bool isInitial = true;
   // List<List<List<double>>> allEnvelopes = [];
   // int level = 8;
@@ -387,6 +391,11 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
       //   isInitial = false;
       // }
     }
+    if (thresholdingType != prevThresholdingType) {
+      prevThresholdingType = thresholdingType;
+      thresholdFlag = 1;
+    }
+
     if (isPrevThresholdingStatus != isThresholding) {
       isPrevThresholdingStatus = isThresholding;
       if (isThresholding) {
@@ -407,6 +416,7 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
     List<double> snapshotAveragedSamples = arr[15];
     List<int> thresholdValue = arr[16];
     int timeScaleBar = arr[17];
+    thresholdingType = arr[18];
 
     int maxSize = (allEnvelopes[0][0]).length;
     int globalPositionCap = (globalIdx * maxSize / 2).floor();
@@ -480,40 +490,48 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
             // thresholdHit = nativec.getThresholdHitProcess();
             // print("thresholdHit");
             // print(thresholdHit);
-            if (thresholdHit == 1){
-              // change Current Start into the newest position
-              // double simulateCurrentStartPosition( int sampleRate, int cBuffIdx, row, 
-              //level, skipCount, double divider, double innerWidth, bool isThreshold, int deviceType, CURRENT_START, devicePixelRatio, myArrTimescale, isOpeningFile) {
+            // if (thresholdHit == 1){
+            //   // change Current Start into the newest position
+            //   // double simulateCurrentStartPosition( int sampleRate, int cBuffIdx, row, 
+            //   //level, skipCount, double divider, double innerWidth, bool isThreshold, int deviceType, CURRENT_START, devicePixelRatio, myArrTimescale, isOpeningFile) {
               
-              // print('-----------------');
-              C_START = 0;
+            //   // print('-----------------');
+            //   C_START = 0;
 
-              for (int i = 80; i>timeScaleBar && timeScaleBar > 0; i--){
-                int transformScaleIdx = (i / 10).floor();
-                double tempDivider = myArrTimescale[i] / 10;      
-                int simLevel = calculateLevel(myArrTimescale[transformScaleIdx], sampleRate,
-                    surfaceWidth, skipCounts);
+            //   for (int i = 80; i>timeScaleBar && timeScaleBar > 0; i--){
+            //     int transformScaleIdx = (i / 10).floor();
+            //     double tempDivider = myArrTimescale[i] / 10;      
+            //     int simLevel = calculateLevel(myArrTimescale[transformScaleIdx], sampleRate,
+            //         surfaceWidth, skipCounts);
 
-                transformScaleIdx = ((i - 1) / 10).floor();
-                var row = {
-                  "timeScaleBar": arrTimeScale[transformScaleIdx], // label in UI
-                  "levelScale": i-1, //scrollIdx
-                  "posX": surfaceWidth * 1/2 ,
-                  // "posX": surfaceWidth,
-                  "direction": 1
-                };
+            //     transformScaleIdx = ((i - 1) / 10).floor();
+            //     var row = {
+            //       "timeScaleBar": arrTimeScale[transformScaleIdx], // label in UI
+            //       "levelScale": i-1, //scrollIdx
+            //       "posX": surfaceWidth * 1/2 ,
+            //       // "posX": surfaceWidth,
+            //       "direction": 1
+            //     };
 
-                double temp = simulateCurrentStartPosition(sampleRate.floor(), (allThresholdEnvelopesSize[0]/2).floor(), row,
-                  simLevel, skipCounts[simLevel], tempDivider, surfaceWidth, false, 0, C_START, devicePixelRatio, myArrTimescale, 0);
-                C_START = temp;
-                print('immediate C_START');
-                print(C_START);
-                CUR_START = C_START.floor();
+            //     double temp = simulateCurrentStartPosition(sampleRate.floor(), (allThresholdEnvelopesSize[0]/2).floor(), row,
+            //       simLevel, skipCounts[simLevel], tempDivider, surfaceWidth, false, 0, C_START, devicePixelRatio, myArrTimescale, 0);
+            //     C_START = temp;
+            //     print('immediate C_START');
+            //     print(C_START);
+            //     CUR_START = C_START.floor();
+            //   }
+
+              
+            //   // CURRENT_START = CUR_START;
+            // }
+
+            if (curKey != "") {
+              if (thresholdingType == 0 || curKey == thresholdingType.toString()){
+                thresholdFlag = 1;
+                prevKey = curKey;
               }
-
-              
-              // CURRENT_START = CUR_START;
             }
+
             nativec.setThresholdParametersProcess(
                 1, level, sampleRate, divider, CUR_START);
             double processedSamplesCount =
@@ -526,7 +544,8 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
                     divider,
                     CUR_START,
                     (allEnvelopes[0][level].length / divider).floor(),
-                    [1],[-1], 0));
+                    0,[thresholdingType], thresholdFlag));
+            thresholdFlag = 0;
             curSamples =
                 _thresholdBytes.sublist(0, processedSamplesCount.floor());
             thresholdHeads[c] = processedSamplesCount.floor();
@@ -685,7 +704,7 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
       }
       if (thresholdHit == 1){
         if (C_START != 0){
-          sendPort.send([buffers, arrHeads[0], eventPositionResultInt, thresholdHit, C_START]);
+          sendPort.send([buffers, arrHeads[0], eventPositionResultInt]);
         }else{
           sendPort.send([buffers, arrHeads[0], eventPositionResultInt]);  
         }
@@ -693,7 +712,13 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
         print("SEND c_start "+thresholdHit.toString());
         print(C_START);
       }else{
-        sendPort.send([buffers, arrHeads[0], eventPositionResultInt]);
+        if (prevKey == ""){
+          sendPort.send([buffers, arrHeads[0], [], [] ]);
+        }else{
+          // print('prevKey');
+          // print(prevKey);
+          sendPort.send([buffers, arrHeads[0], [(surfaceWidth/2)], [int.parse(prevKey)]]);
+        }
 
       }
       return;
@@ -910,7 +935,7 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
     // print(to);
     // print("buffers[1]");
     // print(buffers[1]);
-    sendPort.send([buffers, arrHeads[0], eventPositionResultInt]);
+    sendPort.send([buffers, arrHeads[0], eventPositionResultInt, arrMarkers]);
 
     // List<double> data =
     //     List.generate(samples.length, (index) => index.toDouble());
@@ -3066,12 +3091,19 @@ class _MyHomePageState extends State<MyHomePage> {
         // print(dupSamples2[dupSamples2.length-1]);
 
         cBuffIdx = curSamples[1];
-        markersData = curSamples[2];
-        if (curSamples.length > 4){
-          if (curSamples[3] == 1){
-            print('curSamples[4].floor()');
-            print(curSamples[4].floor());
-            CURRENT_START = curSamples[4].floor();
+        markersData = List<double>.from(curSamples[2]);
+        if (curSamples.length > 3){
+          if (isThreshold){
+            print('isThreshold');
+            globalMarkers = List<int>.from(curSamples[3]);
+            // print(globalMarkers);
+          }else{
+            globalMarkers = List<int>.from(curSamples[3]);
+            // if (curSamples[3] == 1){
+            //   print('curSamples[4].floor()');
+            //   print(curSamples[4].floor());
+            //   CURRENT_START = curSamples[4].floor();
+            // }
           }
         }
         // if (markersData.length> 0){
@@ -3100,20 +3132,21 @@ class _MyHomePageState extends State<MyHomePage> {
             level,
             divider,
             maxOsChannel,
-            CURRENT_START,
+            CURRENT_START,//5
             isPaused,
             currentKey,
             MediaQuery.of(context).size.width,
             _lowPassFilter,
-            _highPassFilter,
+            _highPassFilter,//10
             isLowPass,
             isHighPass,
             isNotch50,
             isNotch60,
-            isThreshold,
+            isThreshold,//15
             snapshotAveragedSamples,
             thresholdValue,
             timeScaleBar,
+            thresholdType,
             // DISPLAY_CHANNEL_FIX,
           ]);
           currentKey = "";
@@ -3143,6 +3176,7 @@ class _MyHomePageState extends State<MyHomePage> {
           snapshotAveragedSamples,
           thresholdValue,
           timeScaleBar,
+          thresholdType,
           // DISPLAY_CHANNEL_FIX,
         ]);
         currentKey = "";
@@ -3275,6 +3309,8 @@ class _MyHomePageState extends State<MyHomePage> {
           snapshotAveragedSamples,
           thresholdValue,
           timeScaleBar,
+          thresholdType,
+
           // DISPLAY_CHANNEL_FIX,
         ]);
       } else {
@@ -3297,6 +3333,7 @@ class _MyHomePageState extends State<MyHomePage> {
           snapshotAveragedSamples,
           thresholdValue,
           timeScaleBar,
+          thresholdType,
           // DISPLAY_CHANNEL_FIX,
         ]);
         currentKey = "";
