@@ -687,7 +687,7 @@ executeContentOfMessageBuffer(int offset,Uint8List messagesBuffer, Map<String, d
 }
 
 testEscapeSequence(int newByte,int offset,Uint8List messagesBuffer, bool weAreInsideEscapeSequence,
-    _messageBufferIndex, escapeSequenceDetectorIndex, writeResult, _isThreshold) {
+    _messageBufferIndex, escapeSequenceDetectorIndex, writeResult, _isThreshold, int sampleIndex) {
 
   int cBufHead = writeResult['cBufHead'];
   int cBufTail = writeResult['cBufTail'];
@@ -749,12 +749,21 @@ testEscapeSequence(int newByte,int offset,Uint8List messagesBuffer, bool weAreIn
           if (resetHead < 0) {
             resetHead = 0;
           }
-          cBufTail--;
+          // cBufTail--;
+          // if (cBufTail < 0) {
+          //   cBufTail = 0;
+          // }
+
+        }
+        if (sampleIndex - ESCAPE_SEQUENCE_LENGTH < 0){
+          cBufTail = cBufTail - (ESCAPE_SEQUENCE_LENGTH - sampleIndex);
+        }else{
+          cBufTail - ESCAPE_SEQUENCE_LENGTH;
           if (cBufTail < 0) {
             cBufTail = 0;
           }
-
         }
+
         // writeResult['messagesBuffer'] = messagesBuffer;
         writeResult['cBufHead'] = cBufHead;
         writeResult['cBufTail'] = cBufTail;

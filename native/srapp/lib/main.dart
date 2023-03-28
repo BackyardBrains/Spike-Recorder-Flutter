@@ -1311,7 +1311,8 @@ void serialBufferingEntryPoint(List<dynamic> values) {
               messageBufferIndex,
               escapeSequenceDetectorIndex,
               writeResult,
-              isThreshold);
+              isThreshold,
+              i);
           cBufHead = writeResult["cBufHead"]!;
           resetHead = writeResult["resetHead"]!;
           cBufTail = writeResult["cBufTail"]!;
@@ -1342,7 +1343,8 @@ void serialBufferingEntryPoint(List<dynamic> values) {
               messageBufferIndex,
               escapeSequenceDetectorIndex,
               writeResult,
-              isThreshold);
+              isThreshold,
+              i);
           cBufHead = writeResult["cBufHead"]!;
           cBufTail = writeResult["cBufTail"]!;
           resetHead = writeResult["resetHead"]!;
