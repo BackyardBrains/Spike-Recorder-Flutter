@@ -994,32 +994,35 @@ serialParsing(List<List<Int16List>> allEnvelopes,Map<String, dynamic> map,int su
           // print(sample.toDouble());
           if (!isThresholding) {
             // try {
-              cBuffIdx = arrHeads[numberOfParsedChannels - 1];
-              // print('cBufHead');
-              // print(cBufHead);
-              // print(cBufTail);
-              // print(cBuffIdx);
-              envelopingSamples(
-                  cBuffIdx,
-                  // sample.toDouble(),
-                  sample,
-                  allEnvelopes[numberOfParsedChannels - 1],
-                  SIZE_LOGS2,
-                  skipCounts,
-                  -1);
+              if (numberOfParsedChannels <= 6){
 
-              cBuffIdx++;
-              if (cBuffIdx == surfaceSize - 1) {
-                cBuffIdx = 0;
-                // _arrIsFullInt[numberOfParsedChannels-1]++;
-                if (numberOfParsedChannels == 1) {
-                  // globalPositionCap[0]++;
-                  globalIdx++;
+                cBuffIdx = arrHeads[numberOfParsedChannels - 1];
+                // print('cBufHead');
+                // print(cBufHead);
+                // print(cBufTail);
+                // print(cBuffIdx);
+                envelopingSamples(
+                    cBuffIdx,
+                    // sample.toDouble(),
+                    sample,
+                    allEnvelopes[numberOfParsedChannels - 1],
+                    SIZE_LOGS2,
+                    skipCounts,
+                    -1);
+
+                cBuffIdx++;
+                if (cBuffIdx == surfaceSize - 1) {
+                  cBuffIdx = 0;
+                  // _arrIsFullInt[numberOfParsedChannels-1]++;
+                  if (numberOfParsedChannels == 1) {
+                    // globalPositionCap[0]++;
+                    globalIdx++;
+                  }
+
+                  // isFull = true;
                 }
-
-                // isFull = true;
+                arrHeads[numberOfParsedChannels - 1] = cBuffIdx;
               }
-              arrHeads[numberOfParsedChannels - 1] = cBuffIdx;
             // } catch (err) {}
           } else {
             if (numberOfParsedChannels<6) {

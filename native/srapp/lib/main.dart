@@ -1042,6 +1042,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
   setCircularBuffer(circularBuffer);
   int processedFrame = 0;
   int framesAvailable = 0;
+  bool isInitial = true;
 
   String deviceType = values[4];
   // print(values[5]);
@@ -1107,6 +1108,8 @@ void serialBufferingEntryPoint(List<dynamic> values) {
   int batchModulo = 2;
   bool debugError = false;
   int sendingEventCount = 0;
+
+  int receivedBufferCounts = 0;
 
 
 
@@ -1180,6 +1183,10 @@ void serialBufferingEntryPoint(List<dynamic> values) {
 
     if (isPrevThresholdingStatus != isThresholding) {
       isPrevThresholdingStatus = isThresholding;
+      arrMarkers.clear();          
+      arrIntMarkers.clear();
+      arrIndicesMarkers.clear();
+      arrEventIndices.clear();
       if (isThresholding) {
         cBufferSize = SIZE;
         // threshold will be filled with c++
@@ -1541,9 +1548,10 @@ void serialBufferingEntryPoint(List<dynamic> values) {
 
       if (isThresholding) {
         cBuffIdx = 0;
-        for (int i = 0; i < zamples[0].length; i++) {
-          if (zamples[0][i].abs() > 2000) zamples[0][i] = 0;
-        }
+        // for (int i = 0; i < zamples[0].length; i++) {
+        //   // if (zamples[0][i].abs() > 2000) zamples[0][i] = 0;
+        //   zamples[c][i] = -zamples[c][i];
+        // }
         try {
           // curSamples = (nativec.appendSamplesThresholdProcess(snapshotAveragedSamples[0].floor(), thresholdValue[0] * 2, 0, zamples[c], zamples[c].length));
           // curSamples = (nativec.appendSamplesThresholdProcess(2, 30000, 0, zamples[c], zamples[c].length));
@@ -1615,6 +1623,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
           // curSamples = _thresholdBytes;
           curSamples =
               _thresholdBytes.sublist(0, processedSamplesCount.floor());
+
           // thresholdHeads[c] = processedSamplesCount.floor();
 
           // print(curSamples.length);
@@ -1626,8 +1635,8 @@ void serialBufferingEntryPoint(List<dynamic> values) {
         samplesLength = curSamples.length;
         cBuffIdx = samplesLength;
         globalIdx = 0;
-        // allThresholdEnvelopes[c][level]
-        //     .fillRange(0, allThresholdEnvelopes[c].length, 0);
+        allThresholdEnvelopes[c][level]
+            .fillRange(0, allThresholdEnvelopes[c].length, 0);
       } else {
 
 
@@ -1653,7 +1662,35 @@ void serialBufferingEntryPoint(List<dynamic> values) {
 
       // cBuffIdx = 0;
       if (isThresholding) {
-        // print("isthresholding");
+        if (isInitial){
+          final limit = 2000;
+          final negLimit = -limit;
+          // print("isthresholding");
+          int transformedCount = 0;
+          int lastTransformedIdx = 0;
+          for (int sIdx = 0 ; sIdx < samplesLength; sIdx++){
+            if (curSamples[sIdx]>limit || curSamples[sIdx]< negLimit){
+              transformedCount++;
+              curSamples[sIdx] = 0;
+              lastTransformedIdx = sIdx;
+            }
+          }
+          if (transformedCount == 0 && lastTransformedIdx > samplesLength/3){
+            isInitial = false;
+          }
+          // for (int i = 0; i < samplesLength; i++) {
+          //   // if (zamples[0][i].abs() > 2000) zamples[0][i] = 0;
+          //   curSamples[i] = -curSamples[i];
+          // }
+
+        }else{
+          // for (int i = 0; i < samplesLength; i++) {
+          //   // if (zamples[0][i].abs() > 2000) zamples[0][i] = 0;
+          //   curSamples[i] = -curSamples[i];
+          // }
+
+        }
+
         allThresholdEnvelopes[c][level] = curSamples;
         // continue;
       } else {
@@ -1734,6 +1771,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
       // print(allThresholdEnvelopes[0][level-1].sublist(0,30));
       // print(allThresholdEnvelopes[0][level].sublist(0,30));
       // print(allThresholdEnvelopes[0][level+1].sublist(0,30));
+      
       for (int c = 0; c < numberOfChannels; c++) {
         // Int16List envelopeSamples = (allThresholdEnvelopes[c][level]);
         // // Int16List envelopeSamples = (allThresholdEnvelopes[0][0]);
@@ -1755,8 +1793,12 @@ void serialBufferingEntryPoint(List<dynamic> values) {
       }
       // sendPort.send([buffers, arrHeads[0], arrIntMarkers.map((e)=> e.toDouble()).toList(), arrIndicesMarkers]);
       if (thresholdingType == -1){
-        sendPort.send([buffers, arrHeads[0], Uint8List(0), Uint8List(0)]);
+        sendPort.send([buffers, arrHeads[0], Uint16List(0), Uint16List(0)]);
       }else{
+        // sendPort.send([buffers, arrHeads[0], Uint8List(0), Uint16List(0)]);
+        if (eventPositionResultInt[0] != surfaceWidth/2){
+          sendPort.send([buffers, arrHeads[0], Uint16List(0), Uint16List(0)]);
+        }
         sendPort.send([buffers, arrHeads[0], eventPositionResultInt, arrIndicesMarkers]);
       }
 
@@ -1929,8 +1971,11 @@ void serialBufferingEntryPoint(List<dynamic> values) {
       }
       buffers.add(cBuff);
     }
-
-    sendPort.send([buffers, arrHeads[0], eventPositionResultInt, arrIndicesMarkers]);
+    // if (isThresholding && thresholdingType != -1){
+      sendPort.send([buffers, arrHeads[0], eventPositionResultInt, arrIndicesMarkers]);
+      eventPositionResultInt.fillRange(0, max_markers,0);
+      // arrIndicesMarkers.fillRange(0, max_markers,0);
+    // }
   });
 
 }
@@ -1999,6 +2044,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   List<int> thresholdValue = [10, 25, 25, 25, 25, 25];
   TextStyle fontThresholdStyle = TextStyle(color:Colors.black, fontSize:17);
+  
+  bool isChangingThresholdType = false;
   
 
   // bool isZoomingWhilePlaying = false;
@@ -2970,10 +3017,15 @@ class _MyHomePageState extends State<MyHomePage> {
         //   (Winaudio()).startRecording();
         // });
       }
-      await (Winaudio()).initBassAudio(sampleRate);
-      Future.delayed(Duration(milliseconds: 300), () {
-        (Winaudio()).startRecording();
-      });
+      try{
+        await (Winaudio()).initBassAudio(sampleRate);
+        Future.delayed(Duration(milliseconds: 300), () {
+          (Winaudio()).startRecording();
+        });
+
+      }catch(err){
+        print('init bass audio');
+      }
 
       print("start Recording - end");
 
@@ -3900,9 +3952,6 @@ class _MyHomePageState extends State<MyHomePage> {
                     children: <Widget>[
                       GestureDetector(
                         onTap:(){
-                          globalMarkers.clear();
-                          markersData.clear();
-
                           print("onpress");
                           print(item.idx);
                           thresholdType = item.idx;
@@ -3910,6 +3959,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
                           globalMarkers.clear();
                           markersData.clear();
+                          // isChangingThresholdType = true;
+                          // Future.delayed(Duration(milliseconds: 2000), () {
+                          //   isChangingThresholdType = false;
+                          // });
 
                           setState((){});
 
@@ -3964,7 +4017,7 @@ class _MyHomePageState extends State<MyHomePage> {
       serialPort.close();
       serialPort.dispose();
       serialReader.close();
-      _isolate.close();
+      closeIsolate();
       
     } catch (err) {}
   }
@@ -4153,11 +4206,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
       // print first result and close port.
       bool isReceiving = false;
-      Future.delayed(Duration(seconds: 1), () {
+      Future.delayed(Duration(milliseconds: 2000), () {
         isReceiving = true;
       });
       port.inputStream?.listen((Uint8List samples) {
-        if (!isReceiving) return;
+        // if (!isReceiving) return;
         // List<int> visibleSamples = [];
         // for (int sample in samples) {
         //   visibleSamples.add(sample);
@@ -4197,7 +4250,13 @@ class _MyHomePageState extends State<MyHomePage> {
 
       _receiveQueue.rest.listen((curSamples) {
         if (!isReceiving) return;
-
+        if (isChangingThresholdType) {
+          print("isChangingThresholdType");
+          globalMarkers.clear();
+          markersData.clear();
+          
+          return;
+        }
         // cBuffDouble
         // channelsData = List<Int16List>.from(curSamples[0]);
         channelsData = [];
@@ -4310,13 +4369,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
 
     serialReader = SerialPortReader(serialPort);
-    // bool isReceiving = false;
-    // Future.delayed(Duration(seconds:3),(){
-    //   isReceiving = true;
-    // });
     serialReader.stream.listen((samples) {
-      // if (!isReceiving) return;
-
       bool first = true;
       List<int> visibleSamples = [];
       // change to rawBytes not visible Samples
@@ -4357,7 +4410,21 @@ class _MyHomePageState extends State<MyHomePage> {
       currentKey = "";
     });
 
+
+    bool isReceiving = false;
+    Future.delayed(const Duration(milliseconds:2000),(){
+      isReceiving = true;
+    });
     _receiveQueue.rest.listen((curSamples) {
+      if (!isReceiving) return;
+      if (isChangingThresholdType) {
+        print("isChangingThresholdType " + thresholdType.toString());
+        globalMarkers.clear();
+        markersData.clear();
+        
+        return;
+      }
+
       // channelsData = [];
       // int viewChannel = min(DISPLAY_CHANNEL, curSamples.length);
       // for (int i = 0; i < viewChannel; i++) {
@@ -4378,6 +4445,10 @@ class _MyHomePageState extends State<MyHomePage> {
       // print(curSamples);
       // markersData = (curSamples[2] as List<int>).map((e) => e.toDouble()).toList(growable:false);
       globalMarkers = List<int>.from(curSamples[3]);
+      if (isThreshold && thresholdType == -1){
+        globalMarkers.clear();
+        markersData.clear();
+      }
 
       // var cBuffDouble2 = List<double>.generate(
       //     cBuffDouble.length, (index) => index.toDouble());
@@ -5595,8 +5666,14 @@ class _MyHomePageState extends State<MyHomePage> {
                             .floor() *
                         heightFactor)
                     .floor();
-                setState(() {});
+                // isChangingThresholdType = true;
+                // Future.delayed(Duration(milliseconds: 300), () {
+                //   globalMarkers.clear();
+                //   markersData.clear();
+                //   isChangingThresholdType = false;
+                // });
 
+                setState(() {});
 
               }catch(err){
                 print("error revert to audio");
