@@ -33,6 +33,7 @@ envelopingSamples(
       var skipCount = skipCounts[j];
       var envelopeSampleIndex = floor(_head / skipCount);
       var interleavedSignalIdx = envelopeSampleIndex * 2;
+
       if (_head % skipCount == 0) {
         _envelopes[j][interleavedSignalIdx] = sample;
         _envelopes[j][interleavedSignalIdx + 1] = sample;
@@ -46,8 +47,11 @@ envelopingSamples(
       }
     }
   } catch (err) {
+    print("allEnvelopes 3");
     print(err);
+    print('end err');
   }
+
 }
 
 calculateLevel(timescale, sampleRate, innerWidth, arrCounts) {

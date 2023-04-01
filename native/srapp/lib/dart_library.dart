@@ -9,7 +9,7 @@ unitInitializeEnvelope(int totalChannel, List<List<Int16List>> allEnvelopes,
     for (int i = 0; i < SIZE_LOGS2; i++) {
       int sz = (size).ceil();
       if (sz % 2 == 1) sz++;
-      envelopeSizes.add(sz);
+      if (c == 0) envelopeSizes.add(sz);
       // List<double> buffer = List.generate(sz, (index) => 0);
       Int16List buffer = Int16List(sz);
 
@@ -19,7 +19,7 @@ unitInitializeEnvelope(int totalChannel, List<List<Int16List>> allEnvelopes,
       // print(envelopes[i].length);
       size /= 2;
     }
-    print("envelopeSizes");
+    print("unitInitializeEnvelope : envelopeSizes");
     print(envelopeSizes);
     allEnvelopes.add(envelopes);
   }

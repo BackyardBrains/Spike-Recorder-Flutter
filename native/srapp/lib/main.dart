@@ -57,6 +57,10 @@ import 'dialog/custom_serial_dialog.dart';
 import 'utils/debouncers.dart';
 
 int thresholdType = -1;
+int forceThreshold = 1;
+int markerOutOfRange = 0;
+int excessiveTopGain = 0;
+int excessiveBottomGain = 0;
 const max_markers = 300;
 const signalMultiplier = 150;
 int maxOsChannel = 1;
@@ -70,7 +74,7 @@ var EXPANSION_BOARD = {};
 // import 'package:quick_usb/quick_usb.dart';
 const SIZE_LOGS2 = 10;
 const NUMBER_OF_SEGMENTS = 60;
-const skipCounts = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512];
+const skipCounts = [1, 2, 4, 8, 16,32, 64, 128, 256, 512];
 
 int cBuffIdx = 0;
 int tempBuffIdx = 0;
@@ -334,7 +338,7 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
   int SIZE_LOGS_THRESHOLD = 10;
   int THRESHOLD_CHANNEL_COUNT = 1;
   int samplesLength = SIZE;
-  bool isPrevThresholdingStatus = true;
+  bool isPrevThresholdingStatus = false;
   String prevKey = "";
 
   ffi.Pointer<ffi.Int16> _dataThreshold = allocate<ffi.Int16>(
@@ -352,6 +356,8 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
   int thresholdingType = -1;
   int prevThresholdingType = thresholdingType;
   int thresholdFlag = 1;
+  List<int> thresholdValue = [];
+  int forceThreshold = 1;
   bool isInitial = true;
   // List<List<List<double>>> allEnvelopes = [];
   // int level = 8;
@@ -414,7 +420,9 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
     }
 
     List<double> snapshotAveragedSamples = arr[15];
-    List<int> thresholdValue = arr[16];
+    forceThreshold = arr[19];
+    if (forceThreshold == 1) thresholdValue = arr[16];
+    
     int timeScaleBar = arr[17];
     thresholdingType = arr[18];
 
@@ -593,7 +601,6 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
         } else {
           for (int i = 0; i < samplesLength; i++) {
             int tmp = curSamples[i];
-            // print("allEnvelopes 3");
             // print(tmp);
             // print(nativec.gain(seri(), 10.0));
             try {
@@ -1067,6 +1074,9 @@ void serialBufferingEntryPoint(List<dynamic> values) {
   setCircularBuffer(circularBuffer);
   int processedFrame = 0;
   int framesAvailable = 0;
+  List<int> thresholdValue = [];
+  int forceThreshold = 1;
+
   bool isInitial = true;
 
   String deviceType = values[4];
@@ -1085,7 +1095,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
   int SIZE_LOGS_THRESHOLD = 10;
   int THRESHOLD_CHANNEL_COUNT = 1;
   int samplesLength = SIZE;
-  bool isPrevThresholdingStatus = true;
+  bool isPrevThresholdingStatus = false;
 
   unitInitializeEnvelope(THRESHOLD_CHANNEL_COUNT, allThresholdEnvelopes,
       allThresholdEnvelopesSize, size, SIZE, SIZE_LOGS_THRESHOLD);
@@ -1185,7 +1195,10 @@ void serialBufferingEntryPoint(List<dynamic> values) {
 
     isThresholding = arr[14];
     List<double> snapshotAveragedSamples = arr[15];
-    List<int> thresholdValue = arr[16];
+    forceThreshold = arr[18];
+    if (forceThreshold==1){
+      thresholdValue = arr[16];
+    }
     int thresholdingType = arr[17];
 
     int maxSize = (allEnvelopes[0][0]).length;
@@ -2056,6 +2069,7 @@ class _MyHomePageState extends State<MyHomePage> {
   double _highPassFilter = 0;
 
   bool isThreshold = false;
+  bool isMedianDragStart = false;
 
   // List<double> thresholdMarkerTop = [-10000,-10000,-10000,-10000,-10000,-10000];
   List<double> thresholdMarkerTop = [
@@ -2121,6 +2135,11 @@ class _MyHomePageState extends State<MyHomePage> {
   List<double> listIndexSerial = [5, 5, 5, 5, 5, 5];
   List<double> listIndexHid = [7, 7, 7, 7, 7, 7];
   List<double> listIndexAudio = [9, 9];
+  int defaultListIndexAudio = 9;
+  int defaultListIndexSerial = 5;
+  List<double> listMedianDistance = [0,0,0,0,0,0];
+  List<int> listDefaultIndex = [9, 9, 9, 9, 9, 9];
+  List<int> listGainIndex = [9, 9, 9, 9, 9, 9];
 
   List<double> listChannelSerial = [
     500,
@@ -2155,12 +2174,12 @@ class _MyHomePageState extends State<MyHomePage> {
     0.75,
     1,
     5,
-    20,
+    20, //5
     70,
     250,
     500,
     550,
-    600,
+    600, //10
     650,
     700,
     800,
@@ -2177,7 +2196,7 @@ class _MyHomePageState extends State<MyHomePage> {
     7000,
     8000,
     9000,
-    10000,
+    10000, //10
     11000,
     14000,
     20000,
@@ -3094,7 +3113,7 @@ class _MyHomePageState extends State<MyHomePage> {
         markersData = List<double>.from(curSamples[2]);
         if (curSamples.length > 3){
           if (isThreshold){
-            print('isThreshold');
+            // print('isThreshold');
             globalMarkers = List<int>.from(curSamples[3]);
             // print(globalMarkers);
           }else{
@@ -3147,6 +3166,7 @@ class _MyHomePageState extends State<MyHomePage> {
             thresholdValue,
             timeScaleBar,
             thresholdType,
+            forceThreshold,
             // DISPLAY_CHANNEL_FIX,
           ]);
           currentKey = "";
@@ -3177,6 +3197,7 @@ class _MyHomePageState extends State<MyHomePage> {
           thresholdValue,
           timeScaleBar,
           thresholdType,
+          forceThreshold,
           // DISPLAY_CHANNEL_FIX,
         ]);
         currentKey = "";
@@ -3310,7 +3331,7 @@ class _MyHomePageState extends State<MyHomePage> {
           thresholdValue,
           timeScaleBar,
           thresholdType,
-
+          forceThreshold,
           // DISPLAY_CHANNEL_FIX,
         ]);
       } else {
@@ -3334,6 +3355,7 @@ class _MyHomePageState extends State<MyHomePage> {
           thresholdValue,
           timeScaleBar,
           thresholdType,
+          forceThreshold,
           // DISPLAY_CHANNEL_FIX,
         ]);
         currentKey = "";
@@ -3486,7 +3508,7 @@ class _MyHomePageState extends State<MyHomePage> {
       int prevSegment =
           (allEnvelopes[0][tempLevel].length / tempDivider).floor();
       // print(prevSegment);
-      if (prevSegment <= 2) {
+      if (prevSegment <= 1) {
         timeScaleBar = tempTimeScaleBar;
         return;
       }
@@ -3585,23 +3607,6 @@ class _MyHomePageState extends State<MyHomePage> {
       FocusScope.of(context).requestFocus(keyboardFocusNode);
     }
 
-    if (thresholdMarkerTop[0] == -10000) {
-      double heightFactor = (channelGains[0] / signalMultiplier);
-      final halfMaxIntValue = 32767 / 2 / heightFactor;
-
-      // thresholdMarkerTop[0] = (MediaQuery.of(context).size.height / 2) - 12;
-      thresholdMarkerTop[0] = halfMaxIntValue - 12;
-      thresholdValue[0] = ((thresholdMarkerTop[0] +
-                      12 -
-                      (MediaQuery.of(context).size.height / 2))
-                  .floor() *
-              heightFactor)
-          .floor();
-      print('channelGains[0]');
-      // print(channelGains[0]);
-      print(heightFactor);
-      print(thresholdValue[0]);
-    }
 
     if (Platform.isAndroid || Platform.isIOS) {
       return Scaffold(
@@ -4274,7 +4279,7 @@ class _MyHomePageState extends State<MyHomePage> {
           CURRENT_START,
           isPaused,
           currentKey,
-          MediaQuery.of(context).size.width,
+          MediaQuery.of(context).size.width, //10
           isLowPass,
           isHighPass,
           isNotch50,
@@ -4283,6 +4288,7 @@ class _MyHomePageState extends State<MyHomePage> {
           snapshotAveragedSamples,
           thresholdValue,
           thresholdType,
+          forceThreshold,
         ]);
         currentKey = "";
       });
@@ -4362,6 +4368,7 @@ class _MyHomePageState extends State<MyHomePage> {
           snapshotAveragedSamples,
           thresholdValue,
           thresholdType,
+          forceThreshold,          
         ]);
         currentKey = "";
       });
@@ -4444,7 +4451,7 @@ class _MyHomePageState extends State<MyHomePage> {
         snapshotAveragedSamples,
         thresholdValue,
         thresholdType,
-
+        forceThreshold,
       ]);
       currentKey = "";
     });
@@ -4967,6 +4974,25 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     }
 
+    if (thresholdMarkerTop[0] == -10000) {
+      double heightFactor = (channelGains[0] / signalMultiplier);
+      final halfMaxIntValue = 32767 / 2 / heightFactor;
+
+      // thresholdMarkerTop[0] = (MediaQuery.of(context).size.height / 2) - 12;
+      thresholdMarkerTop[0] = halfMaxIntValue - 12;
+      thresholdValue[0] = ((thresholdMarkerTop[0] +
+                      12 -
+                      (MediaQuery.of(context).size.height / 2))
+                  .floor() *
+              heightFactor)
+          .floor();
+
+      double median =
+          levelMedian[0] == -1 ? initialLevelMedian[0] : levelMedian[0];
+      listMedianDistance[0] = thresholdMarkerTop[0] + 12 - median;
+    }
+
+
     List<Widget> dataWidgets = [];
     if (!isLocal && channelsData.length > 0) {
       for (int channelIdx = 0; channelIdx < channelsData.length; channelIdx++) {
@@ -5321,7 +5347,60 @@ class _MyHomePageState extends State<MyHomePage> {
                 setState(() {});
               }
             },
+            onVerticalDragStart: (dragDetailStart){
+              if (!isMedianDragStart){
+                print('isMedianDragStart');
+                print(isMedianDragStart);
+                isMedianDragStart = true;
+                double median = levelMedian[c] == -1
+                                    ? initialLevelMedian[c]
+                                    : levelMedian[c];
+
+                // thresholdMarkerTop[0] += dragUpdateVerticalDetails.delta.dy;
+                // listMedianDistance[0] = thresholdMarkerTop[0] + 12 - median;
+                double curDistance = 0;
+                // if (thresholdMarkerTop[0] < 0){
+                //   curDistance = (thresholdMarkerTop[0] + 12 - median).abs();
+                // }else{
+                  curDistance = thresholdMarkerTop[0] + 12 - median;
+                // }
+                // print('curDistance');
+                // print(curDistance);
+                // print('initial Distance');
+                // print(listMedianDistance[c]);
+                double scaleRatio = 1;
+                if (deviceType == 0){
+                  scaleRatio = listChannelAudio[listIndexAudio[c].floor()] / listChannelAudio[defaultListIndexAudio];
+                }else{
+                  scaleRatio = listChannelSerial[listIndexSerial[c].floor()] / listChannelSerial[defaultListIndexSerial];
+                }
+
+                listMedianDistance[c] = curDistance * scaleRatio;
+                thresholdMarkerTop[0] = median + listMedianDistance[0] / scaleRatio - 12;
+
+                // print('transformed Distance ');
+                // print(thresholdMarkerTop[0]);
+                // print(curDistance);
+                // print(scaleRatio);
+                // print(listChannelAudio[listDefaultIndex[c]]);
+                // print(listChannelAudio[defaultListIndexAudio]);
+                // print(listMedianDistance[c]);
+              }
+              // if (isThreshold){
+              //   thresholdMarkerTop[0] -= 12;
+              // }
+            },
+            onVerticalDragEnd: (dragDetailEnd){
+                print('isMedianDrag END');
+                print(isMedianDragStart);
+                isMedianDragStart = false;
+              // if (isThreshold){
+              //   thresholdMarkerTop[0] -= 12;
+              // }
+            },
             onVerticalDragUpdate: (dragUpdateVerticalDetails) {
+              // forceThreshold = 0;
+              int diffPosition = (dragUpdateVerticalDetails.globalPosition.dy - levelMedian[c]).floor();
               levelMedian[c] = dragUpdateVerticalDetails.globalPosition.dy;
 
               double heightFactor = (channelGains[0] / signalMultiplier);
@@ -5333,15 +5412,40 @@ class _MyHomePageState extends State<MyHomePage> {
               //             .floor() *
               //         heightFactor)
               //     .floor();
-              thresholdValue[0] = ((thresholdMarkerTop[0] +
-                              12 -
-                              (levelMedian[0] == -1
-                                  ? initialLevelMedian[0]
-                                  : levelMedian[0]))
-                          .floor() *
-                      heightFactor)
-                  .floor();
 
+              // thresholdValue[0] = ((thresholdMarkerTop[0] +
+              //                 12 -
+              //                 (levelMedian[0] == -1
+              //                     ? initialLevelMedian[0]
+              //                     : levelMedian[0]))
+              //             .floor() *
+              //         heightFactor)
+              //     .floor();
+              if (isThreshold){
+                // print(diffPosition)
+                // thresholdValue[0] += diffPosition;
+                double median = levelMedian[c] == -1
+                                    ? initialLevelMedian[c]
+                                    : levelMedian[c];
+
+                // thresholdMarkerTop[0] += dragUpdateVerticalDetails.delta.dy;
+                // listMedianDistance[0] = thresholdMarkerTop[0] + 12 - median;
+                double scaleRatio = 1;
+                if (deviceType == 0){
+                  scaleRatio = listChannelAudio[defaultListIndexAudio] / listChannelAudio[listIndexAudio[c].floor()];
+                }else{
+                  scaleRatio = listChannelSerial[defaultListIndexSerial] / listChannelSerial[listIndexSerial[c].floor()];
+                }
+                thresholdMarkerTop[0] = median + listMedianDistance[0] * scaleRatio - 12;
+
+                // if (deviceType == 0){
+                //   listDefaultIndex[c] = listIndexAudio[c].floor();
+                // }else{
+                //   listDefaultIndex[c] = listIndexSerial[c].floor();
+                // }
+
+
+              }
               if (isPlaying == 2) {
                 setState(() {});
               }
@@ -5358,8 +5462,14 @@ class _MyHomePageState extends State<MyHomePage> {
                         print(c);
                         List<double> res = increaseGain(c);
                         if (isThreshold) {
+                          forceThreshold = 0; 
+                          // print('res[0]');
+                          // print(res[0]);
+                          // print(res[1]);
+
                           // setThresholdMarker(c, thresholdMarkerTop[c]);
-                          setThresholdMarker(c, thresholdMarkerTop,
+                          if (res[0] != res [1])
+                            setThresholdMarker(c, thresholdMarkerTop,
                               thresholdValue, res[0], res[1]);
                         }
 
@@ -5397,8 +5507,13 @@ class _MyHomePageState extends State<MyHomePage> {
                         // decreaseGain(c);
                         List<double> res = decreaseGain(c);
                         if (isThreshold) {
+                          forceThreshold = 0; 
                           // setThresholdMarker(c, thresholdMarkerTop[c]);
-                          setThresholdMarker(c, thresholdMarkerTop,
+                          print('res[0]');
+                          print(res[0]);
+                          print(res[1]);
+                          if (res[0] != res [1])
+                            setThresholdMarker(c, thresholdMarkerTop,
                               thresholdValue, res[0], res[1]);
                         }
 
@@ -5695,7 +5810,10 @@ class _MyHomePageState extends State<MyHomePage> {
                 for (int c = 0; c < 6; c++) {
                   initialLevelMedian[c] = MediaQuery.of(context).size.height / 2;
                   levelMedian[c] = MediaQuery.of(context).size.height / 2;
+                  listMedianDistance[0] = thresholdMarkerTop[0] + 12 - levelMedian[c];
                 }
+
+
                 double heightFactor = (channelGains[0] / signalMultiplier);
                 thresholdValue[0] = ((thresholdMarkerTop[0] +
                                 12 -
@@ -5729,27 +5847,68 @@ class _MyHomePageState extends State<MyHomePage> {
       //RIGHT markerIdx
       if (thresholdType == -1){
         dataWidgets.add(Positioned(
-          top: thresholdMarkerTop[0],
+          top: markerOutOfRange == 1 ? 50 : markerOutOfRange == 2 ? MediaQuery.of(context).size.height * 0.95 : thresholdMarkerTop[0],
           right: 20,
           child: GestureDetector(
             onVerticalDragUpdate: (dragUpdateVerticalDetails) {
-              thresholdMarkerTop[0] =
-                  dragUpdateVerticalDetails.globalPosition.dy - 12;
+              forceThreshold = 1; 
+              int c =0;
 
-              print('levelMedian[0]');
+              double currentY = dragUpdateVerticalDetails.globalPosition.dy - 12;
+
+              print('levelMedian[0] ');
               print(
-                  levelMedian[0] == -1 ? initialLevelMedian[0] : levelMedian[0]);
+                  levelMedian[c] == -1 ? initialLevelMedian[c] : levelMedian[c]);
               // double heightFactor = 32767 / (MediaQuery.of(context).size.height/2);
-              double heightFactor = (channelGains[0] / signalMultiplier);
+
+              double median = levelMedian[c] == -1
+                                  ? initialLevelMedian[c]
+                                  : levelMedian[c];
+              double heightFactor = (channelGains[c] / signalMultiplier);
               // (MediaQuery.of(context).size.height / 2))
-              thresholdValue[0] = ((thresholdMarkerTop[0] +
+
+              // listMedianDistance[0] = currentY + 12 - median;
+              // if (deviceType == 0){
+              //   listDefaultIndex[0] = listIndexAudio[0].floor();
+              // }else{
+              //   listDefaultIndex[0] = listIndexSerial[0].floor();
+              // }
+
+              int tempThresholdValue = ((currentY +
                               12 -
-                              (levelMedian[0] == -1
-                                  ? initialLevelMedian[0]
-                                  : levelMedian[0]))
+                              median)
                           .floor() *
                       heightFactor)
                   .floor();
+              if (currentY > 50 && currentY < MediaQuery.of(context).size.height * 0.95){
+                markerOutOfRange = 0;
+              }
+              if (markerOutOfRange == 0){
+
+                if (currentY < 50){
+                  markerOutOfRange = 1;
+                }else
+                if (currentY > MediaQuery.of(context).size.height * 0.95){
+                  markerOutOfRange = 2;
+                }else{
+                  markerOutOfRange = 0;
+                  thresholdValue[0] = tempThresholdValue;
+                  thresholdMarkerTop[0] = currentY;
+                }
+              }
+
+              double scaleRatio = 1;
+              if (deviceType == 0){
+                scaleRatio = listChannelAudio[listIndexAudio[c].floor()] / listChannelAudio[defaultListIndexAudio];
+              }else{
+                scaleRatio = listChannelSerial[listIndexSerial[c].floor()] / listChannelSerial[defaultListIndexSerial];
+              }
+              double curDistance = thresholdMarkerTop[0] + 12 - median;
+              listMedianDistance[c] = curDistance * scaleRatio;
+
+              
+
+              setState((){});
               // print('channelGains[0]2222');
               // // print(channelGains[0]);
               // print(heightFactor);
@@ -5772,31 +5931,35 @@ class _MyHomePageState extends State<MyHomePage> {
               height: 25,
               color: Colors.transparent,
               child: Transform.rotate(
-                angle: -90 * pi / 180,
+                angle:                       
+                  markerOutOfRange == 0 ? -90 * pi / 180 : 
+                  markerOutOfRange == 2 ? -180 * pi / 180:
+                  0,
                 child: Icon(Icons.water_drop_rounded,
-                    // key: keyTutorialAudioLevel,
                     color: Colors.green),
               ),
             ),
           ),
         ));
-        dataWidgets.add(Positioned(
-            top: thresholdMarkerTop[0] + 12,
-            right: 20,
-            child: Container(
-            width: MediaQuery.of(context).size.width,
-            child: DottedLine(
-              direction: Axis.horizontal,
-              lineLength: double.infinity,
-              lineThickness: 1.0,
-              dashLength: 4.0,
-              dashColor: Colors.green,
-              dashRadius: 0.0,
-              dashGapLength: 4.0,
-              dashGapColor: Colors.transparent,
-              dashGapRadius: 0.0,
-            ),
-          )));
+        if (markerOutOfRange == 0){
+          dataWidgets.add(Positioned(
+              top: thresholdMarkerTop[0] + 12,
+              right: 20,
+              child: Container(
+              width: MediaQuery.of(context).size.width,
+              child: DottedLine(
+                direction: Axis.horizontal,
+                lineLength: double.infinity,
+                lineThickness: 1.0,
+                dashLength: 4.0,
+                dashColor: Colors.green,
+                dashRadius: 0.0,
+                dashGapLength: 4.0,
+                dashGapColor: Colors.transparent,
+                dashGapRadius: 0.0,
+              ),
+            )));
+        }
       }else
       if (thresholdType == 0){
         dataWidgets.add(createDottedCenterLine());
@@ -6948,6 +7111,9 @@ class _MyHomePageState extends State<MyHomePage> {
       //   channelGains[c]-=200;
       // }
       double idx = listIndexAudio[c];
+      print('minIndexAudio');
+      print(minIndexAudio);
+      print(idx);
       if (idx - 1 > minIndexAudio) {
         result[0] = listChannelAudio[idx.toInt()];
         idx--;
@@ -7009,6 +7175,10 @@ class _MyHomePageState extends State<MyHomePage> {
       //   channelGains[c]+=200;
       // }
       double idx = listIndexAudio[c];
+      print('maxIndexAudio');
+      print(maxIndexAudio);
+      print(idx);
+
       if (idx + 1 < maxIndexAudio) {
         result[0] = listChannelAudio[idx.toInt()];
         idx++;
@@ -7016,6 +7186,9 @@ class _MyHomePageState extends State<MyHomePage> {
         channelGains[c] = listChannelAudio[idx.toInt()];
         result[1] = listChannelAudio[idx.toInt()];
       }
+
+      // print('result');
+      // print(result);
 
       _sendAnalyticsEvent("button_gain_dec", {
         "device": "Audio",
@@ -7080,7 +7253,16 @@ class _MyHomePageState extends State<MyHomePage> {
     //   channelGains[c] = listChannelAudio[idx.toInt()];
     // }
 
-    double scaleRatio = prevVal / curVal;
+
+
+    // double scaleRatio = prevVal / curVal;
+    double scaleRatio = 0;
+    if (deviceType == 0){
+      scaleRatio = listChannelAudio[listDefaultIndex[c]] / curVal;
+    }else{
+      scaleRatio = listChannelSerial[listDefaultIndex[c]] / curVal;
+    }
+    // double scaleRatio = curVal / prevVal;
     /*
 
     -- 72 - 10%
@@ -7098,13 +7280,38 @@ class _MyHomePageState extends State<MyHomePage> {
     print('scaleRatio');
     print(scaleRatio);
 
-    double tempMarkerTop = thresholdMarkerTop[0];
+    double tempMarkerTop = thresholdMarkerTop[c];
     final double prevScaleRatio = scaleRatio;
     final double prevTempMarkerTop = tempMarkerTop;
 
+      double median =
+          levelMedian[c] == -1 ? initialLevelMedian[c] : levelMedian[c];
+      // double medianDistance = (thresholdMarkerTop[c] - median);
+    double medianDistance = listMedianDistance[c];
+
+    print('medianDistance');
+    // print(thresholdMarkerTop[c]);
+    // print(median);
+    print(medianDistance);
+    // print('excessiveTopGain');
+    // print(excessiveTopGain);
+    // print('excessiveBottomGain');
+    // print(excessiveBottomGain);
+    
+
     if (scaleRatio == 1)
-      return;
+      // return;
+      tempMarkerTop = median + medianDistance * scaleRatio - 12;
+
     else if (scaleRatio < 1) {
+      if (excessiveTopGain-1 > 0){
+        excessiveTopGain--;
+        print('excessiveTopGain return');      
+        print(excessiveTopGain);      
+        return;
+      }else{
+        excessiveTopGain = 0;
+      }
       print("increasing? " +
           prevVal.toString() +
           " _ " +
@@ -7113,11 +7320,22 @@ class _MyHomePageState extends State<MyHomePage> {
           scaleRatio.toString());
       print(tempMarkerTop);
       scaleRatio = scaleRatio;
-      tempMarkerTop = tempMarkerTop / scaleRatio;
+      // tempMarkerTop = tempMarkerTop + thresholdMarkerTop[0] * scaleRatio;
+      tempMarkerTop = median + medianDistance * scaleRatio - 12;
       print(tempMarkerTop);
       print("-----------");
       // scaleRatio = scaleRatio * -1;
-    } else {
+    } else { //UP or +
+      if (excessiveBottomGain-1 > 0){
+        excessiveBottomGain--;
+        print('excessiveBottomGain return');
+        print(excessiveBottomGain);      
+
+        return;
+      }else{
+        excessiveBottomGain = 0;
+      }
+
       print("decreasing? " +
           prevVal.toString() +
           " _ " +
@@ -7125,22 +7343,34 @@ class _MyHomePageState extends State<MyHomePage> {
           " : " +
           scaleRatio.toString());
       print(tempMarkerTop);
-      scaleRatio = 1 - scaleRatio;
-      tempMarkerTop = tempMarkerTop + thresholdMarkerTop[0] * scaleRatio;
+      print(median);
+      print(medianDistance);
+      // scaleRatio = 1 - scaleRatio;
+      // tempMarkerTop = tempMarkerTop + thresholdMarkerTop[0] * scaleRatio;
+      tempMarkerTop = median + medianDistance * scaleRatio - 12;
+
       print(tempMarkerTop);
       print("-----------");
     }
 
     if (tempMarkerTop < 50) {
-      thresholdMarkerTop[0] = prevTempMarkerTop;
-    } else if (tempMarkerTop > MediaQuery.of(context).size.height * 0.95) {
-      thresholdMarkerTop[0] = prevTempMarkerTop;
-      listIndexAudio[c] = listChannelAudio.indexOf(prevVal).toDouble();
-      channelGains[c] = prevVal;
-    } else {
+      excessiveTopGain++;
+      markerOutOfRange = 1;
       thresholdMarkerTop[0] = tempMarkerTop;
-      listIndexAudio[c] = listChannelAudio.indexOf(prevVal).toDouble();
-      channelGains[c] = prevVal;
+    } else if (tempMarkerTop > MediaQuery.of(context).size.height * 0.95) {
+      excessiveBottomGain++;
+
+      markerOutOfRange = 2;
+      thresholdMarkerTop[0] = tempMarkerTop;
+      // listIndexAudio[c] = listChannelAudio.indexOf(prevVal).toDouble();
+      // channelGains[c] = prevVal;
+    } else {
+      excessiveTopGain = 0;
+      excessiveBottomGain = 0;
+      markerOutOfRange = 0;
+      thresholdMarkerTop[0] = tempMarkerTop;
+      // listIndexAudio[c] = listChannelAudio.indexOf(prevVal).toDouble();
+      // channelGains[c] = prevVal;
     }
     double heightFactor = (channelGains[0] / signalMultiplier);
     // thresholdValue[0] = ((thresholdMarkerTop[0] +
@@ -7151,14 +7381,14 @@ class _MyHomePageState extends State<MyHomePage> {
     //             .floor() *
     //         heightFactor)
     //     .floor();
-    thresholdValue[0] = ((thresholdMarkerTop[0] +
-                    12 -
-                    (levelMedian[0] == -1
-                        ? initialLevelMedian[0]
-                        : levelMedian[0]))
-                .floor() *
-            heightFactor)
-        .floor();
+    // thresholdValue[0] = ((thresholdMarkerTop[0] +
+    //                 12 -
+    //                 (levelMedian[0] == -1
+    //                     ? initialLevelMedian[0]
+    //                     : levelMedian[0]))
+    //             .floor() *
+    //         heightFactor)
+    //     .floor();
 
     print(thresholdMarkerTop[0].toString() +
         "  _  " +
