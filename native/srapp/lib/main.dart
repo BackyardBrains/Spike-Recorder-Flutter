@@ -1350,7 +1350,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
               escapeSequenceDetectorIndex,
               writeResult,
               isThreshold,
-              i);
+              ( (i - offsetIn) / 2 / numberOfChannels).floor() );
           cBufHead = writeResult["cBufHead"]!;
           resetHead = writeResult["resetHead"]!;
           cBufTail = writeResult["cBufTail"]!;
@@ -1605,11 +1605,11 @@ void serialBufferingEntryPoint(List<dynamic> values) {
             // if (thresholdingType == 0){
             //   eventIndex = 1;
             // }else
-            if (eventIndex >= len || eventIndex> 10){
-              print(' eventIndex wrong ');
-              // eventIndex=0;
-              eventIndex=(eventIndex/3).floor();
-            }
+            // if (eventIndex >= len || eventIndex> 10){
+            //   print(' eventIndex wrong ');
+            //   // eventIndex=0;
+            //   eventIndex=(eventIndex/3).floor();
+            // }
             processedSamplesCount=(nativec.appendSamplesThresholdProcess(
                 snapshotAveragedSamples[0].floor(),
                 thresholdValue[0],
@@ -1829,6 +1829,11 @@ void serialBufferingEntryPoint(List<dynamic> values) {
 
         // Int16List cBuff = envelopeSamples;
         Int16List cBuff = curSamples;
+        int lastIndex = curSamples.lastIndexWhere((element) => element != 0);
+        // print(cBuff.getRange( (curSamples.length - 50).floor(), curSamples.length));
+        if (lastIndex>-1){
+          cBuff.fillRange(lastIndex, curSamples.length - 1, curSamples[curSamples.length - 2]);
+        }
         buffers.add(cBuff);
       }
       // sendPort.send([buffers, arrHeads[0], arrIntMarkers.map((e)=> e.toDouble()).toList(), arrIndicesMarkers]);

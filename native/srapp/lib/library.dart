@@ -172,8 +172,8 @@ executeOneMessage(String typeOfMessage, String valueOfMessage, int offsetin, Map
     // print( offsetin );
 
     writeResult['eventsData']['positions'].add(writeResult['cBufHead'].toDouble() + offsetin);
-    writeResult['eventsData']['eventIndices'].add(writeResult['posCurSample']+offsetin);
-    // writeResult['eventsData']['eventIndices'].add(writeResult['posCurSample']);
+    // writeResult['eventsData']['eventIndices'].add(writeResult['posCurSample']+offsetin);
+    writeResult['eventsData']['eventIndices'].add(writeResult['posCurSample']);
     // writeResult['eventsData']['eventIndices'].add(writeResult['posCurSample']-offsetin);
     // writeResult['eventsData']['drawIndices'].add(writeResult['posCurSample']);
     // writeResult['eventsData']['positions'].add(writeResult['cBuffIdx'].toDouble() );

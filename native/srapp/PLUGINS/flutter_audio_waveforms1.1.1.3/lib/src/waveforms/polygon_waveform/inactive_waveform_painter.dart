@@ -155,7 +155,7 @@ class PolygonInActiveWaveformPainter extends InActiveWaveformPainter {
           evY = -50;
         }
 
-        try{
+        // try{
           for (i = 0; i < n; i++) {
             if (eventMarkersPosition[i] == 0) {
               continue;
@@ -197,11 +197,11 @@ class PolygonInActiveWaveformPainter extends InActiveWaveformPainter {
             prevX = evX;
             tp.paint(canvas, new Offset(evX - 3, counterStacked));
           }
-        }catch(err){
-          print('err waveform');
-          print(eventMarkersPosition.length);
-          print(err);
-        }
+        // }catch(err){
+        //   print('err waveform');
+        //   print(eventMarkersPosition.length);
+        //   print(err);
+        // }
       }
     } catch (err) {
       print("errx");
