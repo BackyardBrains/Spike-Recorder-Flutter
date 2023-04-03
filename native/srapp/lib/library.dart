@@ -126,19 +126,10 @@ executeOneMessage(String typeOfMessage, String valueOfMessage, int offsetin, Map
   // print(typeOfMessage);
   if (typeOfMessage == "HWT") {
     var hardwareType = (valueOfMessage);
-    // print(hardwareType.length);
-    // print("MUSCLESS".length);
-    // print(DEVICE_CATALOG[hardwareType] != null);
-    // print(DEVICE_CATALOG[hardwareType]);
-    // print(DEVICE_CATALOG.containsKey("MUSCLESS"));
-    // // print(DEVICE_CATALOG);
-    // print(deviceInfoPort);
-
     if (DEVICE_CATALOG[hardwareType] != null) {
       CURRENT_DEVICE = DEVICE_CATALOG[hardwareType];
       //SEND INTO STREAM, REDRAW
       deviceInfoPort.send(hardwareType);
-      // libDeviceBloc.changeDeviceStatus(hardwareType);
     }
   } else if (typeOfMessage == "EVNT") {
     // try{
@@ -166,44 +157,11 @@ executeOneMessage(String typeOfMessage, String valueOfMessage, int offsetin, Map
 
     writeResult['eventsData']['indices'].add(mkey);
     writeResult['eventsData']['numbers'].add(mkey.toString());
-    // print("event triggerred - writeResult['cBuffIdx']" );
-    // print(writeResult['cBuffIdx'] );
-    // print( 'offsetin' );
-    // print( offsetin );
 
     writeResult['eventsData']['positions'].add(writeResult['cBufHead'].toDouble() + offsetin);
-    // writeResult['eventsData']['eventIndices'].add(writeResult['posCurSample']+offsetin);
     writeResult['eventsData']['eventIndices'].add(writeResult['posCurSample']);
-    // writeResult['eventsData']['eventIndices'].add(writeResult['posCurSample']-offsetin);
-    // writeResult['eventsData']['drawIndices'].add(writeResult['posCurSample']);
-    // writeResult['eventsData']['positions'].add(writeResult['cBuffIdx'].toDouble() );
     writeResult['eventsData']['counter']++;
 
-    // if (sabDraw) {
-    //   var ctr = drawState[DRAW_STATE.EVENT_COUNTER];
-    //   eventsInt[ctr] = mkey;
-    //   eventPositionInt[ctr] = _arrHeadsInt[0] + offsetin;
-
-    //   eventGlobalPositionInt[ctr] =
-    //       globalPositionCap[0] * SIZE + _arrHeadsInt[0];
-    //   // eventsIdxInt[ctr] = drawState[DRAW_STATE.EVENT_NUMBER];
-    //   eventsIdxInt[ctr] = mkey;
-
-    //   ctr = (ctr + 1) % 200;
-    //   eventsCounterInt[0] = ctr;
-    //   drawState[DRAW_STATE.EVENT_NUMBER] = mkey;
-
-    //   drawState[DRAW_STATE.EVENT_COUNTER] = ctr;
-    //   drawState[DRAW_STATE.EVENT_POSITION] = _arrHeadsInt[0] + offsetin;
-    //   console.log("_arrHeadsInt[0] : ", _arrHeadsInt[0]);
-
-    //   // drawState[DRAW_STATE.EVENT_FLAG] = 1;
-    //   // drawState[DRAW_STATE.EVENT_NUMBER] = mkey;
-    // }
-
-    // }catch(err){
-    //   console.log("evnt error");
-    // }
   } //EVNT
   else if (typeOfMessage == "BRD") {
     var newAddOnBoard = valueOfMessage.toString().codeUnitAt(0) - 48;
@@ -760,9 +718,13 @@ testEscapeSequence(int newByte,int offset,Uint8List messagesBuffer, bool weAreIn
 
         }
         if (sampleIndex - ESCAPE_SEQUENCE_LENGTH < 0){
-          cBufTail = cBufTail - (ESCAPE_SEQUENCE_LENGTH - sampleIndex);
+          cBufTail = cBufTail - (ESCAPE_SEQUENCE_LENGTH);
+          if (cBufTail < 0) {
+            cBufTail = 0;
+          }
+
         }else{
-          cBufTail - ESCAPE_SEQUENCE_LENGTH;
+          cBufTail = cBufTail - ESCAPE_SEQUENCE_LENGTH;
           if (cBufTail < 0) {
             cBufTail = 0;
           }
