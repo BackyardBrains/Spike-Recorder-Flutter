@@ -61,10 +61,8 @@ typedef init_threshold_func = ffi.Double Function(
     ffi.Int, ffi.Double, ffi.Double, ffi.Double);
 typedef InitThresholdProcess = double Function(int, double, double, double);
 
-
 typedef set_trigger_type_func = ffi.Double Function(ffi.Int, ffi.Int);
 typedef SetTriggerTypeProcess = double Function(int, int);
-
 
 typedef get_threshold_hit_func = ffi.Int Function();
 typedef GetThresholdHitProcess = int Function();
@@ -79,25 +77,33 @@ typedef GetSamplesThresholdProcess = double Function(
     int, ffi.Pointer<ffi.Int16>, int, double, int, int);
 
 typedef append_samples_threshold_func = ffi.Double Function(
-    ffi.Int16,
-    ffi.Int16,
-    ffi.Int16,
-    ffi.Pointer<ffi.Int16>,
-    ffi.Uint32,
-    ffi.Double,
-    ffi.Int32,
-    ffi.Uint32,
-    // ffi.Pointer<ffi.Int16>,
-    // ffi.Pointer<ffi.Int16>, 
-    ffi.Int16,
-    ffi.Int16,
-    ffi.Int16,
-    );
+  ffi.Int16,
+  ffi.Int16,
+  ffi.Int16,
+  ffi.Pointer<ffi.Int16>,
+  ffi.Uint32,
+  ffi.Double,
+  ffi.Int32,
+  ffi.Uint32,
+  // ffi.Pointer<ffi.Int16>,
+  // ffi.Pointer<ffi.Int16>,
+  ffi.Int16,
+  ffi.Int16,
+  ffi.Int16,
+);
 typedef AppendSamplesThresholdProcess = double Function(
-    int, int, int, ffi.Pointer<ffi.Int16>, int, double, int, int,
+    int,
+    int,
+    int,
+    ffi.Pointer<ffi.Int16>,
+    int,
+    double,
+    int,
+    int,
     // ffi.Pointer<ffi.Int16>,ffi.Pointer<ffi.Int16>, int
-    int,int,int
-  );
+    int,
+    int,
+    int);
 
 typedef set_threshold_dart_port_func = ffi.Double Function(ffi.Int64);
 typedef SetThresholdDartPortFunc = double Function(int);
@@ -291,7 +297,8 @@ class Nativec {
         print(message);
       });
     _setDartPort(thresholdPublication.sendPort.nativePort);
-    
+    // END C++ to Flutter
+
     // cookie = _Dart_InitializeApiDL(ffi.NativeApi.initializeApiDLData);
 
     // // Pass NativePort value (int) to C++ code
@@ -446,7 +453,8 @@ class Nativec {
     Nativec.totalThresholdBytes = (timeSpan * sampleRate).floor();
     _dataThreshold = dataThreshold;
     _thresholdBytes = _dataThreshold.asTypedList(Nativec.totalThresholdBytes);
-    _thresholdEventIndices = _dataEventIndices.asTypedList(Nativec.totalEventIndicesBytes);
+    _thresholdEventIndices =
+        _dataEventIndices.asTypedList(Nativec.totalEventIndicesBytes);
     _thresholdEvents = _dataEvents.asTypedList(Nativec.totalEventsBytes);
     // _thresholdBytes.fillRange(0, Nativec.totalThresholdBytes, 0);
 
@@ -464,11 +472,19 @@ class Nativec {
         sampleRate.toDouble(), divider.toDouble(), current_start.floor());
   }
 
-  double appendSamplesThresholdProcess(averagedSampleCount, threshold,
-      channelIdx, samples, sampleCount, divider, currentStart, sampleNeeded, 
+  double appendSamplesThresholdProcess(
+      averagedSampleCount,
+      threshold,
+      channelIdx,
+      samples,
+      sampleCount,
+      divider,
+      currentStart,
+      sampleNeeded,
       // eventIndices, events, eventCount) {
-      eventIndex, events, eventCount) {
-        
+      eventIndex,
+      events,
+      eventCount) {
     _thresholdBytes.fillRange(0, Nativec.totalThresholdBytes, 0);
     _thresholdEventIndices.fillRange(0, Nativec.totalEventIndicesBytes, 0);
     _thresholdEvents.fillRange(0, Nativec.totalEventsBytes, 0);
@@ -479,15 +495,14 @@ class Nativec {
     //   _thresholdBytes[i] = samples[i];
     // }
     _thresholdBytes.setAll(0, samples);
-    if (eventCount > 0){
-
+    if (eventCount > 0) {
       // _thresholdEventIndices.fillRange(0, _thresholdEventIndices.length, eventIndices[0]);
       // _thresholdEvents.fillRange(0, _thresholdEvents.length, events[0]);
-      print('_dataEventIndices');
-      print(eventCount);
-      print(eventIndex);
-      print(events[0]);
-    }else{
+      // print('_dataEventIndices');
+      // print(eventCount);
+      // print(eventIndex);
+      // print(events[0]);
+    } else {
       _thresholdEventIndices.fillRange(0, _thresholdEventIndices.length, 0);
       _thresholdEvents.fillRange(0, _thresholdEvents.length, 0);
     }
@@ -505,9 +520,11 @@ class Nativec {
         sampleCount,
         divider.toDouble(),
         currentStart.floor(),
-        sampleNeeded, 
+        sampleNeeded,
         // _dataEventIndices, _dataEvents, eventCount);
-        eventIndex, events[0], eventCount);
+        eventIndex,
+        events[0],
+        eventCount);
     // print(processedSample);
     return processedSample;
     // print(_thresholdBytes.length);
@@ -529,10 +546,11 @@ class Nativec {
     return processedSample;
   }
 
-  int getThresholdHitProcess(){
+  int getThresholdHitProcess() {
     return _getThresholdHitProcess();
   }
-  double setTriggerTypeProcess(int channelIdx,int type){
+
+  double setTriggerTypeProcess(int channelIdx, int type) {
     return _setTriggerTypeProcess(channelIdx, type);
   }
 }

@@ -92,7 +92,7 @@ calculateLevel(timescale, sampleRate, innerWidth, arrCounts) {
 late SendPort deviceInfoPort;
 late SendPort expansionDeviceInfoPort;
 // SERIAL
-const RAW_SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER = 4096 * 4;
+const RAW_SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER = 4096 * 2;
 const SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER = 4096 * 4;
 const SIZE_OF_MESSAGES_BUFFER = 64;
 const ESCAPE_SEQUENCE_LENGTH = 6;
@@ -653,15 +653,18 @@ testEscapeSequence(int newByte,int offset,Uint8List messagesBuffer, bool weAreIn
 
   int cBufHead = writeResult['cBufHead'];
   int cBufTail = writeResult['cBufTail'];
+  int totalRawMessage = writeResult['totalRawMessage'];
   int resetHead = writeResult['resetHead'];
   int messageBufferIndex = writeResult['messageBufferIndex'];
   isThreshold = _isThreshold;
   if (weAreInsideEscapeSequence) {
+    totalRawMessage++;
     if (messageBufferIndex >= SIZE_OF_MESSAGES_BUFFER) {
       weAreInsideEscapeSequence = false; //end of escape sequence
       // print('weAreInsideEscapeSequence false');
       executeContentOfMessageBuffer(offset, messagesBuffer, writeResult);
       escapeSequenceDetectorIndex = 0;
+      totalRawMessage = 0;
       // messageBufferIndex = 0;
       //prepare for detecting begining of sequence
       writeResult['weAreInsideEscapeSequence'] = weAreInsideEscapeSequence;
@@ -675,10 +678,12 @@ testEscapeSequence(int newByte,int offset,Uint8List messagesBuffer, bool weAreIn
         // print('weAreInsideEscapeSequence false2');
         executeContentOfMessageBuffer(offset, messagesBuffer,writeResult);
         escapeSequenceDetectorIndex = 0;
+        totalRawMessage = 0;
         // messageBufferIndex = 0;
         //prepare for detecting begining of sequence
 
         writeResult['weAreInsideEscapeSequence'] = weAreInsideEscapeSequence;
+        writeResult['isEndEscapeSequence'] = true;
       }
     } else {
       escapeSequenceDetectorIndex = 0;
@@ -686,6 +691,7 @@ testEscapeSequence(int newByte,int offset,Uint8List messagesBuffer, bool weAreIn
   } else {
     if (escapeSequence[escapeSequenceDetectorIndex] == newByte) {
       escapeSequenceDetectorIndex++;
+      totalRawMessage++;
 
       if (escapeSequenceDetectorIndex == ESCAPE_SEQUENCE_LENGTH) {
         // print('reverting');
@@ -699,6 +705,8 @@ testEscapeSequence(int newByte,int offset,Uint8List messagesBuffer, bool weAreIn
         // print(messagesBuffer.sublist(0, messageBufferIndex));
         messageBufferIndex = 0; //prepare for receiving message
         escapeSequenceDetectorIndex = 0;
+        totalRawMessage = 0;
+
         //prepare for detecting end of esc. sequence
 
         //rewind writing head and effectively delete escape sequence from data
@@ -753,6 +761,7 @@ testEscapeSequence(int newByte,int offset,Uint8List messagesBuffer, bool weAreIn
   writeResult['weAreInsideEscapeSequence'] = weAreInsideEscapeSequence;
   writeResult['escapeSequenceDetectorIndex'] = escapeSequenceDetectorIndex;
   writeResult['messageBufferIndex'] = messageBufferIndex;
+  writeResult['totalRawMessage'] = totalRawMessage;
 
   // print("messagesBuffer");
   // print(messagesBuffer.sublist(0, 30));

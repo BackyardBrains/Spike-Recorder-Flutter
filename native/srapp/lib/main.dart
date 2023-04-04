@@ -1144,6 +1144,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
 
   // Uint8List messagesBuffer = Uint8List(SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER);
   Uint8List messagesBuffer = Uint8List(SIZE_OF_MESSAGES_BUFFER);
+  Uint8List rawSamples = new Uint8List(RAW_SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER);
 
   int numberOfChannels = 1;
   //NEED to be an array
@@ -1168,6 +1169,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
   int escapeSequenceDetectorIndex = 0;
   int messageBufferIndex = 0;
   int resetHead = 0;
+  int totalRawMessage = 0;
 
   int batchCounter = 0;
   int batchModulo = 2;
@@ -1285,6 +1287,18 @@ void serialBufferingEntryPoint(List<dynamic> values) {
       // messageBufferIndex = 0;
       // weAreInsideEscapeSequence = false;
 
+      for (int idx = 0; idx < samples.length; idx++){
+        rawSamples[framesAvailable++] = samples[idx];
+      }
+      int len = framesAvailable;
+      // framesAvailable += samples.length;
+      if (framesAvailable >= 100 && framesAvailable % 2 == 0 ){
+        // print('framesAvailable');
+        // print(framesAvailable);
+        framesAvailable = 0;
+      }else{
+        return;
+      }
 /*
       framesAvailable += samples.length;
       int len = framesAvailable;
@@ -1299,15 +1313,16 @@ void serialBufferingEntryPoint(List<dynamic> values) {
       }
 */
       int i = 0;
-      int rawIndex;
-      int len = samples.length;
+      // int rawIndex;
+      // int len = samples.length;
       // int sample;
       // print('TestEscape Sequence start');
       // print( (DateTime.now()).millisecondsSinceEpoch );
       // int tempInputReadIndex = inputReadIndex;
       resetHead = 0;
       for (i = 0; i < len; i++) {
-        int sample = samples[i];
+        int sample = rawSamples[i];
+        // int sample = samples[i];
         // rawIndex = (tempInputReadIndex++) % RAW_SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER;
         // int sample = circularBuffer[rawIndex];
         // if (rawIndex < 10){
@@ -1331,6 +1346,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
         }
         int offsetIn = 0;
         Map<String, dynamic> writeResult = {
+          "totalRawMessage" : totalRawMessage,
           "cBufHead": cBufHead,
           "resetHead": resetHead,
           "cBufTail": cBufTail,
@@ -1359,16 +1375,28 @@ void serialBufferingEntryPoint(List<dynamic> values) {
               .floor();
           if (offsetIn == -1) offsetIn = 0;
           else{
-            int tempOffset = ( ((i + (numberOfZeros > 0 ? numberOfZeros + 1 : 0)) ) /
-                      numberOfChannels -
-                  1)
-              .floor();
+            // int tempOffset = 0;
+            // if (weAreInsideEscapeSequence){
+            //   tempOffset = ( ((i - escapeSequenceDetectorIndex - messageBufferIndex + (numberOfZeros > 0 ? numberOfZeros + 1 : 0)) ) /
+            //             numberOfChannels -1)
+            //     .floor();
+            // }else{
+            //   tempOffset = ( ((i + (numberOfZeros > 0 ? numberOfZeros + 1 : 0)) ) /
+            //             numberOfChannels -1)
+            //     .floor();
 
-            if (tempOffset > len){
-              print('tempOffset');
-              print(tempOffset);
-              offsetIn = ( (len - 5) / 2 ).floor();
-            }
+            // }
+
+            // if (tempOffset > len){
+            //   print('tempOffset');
+            //   print(tempOffset);
+            //   print(len);
+            //   // offsetIn = ( (len - 5) / 2 ).floor();
+            //   offsetIn = ( (len - escapeSequenceDetectorIndex - messageBufferIndex) / 2 ).floor();
+            //   if (offsetIn < 0){
+            //     offsetIn = 0;
+            //   }
+            // }
 
           }
           // writeResult['sampleLength'] = len;
@@ -1394,6 +1422,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
           resetHead = writeResult["resetHead"]!;
           cBufTail = writeResult["cBufTail"]!;
           weAreInsideEscapeSequence = writeResult["weAreInsideEscapeSequence"]!;
+          totalRawMessage = writeResult["totalRawMessage"];
           // print("writer result esc "+ weAreInsideEscapeSequence.toString());
           // messagesBuffer = writeResult["messagesBuffer"]!;
           messageBufferIndex = writeResult["messageBufferIndex"]!;
@@ -1650,13 +1679,14 @@ void serialBufferingEntryPoint(List<dynamic> values) {
             if (cBufTail == cBufHead){
               eventIndex = (len / 2 - 10).floor();
               if (eventIndex < 0) eventIndex = 0;
-            }else
-            if (len == 19){
-              eventIndex = 4;
-            }else
-            if ( (eventIndex * 2) + 14 >= len){
-              eventIndex = min( (eventIndex/2).floor(), (len / 2).floor() );
             }
+            // else
+            // if (len == 19){
+            //   eventIndex = 4;
+            // }else
+            // if ( (eventIndex * 2) + 14 >= len){
+            //   eventIndex = min( (eventIndex/2).floor(), (len / 2).floor() );
+            // }
 
             // int eventIndex = 0;
             // if (thresholdingType == 0){
@@ -1667,6 +1697,10 @@ void serialBufferingEntryPoint(List<dynamic> values) {
             //   // eventIndex=0;
             //   eventIndex=(eventIndex/2).floor();
             // }
+            if (eventIndex >= zamples[c].length){
+              eventIndex = (zamples[c].length-1);
+            }
+
             processedSamplesCount = (nativec.appendSamplesThresholdProcess(
                 snapshotAveragedSamples[0].floor(),
                 thresholdValue[0],
@@ -1684,10 +1718,16 @@ void serialBufferingEntryPoint(List<dynamic> values) {
                 // arrEventIndices.length > 0 ?arrEventIndices:[0],[thresholdingType], sendingEventCount
                 ));
             if (arrEventIndices.isNotEmpty) {
+              /*
               print('eventIndex');
               print(eventIndex);
-              print(len);
+              print(zamples[c].length);
               print(arrMarkers[0]);
+              int evtIdx = eventIndex * 2 - 20;
+              if (evtIdx < 0) evtIdx = 0;
+              print(rawSamples.sublist( (evtIdx).floor(), len) );
+              */
+
               // print('arrEventIndices');
               // print(arrEventIndices);
               print('----------------------------');
