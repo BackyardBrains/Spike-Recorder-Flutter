@@ -1334,6 +1334,7 @@ EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedS
     //                                 // const short *inEventIndices, const short *inEvents, const short inEventCount) {
     //                                 const short inEventIndices, const short inEvents, const short inEventCount) {
 
+    thresholdProcessor[0].setSelectedChannel(selectedChannel);
     thresholdProcessor[0].process(outSamplesPtr,outSampleCounts, inSamplesPtr, inSampleCounts, eventIndices, events, eventCount);
     // debug_print("appendSamples4");
 

@@ -479,7 +479,7 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
     }
 
     // samples = List<List<int>>.from(audioSamples, growable:false);
-    if ( samples[numberOfChannels-1].length < 441 * 3 ){
+    if ( samples[numberOfChannels-1].length < 441 * 4 ){
       // print('insufficient');
       if (curKey != ''){
         tempKey = curKey;
@@ -626,8 +626,8 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
 
       if (isThresholding){
         if (curKey != "") {
-          print('curKey');
-          print(curKey);
+          // print('curKey');
+          // print(curKey);
           if (thresholdingType == 0 ||
               curKey == thresholdingType.toString()) {
             thresholdFlag = 1;
@@ -643,7 +643,7 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
             double processedSamplesCount =
                 (nativec.appendSamplesThresholdProcess(
                     snapshotAveragedSamples[0].floor(),
-                    thresholdValue[0].floor(),
+                    thresholdValue[selectedThresholdIdx].floor(),
                     selectedThresholdIdx,
                     samples[0],
                     samples[0].length,
@@ -1777,8 +1777,8 @@ void serialBufferingEntryPoint(List<dynamic> values) {
 
             processedSamplesCount = (nativec.appendSamplesThresholdProcess(
                 snapshotAveragedSamples[0].floor(),
-                thresholdValue[0],
-                0,
+                thresholdValue[selectedThresholdIdx].floor(),
+                selectedThresholdIdx,
                 zamples[c],
                 zamples[c].length,
                 zamples[c],
@@ -5224,7 +5224,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
       for (int c = 0; c < 2; c++){
         double heightFactor = (channelGains[c] / signalMultiplier);
-        final halfMaxIntValue = 32767 / 2 / heightFactor;
+        final halfMaxIntValue = 32767 / 8 / heightFactor;
 
         // thresholdMarkerTop[0] = (MediaQuery.of(context).size.height / 2) - 12;
         double calculatedMedian =
@@ -5233,7 +5233,7 @@ class _MyHomePageState extends State<MyHomePage> {
             (c * MediaQuery.of(context).size.height / 2) +
                 MediaQuery.of(context).size.height / 2 / 2;
 
-        thresholdMarkerTop[c] = halfMaxIntValue - 12;
+        thresholdMarkerTop[c] = calculatedMedian - halfMaxIntValue - 12;
         thresholdValue[c] = ((thresholdMarkerTop[c] +
                         12 -
                         // (MediaQuery.of(context).size.height / 2))
@@ -5242,11 +5242,12 @@ class _MyHomePageState extends State<MyHomePage> {
                 heightFactor)
             .floor();
         listMedianDistance[c] = thresholdMarkerTop[c] + 12 - calculatedMedian;
-        print('calculatedMedian');
-        print(calculatedMedian);
-        print(halfMaxIntValue);
-        print(thresholdMarkerTop[c]);
-        print(listMedianDistance[c]);
+        // print('calculatedMedian');
+        // print(calculatedMedian);
+        // print(halfMaxIntValue);
+        // print(thresholdMarkerTop[c]);
+        // print(thresholdValue[c]);
+        // print(listMedianDistance[c]);
 
       }
 
@@ -5718,7 +5719,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       listChannelSerial[listIndexSerial[c].floor()];
                 }
                 thresholdMarkerTop[c] =
-                    median + listMedianDistance[0] * scaleRatio - 12;
+                    median + listMedianDistance[c] * scaleRatio - 12;
 
                 // if (deviceType == 0){
                 //   listDefaultIndex[c] = listIndexAudio[c].floor();
@@ -6185,8 +6186,6 @@ class _MyHomePageState extends State<MyHomePage> {
               }
 
               double scaleRatio = 1;
-              print('deviceType');
-              print(deviceType);
               if (deviceType == 0) {
                 scaleRatio = listChannelAudio[listIndexAudio[c].floor()] /
                     listChannelAudio[defaultListIndexAudio];
@@ -6196,6 +6195,9 @@ class _MyHomePageState extends State<MyHomePage> {
               }
               double curDistance = thresholdMarkerTop[c] + 12 - median;
               listMedianDistance[c] = curDistance * scaleRatio;
+              print('thresholdMarkerTop[c]');
+              print(thresholdMarkerTop[c]);
+              print(listMedianDistance[c]);
 
               setState(() {});
               // print('channelGains[0]2222');
