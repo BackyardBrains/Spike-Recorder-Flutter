@@ -29,40 +29,40 @@
 // C++ TO FLUTTER
 static Dart_Port_DL dart_port = 0;
 
-// char* debug_print(const char *message)
-// {
-//     if (!dart_port)
-//         return (char*) "wrong port"; 
-//     // as_array.values = new _Dart_CObject[2];
-//     // Dart_CObject c_request_arr[2];
-//     // c_request_arr[0] = Dart_CObject();
-//     // c_request_arr[0].type = Dart_CObject_kInt32;
-//     // c_request_arr[0].value.as_int32 = 12;
+char* debug_print(const char *message)
+{
+    if (!dart_port)
+        return (char*) "wrong port"; 
+    // as_array.values = new _Dart_CObject[2];
+    // Dart_CObject c_request_arr[2];
+    // c_request_arr[0] = Dart_CObject();
+    // c_request_arr[0].type = Dart_CObject_kInt32;
+    // c_request_arr[0].value.as_int32 = 12;
 
-//     // c_request_arr[1] = Dart_CObject();
-//     // c_request_arr[1].type = Dart_CObject_kInt32;
-//     // c_request_arr[1].value.as_int32 = 1;
+    // c_request_arr[1] = Dart_CObject();
+    // c_request_arr[1].type = Dart_CObject_kInt32;
+    // c_request_arr[1].value.as_int32 = 1;
 
-//     // Dart_CObject* requestArr[]={&c_request_arr[0],&c_request_arr[1],&c_request_arr[2],&c_request_arr[3]};
+    // Dart_CObject* requestArr[]={&c_request_arr[0],&c_request_arr[1],&c_request_arr[2],&c_request_arr[3]};
 
-//     Dart_CObject msg ;
-//     // msg.type = Dart_CObject_kArray;
-//     // msg.value.as_array.values = requestArr;
-//     // msg.value.as_array.length = sizeof(c_request_arr) / sizeof(c_request_arr[0]);
+    Dart_CObject msg ;
+    // msg.type = Dart_CObject_kArray;
+    // msg.value.as_array.values = requestArr;
+    // msg.value.as_array.length = sizeof(c_request_arr) / sizeof(c_request_arr[0]);
 
-//     msg.type = Dart_CObject_kString;
-//     // msg.value.as_string = (char *) "tessstt print debug";
-//     msg.value.as_string = (char *) message;
-//     // printf(msg.value.as_string);
-//     // The function is thread-safe; you can call it anywhere on your C++ code
-//     try{
-//         Dart_PostCObject_DL(dart_port, &msg);
-//         return (char *) "success";
-//     }catch(...){
-//         return (char *) "failed";
-//     }   
+    msg.type = Dart_CObject_kString;
+    // msg.value.as_string = (char *) "tessstt print debug";
+    msg.value.as_string = (char *) message;
+    // printf(msg.value.as_string);
+    // The function is thread-safe; you can call it anywhere on your C++ code
+    try{
+        Dart_PostCObject_DL(dart_port, &msg);
+        return (char *) "success";
+    }catch(...){
+        return (char *) "failed";
+    }   
     
-// }
+}
 
 
 
@@ -437,6 +437,7 @@ public:
 
         // std::string cc = std::string(channelCount);
         // char* ch=cc.c_str();
+
         for (i = 0; i < channelCount; i++) {
             tmpInSampleCount = inSampleCounts[i];
             tmpInSamples = inSamples[i];
@@ -886,13 +887,15 @@ private:
 
 
 
-// C++ to Flutter
 // Ensure that the function is not-mangled; exported as a pure C function
+// C++ to Flutter
 EXTERNC FUNCTION_ATTRIBUTE void set_dart_port(Dart_Port_DL port)
 {
     dart_port = port;
 }
 // C++ to Flutter
+
+
 // Sample usage of Dart_PostCObject_DL to post message to Flutter side
 
 // char* transferArray(int* arr, int sampleCount)
@@ -963,14 +966,14 @@ ThresholdProcessor thresholdProcessor[6];
 
 int count;
 short ***envelopes = new short**[6];
-short **outSamplesPtr = new short*[1];
-short **tempSamplesPtr = new short*[1];
-int *outSampleCounts = new int[1];
+short **outSamplesPtr = new short*[6];
+short **tempSamplesPtr = new short*[6];
+int *outSampleCounts = new int[6];
 short *outEventIndicesPtr = new short[1];
 std::string *outEventNamesPtr = new std::string[1];
 
-short **inSamplesPtr = new short*[1];
-int *inSampleCounts = new int[1];
+short **inSamplesPtr = new short*[6];
+int *inSampleCounts = new int[6];
 
 const int SIZE_LOGS2 = 10;
 float envelopeSizes[SIZE_LOGS2];
@@ -981,6 +984,7 @@ const int skipCounts[10] = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512};
 double divider = 6;
 int current_start = 0;
 short *tempData;
+
 
 
 void resetOutSamples(short channelIdx, short **outSamples, int outSampleCount){
@@ -998,10 +1002,13 @@ EXTERNC FUNCTION_ATTRIBUTE double createThresholdProcess(short _channelCount, ui
     channelCount = _channelCount;
 
     count = (int) timeSpan * sampleRate;
-    outSamplesPtr[0] = new short[count * 2];
-    tempSamplesPtr[0] = new short[count * 2];
-    outSampleCounts[0]=count;
-    resetOutSamples(0, outSamplesPtr,outSampleCounts[0]);
+    // for (uint32_t c = 0 ; c < channelCount; c++){
+    for (uint32_t c = 0 ; c < 6; c++){
+        outSamplesPtr[c] = new short[count * 2];
+        tempSamplesPtr[c] = new short[count * 2];
+        outSampleCounts[c]=count;
+        resetOutSamples(c, outSamplesPtr,outSampleCounts[c]);
+    }
     // tempData = new short[ count * 2];
 
     // debug_print("create2");
@@ -1021,6 +1028,7 @@ EXTERNC FUNCTION_ATTRIBUTE double createThresholdProcess(short _channelCount, ui
         thresholdProcessor[i].setSampleRate(sr);
         thresholdProcessor[i].setAveragedSampleCount(averagedSampleCount);
         thresholdProcessor[i].setThreshold(threshold);
+        thresholdProcessor[i].setChannelCount(channelCount);
         // gSampleRate = sampleRate;
         // HighPassFilter highPassFilter = HighPassFilter();
         // highPassFilters[i].initWithSamplingRate(sampleRate);
@@ -1277,24 +1285,35 @@ EXTERNC FUNCTION_ATTRIBUTE int getThresholdHitProcess(){
     }
     return 0;
 }
-EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedSampleCount, short _threshold, short channelIdx, short *data, uint32_t sampleCount, double divider, int currentStart, int sampleNeeded, 
+EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedSampleCount, short _threshold, short selectedChannel, short *data, uint32_t sampleCount, short *data2, uint32_t sampleCount2, short _channelCount, short _forceLevel, double divider, int currentStart, int sampleNeeded, 
     // short* eventIndices, short* events, short eventCount){
     short eventIndices, short events, short eventCount){
+
+    channelCount = _channelCount;
+    forceLevel = _forceLevel;
+
+    // debug_print("appendSamples1");
         
     current_start = currentStart;
     // int layers = ((int)_averagedSampleCount);
     inSamplesPtr[0] = new short[sampleCount];
-    // inSamplesPtr[1] = new short[sampleCount];
     inSampleCounts[0] = sampleCount;
+    inSamplesPtr[1] = new short[sampleCount2];
+    inSampleCounts[1] = sampleCount2;
+    // debug_print("appendSamples2");
     // inSampleCounts[1] = sampleCount;
     thresholdProcessor[0].setThreshold(_threshold);
     thresholdProcessor[0].setAveragedSampleCount(_averagedSampleCount);
-    resetOutSamples(0, outSamplesPtr,outSampleCounts[0]);
+    for (int c=0; c < channelCount; c++){
+        resetOutSamples(c, outSamplesPtr,outSampleCounts[c]);
+    }
     // short *eventIndices = new short[eventCount];    
     // short *events = new short[eventCount];    
+    // debug_print("appendSamples3");
 
 // ****
     std::copy(data, data + sampleCount, inSamplesPtr[0]);
+    std::copy(data2, data2 + sampleCount2, inSamplesPtr[1]);
     // std::copy(event, data + sampleCount, inSamplesPtr[0]);
     // std::copy(data, data + sampleCount, inSamplesPtr[0]);
     // debug_print("trying to envelope5");
@@ -1316,6 +1335,8 @@ EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedS
     //                                 const short inEventIndices, const short inEvents, const short inEventCount) {
 
     thresholdProcessor[0].process(outSamplesPtr,outSampleCounts, inSamplesPtr, inSampleCounts, eventIndices, events, eventCount);
+    // debug_print("appendSamples4");
+
 // ****
 
     // for (short i = 0;i<count ; i++){
@@ -1334,10 +1355,12 @@ EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedS
     int sampleEnd = samplesLength;
     // debug_print("sampleLength");
     // debug_print(std::to_string(floor(samplesLength)).c_str());
-    std::copy(outSamplesPtr[channelIdx], outSamplesPtr[channelIdx] + maxEnvelopeSize, tempSamplesPtr[channelIdx]);
+    int sizeOfEnvelope = floor(envelopeSizes[forceLevel]/(divider/6));
     for( int32_t i = 0; i < channelCount; i++ )
     {
-        if (i == channelIdx){
+        int channelIdx = i;
+        std::copy(outSamplesPtr[channelIdx], outSamplesPtr[channelIdx] + maxEnvelopeSize, tempSamplesPtr[channelIdx]);
+        // if (i == channelIdx){
             // debug_print("trying to envelope2");
             sampleStart = 0;
             // samplesLength = outSampleCounts[i];
@@ -1357,28 +1380,47 @@ EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedS
                 sampleEnd = floor(maxEnvelopeSize / 2 + samplesLength / 2);
 
             }
-            resetEnvelope(0,envelopes[i], forceLevel);
+            resetEnvelope(channelIdx,envelopes[i], forceLevel);
             int j = 0;
             for( int32_t jj = sampleStart; jj < sampleEnd; jj++ ){
                 envelopingSamples(j,tempSamplesPtr[i][jj], envelopes[i], SIZE_LOGS2, forceLevel);
                 j++;
             }
 
-            // int samplesLength = outSampleCounts[i];
-            // for( int32_t j = 0; j < samplesLength; j++ ){
-            //     // void envelopingSamples(int _head, int sample, short **_envelopes, int SIZE_LOGS2, int forceLevel) {
-            //     envelopingSamples(j,tempSamplesPtr[i][j], envelopes[i], SIZE_LOGS2, forceLevel);
-            // }
-    //         //envelopingSamples(int _head, int sample, short **_envelopes, int SIZE_LOGS2, int forceLevel) {
+        // }
+        std::fill(envelopes[channelIdx][forceLevel]+ sizeOfEnvelope, envelopes[channelIdx][forceLevel] + sizeOfEnvelope * 2, 0);
+        int envelopeCurrentStart = 0;
+        if (i==0){
+            if (current_start < 0){
+                int skipCount = skipCounts[forceLevel];
+                int difPos = 0;
+                std::copy(envelopes[channelIdx][forceLevel]+difPos, envelopes[channelIdx][forceLevel] + difPos + sizeOfEnvelope, data);
+            }else{
+                std::copy(envelopes[channelIdx][forceLevel]-envelopeCurrentStart, envelopes[channelIdx][forceLevel] - envelopeCurrentStart + sizeOfEnvelope, data);
+            }
+        }else{
+            if (current_start < 0){
+                int skipCount = skipCounts[forceLevel];
+                int difPos = 0;
+                std::copy(envelopes[channelIdx][forceLevel]+difPos, envelopes[channelIdx][forceLevel] + difPos + sizeOfEnvelope, data2);
+            }else{
+                std::copy(envelopes[channelIdx][forceLevel]-envelopeCurrentStart, envelopes[channelIdx][forceLevel] - envelopeCurrentStart + sizeOfEnvelope, data2);
+            }            
         }
+
     }
+    delete[] inSamplesPtr[0];
+    return sizeOfEnvelope;
+
     // debug_print(std::to_string(outSampleCounts[0]).c_str());
     // debug_print("trying to envelope2");
     
 //  ****
     // std::copy(outSamplesPtr[channelIdx], outSamplesPtr[channelIdx] + count, data);   
+
+/*  more than one channel fixes
     int sizeOfEnvelope = floor(envelopeSizes[forceLevel]/(divider/6));
-    std::fill(envelopes[0][forceLevel]+ sizeOfEnvelope, envelopes[0][forceLevel] + sizeOfEnvelope * 2, 0);
+    std::fill(envelopes[channelIdx][forceLevel]+ sizeOfEnvelope, envelopes[channelIdx][forceLevel] + sizeOfEnvelope * 2, 0);
     int envelopeCurrentStart = 0;
     // debug_print(std::to_string(sizeOfEnvelope).c_str() );
     if (current_start < 0){
@@ -1396,8 +1438,8 @@ EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedS
     }else{
         std::copy(envelopes[channelIdx][forceLevel]-envelopeCurrentStart, envelopes[channelIdx][forceLevel] - envelopeCurrentStart + sizeOfEnvelope, data);
     }
-
-    resetEnvelope(channelIdx, envelopes[0], forceLevel);
+*/
+    // resetEnvelope(channelIdx, envelopes[0], forceLevel);
 //  ****
 
     // std::copy(outSamplesPtr[channelIdx], outSamplesPtr[channelIdx] + count, data);
@@ -1410,14 +1452,14 @@ EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedS
     // // delete[] outSamplesPtr[1];
     // delete[] outSampleCounts;
 
-    delete[] inSamplesPtr[0];
     // // delete[] inSamplesPtr[1];
     // delete[] inSampleCounts;
 
     // return results;
     // highPassFilters[channelIdx].filter(data, sampleCount, false);
     // debug_print("APPLYING THRESHOLD ");
-    return sizeOfEnvelope;
+    // delete[] inSamplesPtr[0];
+    // return sizeOfEnvelope;
 }
 
 
@@ -1433,8 +1475,8 @@ EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedS
 // //   free(value);
 // // }
 
-// C++ to Flutter
 // DART_EXPORT intptr_t InitDartApiDL(void* data) {
+// C++ to Flutter
 EXTERNC FUNCTION_ATTRIBUTE intptr_t InitDartApiDL(void* data) {
   return Dart_InitializeApiDL(data);
 // return 1;

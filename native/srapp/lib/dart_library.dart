@@ -156,7 +156,8 @@ getVisibleSamples(samples, i, len, int maxOsChannel) {
 }
 
 getAllChannelsSample(samples, int maxOsChannel) {
-  List<List<int>> arrVisibleSamples = [];
+  // List<List<int>> arrVisibleSamples = [];
+  List<Int16List> arrVisibleSamples = [];
   for (int i = 0; i < maxOsChannel; i++) {
     final len = samples.length;
     // tempBuffIdx = cBuffIdx;
@@ -169,7 +170,7 @@ getAllChannelsSample(samples, int maxOsChannel) {
     //   print("visibleSamples");
     //   print(visibleSamples);
     // }
-    arrVisibleSamples.add(List<int>.from(visibleSamples));
+    arrVisibleSamples.add(Int16List.fromList(visibleSamples));
   }
   return arrVisibleSamples;
 }

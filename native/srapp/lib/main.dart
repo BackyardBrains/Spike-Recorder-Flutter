@@ -57,10 +57,12 @@ import 'dialog/custom_serial_dialog.dart';
 import 'utils/debouncers.dart';
 
 int thresholdType = -1;
+int selectedThresholdIdx = 0;
 int forceThreshold = 1;
 int markerOutOfRange = 0;
 int excessiveTopGain = 0;
 int excessiveBottomGain = 0;
+
 const max_markers = 300;
 const signalMultiplier = 150;
 int maxOsChannel = 1;
@@ -337,21 +339,28 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
   int SIZE = NUMBER_OF_SEGMENTS_THRESHOLD * SEGMENT_SIZE_THRESHOLD;
   double size = SIZE.toDouble() * 2;
   int SIZE_LOGS_THRESHOLD = 10;
-  int THRESHOLD_CHANNEL_COUNT = 1;
+  int THRESHOLD_CHANNEL_COUNT = 2;
   int samplesLength = SIZE;
   bool isPrevThresholdingStatus = false;
   String prevKey = "";
 
   ffi.Pointer<ffi.Int16> _dataThreshold = allocate<ffi.Int16>(
       count: samplesLength, sizeOfType: ffi.sizeOf<ffi.Int16>());
+  ffi.Pointer<ffi.Int16> _dataThreshold2 = allocate<ffi.Int16>(
+      count: samplesLength, sizeOfType: ffi.sizeOf<ffi.Int16>());
   Int16List _thresholdBytes = _dataThreshold.asTypedList(samplesLength);
+  Int16List _thresholdBytes2 = _dataThreshold2.asTypedList(samplesLength);
+  // ffi.Pointer<ffi.Int16> _dataThreshold2 = allocate<ffi.Int16>(
+  //     count: samplesLength, sizeOfType: ffi.sizeOf<ffi.Int16>());
+  // Int16List _thresholdBytes2 = _dataThreshold.asTypedList(samplesLength);
 
   unitInitializeEnvelope(THRESHOLD_CHANNEL_COUNT, allThresholdEnvelopes,
       allThresholdEnvelopesSize, size, SIZE, SIZE_LOGS_THRESHOLD);
 
   nativec.createThresholdProcess(
-      1, SEGMENT_SIZE_THRESHOLD, 0, 1, _dataThreshold);
-  nativec.setThresholdParametersProcess(1, level, sampleRate, 6, 0);
+      THRESHOLD_CHANNEL_COUNT, SEGMENT_SIZE_THRESHOLD, 0, 1, _dataThreshold, _dataThreshold2);
+  print('create threshold process');
+  nativec.setThresholdParametersProcess(THRESHOLD_CHANNEL_COUNT, level, sampleRate, 6, 0);
 
   bool isThresholding = false;
   int thresholdingType = -1;
@@ -360,12 +369,16 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
   List<int> thresholdValue = [];
   int forceThreshold = 1;
   bool isInitial = true;
+  List<List<int>> samples = [];
+  String tempKey = '';
   // List<List<List<double>>> allEnvelopes = [];
   // int level = 8;
   // int divider = 6;
   // int globalIdx = 0;
   // int surfaceSize = (48000 * 60);
   // String data = values[1];
+
+  int selectedThresholdIdx = 0;
   iReceivePort.listen((Object? message) async {
     // print("allEnvelopes");
     // print(allEnvelopes);
@@ -392,12 +405,12 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
     bool isNotch60 = arr[13];
     isThresholding = arr[14];
 
-    if (isThresholding) {
-      numberOfChannels = 1;
-      // if (isInitial) {
-      //   isInitial = false;
-      // }
-    }
+    // if (isThresholding) {
+    //   numberOfChannels = 1;
+    //   // if (isInitial) {
+    //   //   isInitial = false;
+    //   // }
+    // }
     if (thresholdingType != prevThresholdingType) {
       prevThresholdingType = thresholdingType;
       thresholdFlag = 1;
@@ -430,12 +443,63 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
 
     int timeScaleBar = arr[17];
     thresholdingType = arr[18];
+    selectedThresholdIdx = arr[20];
 
     int maxSize = (allEnvelopes[0][0]).length;
     int globalPositionCap = (globalIdx * maxSize / 2).floor();
 
-    List<List<int>> samples =
+
+    // bool isBufferFull = false;
+    // samples =
+    //     getAllChannelsSample(rawSamples, numberOfChannels);
+
+    // Buffers data
+    // /* 
+    if (samples.isEmpty){
+      // print('samples is empt');
+      // samples = List<List<int>>.filled(numberOfChannels, List<int>.filled(1, 0, growable:true), growable:true);
+      // samples = List.filled(numberOfChannels, List.filled(1, 0,growable:true), growable:false);
+      samples = [];
+      for (int cIdx = 0 ; cIdx < numberOfChannels; cIdx++){
+        samples.add([]);
+      }
+      // print("init : ${samples[0].length}");
+    }
+
+    List<Int16List> audioSamples =
         getAllChannelsSample(rawSamples, numberOfChannels);
+    for (int cc = 0 ; cc < numberOfChannels; cc++){
+      // samples[c].addAll( audioSamples[c] );
+      // samples[c] = audioSamples[c].toList();//working
+      // print("1st samples ${cc}:  ${samples[cc].length} - ${samples[0].length} vs ${audioSamples[cc].toList().length}");
+      for (int idx = 0; idx < audioSamples[cc].length; idx++){
+        samples[cc].add(audioSamples[cc][idx]);
+      }
+      // print("concat samples ${cc}:  ${samples[cc].length} - ${samples[0].length} vs ${audioSamples[cc].toList().length}");
+    }
+
+    // samples = List<List<int>>.from(audioSamples, growable:false);
+    if ( samples[numberOfChannels-1].length < 441 * 3 ){
+      // print('insufficient');
+      if (curKey != ''){
+        tempKey = curKey;
+      }
+      return;
+    }else{
+      if (tempKey != ''){
+        curKey = tempKey;
+        tempKey = '';
+      }
+      // print('samples[0].length ${numberOfChannels} : ${isPrevThresholdingStatus}');
+      // print(samples[0].sublist(0,20));
+      // print(samples[1].sublist(0,20));
+      // print(samples[0].length);
+      // print(samples[1].length);
+      // print(audioSamples[1].length);
+      // isBufferFull = true;
+    }
+    // */
+    //END of buffers data first 
 
     // print("!=======");
     // print(level);
@@ -462,13 +526,15 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
     // print(allEnvelopes[0][8].sublist(0, 100));
     // print(samples);
 
-    Int16List curSamples = new Int16List(0);
+    Int16List curSamples = Int16List(0);
     if (!isPaused) {
       // print('numberOfChannels');
       // print(numberOfChannels);
       for (int c = 0; c < numberOfChannels; c++) {
         cBuffIdx = arrHeads[c];
         globalIdx = arrGlobalIdx[c];
+        // print("Cbuff ${c}");
+        // print(cBuffIdx);
         // 2875. audioInputConfigArray[INPUT_TYPE_NEURONSS].filterLowPass = 5000.0f;
         // audioInputConfigArray[INPUT_TYPE_NEURONSS].filterHighPass = 1.0f;
 
@@ -492,117 +558,30 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
         }
 
         // curSamples = Int16List.from(samples[c]);
-        if (isThresholding) {
-          // print('samples[c].length');
-          // print(samples[c].length);
-          cBuffIdx = 0;
-          // level = calculateLevel(
-          //     NUMBER_OF_SEGMENTS_THRESHOLD * 1000, sampleRate.floor(), surfaceWidth, skipCounts);
+        if (isPrevThresholdingStatus) {
 
-          try {
-            // thresholdHit = nativec.getThresholdHitProcess();
-            // print("thresholdHit");
-            // print(thresholdHit);
-            // if (thresholdHit == 1){
-            //   // change Current Start into the newest position
-            //   // double simulateCurrentStartPosition( int sampleRate, int cBuffIdx, row,
-            //   //level, skipCount, double divider, double innerWidth, bool isThreshold, int deviceType, CURRENT_START, devicePixelRatio, myArrTimescale, isOpeningFile) {
-
-            //   // print('-----------------');
-            //   C_START = 0;
-
-            //   for (int i = 80; i>timeScaleBar && timeScaleBar > 0; i--){
-            //     int transformScaleIdx = (i / 10).floor();
-            //     double tempDivider = myArrTimescale[i] / 10;
-            //     int simLevel = calculateLevel(myArrTimescale[transformScaleIdx], sampleRate,
-            //         surfaceWidth, skipCounts);
-
-            //     transformScaleIdx = ((i - 1) / 10).floor();
-            //     var row = {
-            //       "timeScaleBar": arrTimeScale[transformScaleIdx], // label in UI
-            //       "levelScale": i-1, //scrollIdx
-            //       "posX": surfaceWidth * 1/2 ,
-            //       // "posX": surfaceWidth,
-            //       "direction": 1
-            //     };
-
-            //     double temp = simulateCurrentStartPosition(sampleRate.floor(), (allThresholdEnvelopesSize[0]/2).floor(), row,
-            //       simLevel, skipCounts[simLevel], tempDivider, surfaceWidth, false, 0, C_START, devicePixelRatio, myArrTimescale, 0);
-            //     C_START = temp;
-            //     print('immediate C_START');
-            //     print(C_START);
-            //     CUR_START = C_START.floor();
-            //   }
-
-            //   // CURRENT_START = CUR_START;
-            // }
-
-            if (curKey != "") {
-              if (thresholdingType == 0 ||
-                  curKey == thresholdingType.toString()) {
-                thresholdFlag = 1;
-                prevKey = curKey;
-              }
-            }
-
-            nativec.setThresholdParametersProcess(
-                1, level, sampleRate, divider, CUR_START);
-            double processedSamplesCount =
-                (nativec.appendSamplesThresholdProcess(
-                    snapshotAveragedSamples[0].floor(),
-                    thresholdValue[0],
-                    0,
-                    samples[c],
-                    samples[c].length,
-                    divider,
-                    CUR_START,
-                    (allEnvelopes[0][level].length / divider).floor(),
-                    0,
-                    [thresholdingType],
-                    thresholdFlag));
-            thresholdFlag = 0;
-            curSamples =
-                _thresholdBytes.sublist(0, processedSamplesCount.floor());
-            thresholdHeads[c] = processedSamplesCount.floor();
-            // curSamples = (nativec.appendSamplesThresholdProcess(2, 10000, 0, samples[c], samples[c].length));
-            // print(curSamples.length);
-          } catch (err) {
-            print("isThresholding Error");
-            print(err);
-          }
-
-          // cBuffIdx = curSamples.length-1;
-          samplesLength = curSamples.length;
-          cBuffIdx = samplesLength;
-          globalIdx = 0;
         } else {
           // level = calculateLevel(
           //     10000, sampleRate.floor(), surfaceWidth, skipCounts);
           curSamples = Int16List.fromList(samples[c]);
           samplesLength = curSamples.length;
+          // print('samplesLength');
+          // print(samplesLength);
         }
 
-        // print("lowPassFilter2");
-        // if (temp != samples[c]){
-        //   print("Error");
-        //   print(temp);
-        //   print(samples[c]);
+        // final int forceLevel = level;
+        // if (isThresholding) {
+        //   if (allThresholdEnvelopes.length < c + 1) {
+        //     print('numberOfChannels');
+        //     print(numberOfChannels);
+        //     return;
+        //   }
+        //   // allThresholdEnvelopes[c][level]
+        //   //     .fillRange(0, allThresholdEnvelopes[c][level].length, 0);
         // }
-        // final int forceLevel = 8;
-        final int forceLevel = level;
-        // curSamples.forEach((tmp) {
-        if (isThresholding) {
-          if (allThresholdEnvelopes.length < c + 1) {
-            print('numberOfChannels');
-            print(numberOfChannels);
-            return;
-          }
-          allThresholdEnvelopes[c][level]
-              .fillRange(0, allThresholdEnvelopes[c][level].length, 0);
-        }
 
         if (isThresholding) {
-          allThresholdEnvelopes[c][level] = curSamples;
+          // allThresholdEnvelopes[c][level] = curSamples;
           continue;
         } else {
           for (int i = 0; i < samplesLength; i++) {
@@ -623,6 +602,7 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
               //     print(allThresholdEnvelopes[c].length);
               //   }
               // } else {
+                // print(skipCounts);
               envelopingSamples(
                   cBuffIdx, tmp, allEnvelopes[c], SIZE_LOGS2, skipCounts, -1);
               // }
@@ -644,9 +624,69 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
         arrGlobalIdx[c] = globalIdx;
       }
 
+      if (isThresholding){
+        if (curKey != "") {
+          print('curKey');
+          print(curKey);
+          if (thresholdingType == 0 ||
+              curKey == thresholdingType.toString()) {
+            thresholdFlag = 1;
+            prevKey = curKey;
+          }
+        }
+      }
+
+      if (isPrevThresholdingStatus){
+          cBuffIdx = 0;
+          try {
+
+            double processedSamplesCount =
+                (nativec.appendSamplesThresholdProcess(
+                    snapshotAveragedSamples[0].floor(),
+                    thresholdValue[0].floor(),
+                    selectedThresholdIdx,
+                    samples[0],
+                    samples[0].length,
+                    samples[1],
+                    samples[1].length,
+                    THRESHOLD_CHANNEL_COUNT,
+                    level,
+                    divider,
+                    CUR_START,
+                    (allEnvelopes[0][level].length / divider).floor(),
+                    0,
+                    [thresholdingType],
+                    thresholdFlag));
+            // print('_thresholdBytes');
+            thresholdFlag = 0;
+            // curSamples =
+            //     _thresholdBytes.sublist(0, processedSamplesCount.floor());
+            allThresholdEnvelopes[0][level] =
+                _thresholdBytes.sublist(0, processedSamplesCount.floor());
+            allThresholdEnvelopes[1][level] =
+                _thresholdBytes2.sublist(0, processedSamplesCount.floor());
+                
+            thresholdHeads[0] = processedSamplesCount.floor();
+            thresholdHeads[1] = processedSamplesCount.floor();
+          } catch (err) {
+            print("isThresholding Error");
+            print(err);
+          }
+
+          // cBuffIdx = curSamples.length-1;
+          samplesLength = curSamples.length;
+          cBuffIdx = samplesLength;
+          globalIdx = 0;        
+        arrHeads[0] = cBuffIdx;
+        arrGlobalIdx[0] = globalIdx;
+        arrHeads[1] = cBuffIdx;
+        arrGlobalIdx[1] = globalIdx;
+     
+      }
+
       if (curKey != "") {
         cBuffIdx = arrHeads[0];
-        if (arrMarkers.length + 1 >= max_markers) {
+        if (isThresholding || arrMarkers.length + 1 >= max_markers) {
           arrMarkers.clear();
           arrIntMarkers.clear();
         }
@@ -658,11 +698,18 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
         // eventPositionResultInt[markerIdx] = (cBuffIdx.toDouble());
         arrIntMarkers.add(int.parse(curKey));
         arrMarkers.add(curKey);
+        // print('arrIntMarkers');
+        // print(arrIntMarkers);
       }
+
+      for (int c = 0 ; c < numberOfChannels; c++){
+        samples[c].clear();
+      }
+      // print("samples clear");
     } else {
       // nativec.setThresholdParametersProcess(1,level, sampleRate, divider, CUR_START);
       if (isThresholding) {
-        if (allThresholdEnvelopes[0][level][0] == 0) {}
+        // if (allThresholdEnvelopes[0][level][0] == 0) {}
         int sampleNeeded = (allEnvelopes[0][level].length / divider).floor();
         int samplesLength = nativec
             .getSamplesThresholdProcess(
@@ -708,7 +755,9 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
         // int to = curSamples.length;
 
         // List<double> cBuff = List<double>.from( ( envelopeSamples.map((val)=> val.toDouble()) ).toList(growable:false));
-        Int16List cBuff = curSamples;
+        // Int16List cBuff = curSamples;
+        // if (c==1) continue;
+        Int16List cBuff = allThresholdEnvelopes[c][level];
         // int sumInt =  envelopeSamples.sublist(from,to).reduce((value, element) => value+element);
         // double sumDouble = ( Float32List.sublistView( envelopeSamples, from,to ) ).reduce((value, element) => value+element);
         // print("SUMS");
@@ -717,6 +766,9 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
         // List<double> cBuff =  List<double>.from(( envelopeSamples.sublist(from,to) ).buffer.asFloat32List().toList(growable:false));
         buffers.add(cBuff);
       }
+      // print('buffers[1]');
+      // print(buffers[1]);
+
       if (thresholdHit == 1) {
         if (C_START != 0) {
           sendPort.send([buffers, arrHeads[0], eventPositionResultInt]);
@@ -745,19 +797,38 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
           ]);
         }
       }
+      for (int c = 0 ; c < numberOfChannels; c++){
+        samples[c].clear();
+      }
+
       return;
-    }
+    }// end of threshold
+
+
     const excess = 0;
     int halfwayCap =
         // globalPositionCap - ((globalPositionCap * 0.2) / currentCap).floor();
         globalPositionCap - (globalPositionCap * 0.2).floor();
 
+    /*
     for (int c = 0; c < numberOfChannels; c++) {
       Int16List envelopeSamples = allEnvelopes[c][level];
       int prevSegment = (envelopeSamples.length / divider).floor();
+      buffers.add(envelopeSamples.sublist(0,prevSegment));
+      // print(envelopeSamples.sublist(0,30));
+    }
+    sendPort
+        .send([buffers, arrHeads[0], eventPositionResultInt, arrIntMarkers]);
+
+    return;
+    */
+    for (int c = 0; c < numberOfChannels; c++) {
+      Int16List envelopeSamples = allEnvelopes[c][level];
+      int prevSegment = (envelopeSamples.length / divider).floor();
+      // print(prevSegment);
       if (tempPrevSegment != prevSegment) {
-        print("prevSegment " + level.toString());
-        print(prevSegment);
+        // print("prevSegment " + level.toString());
+        // print(prevSegment);
         tempPrevSegment = prevSegment;
       }
       // print(envelopeSamples.length);
@@ -1132,9 +1203,12 @@ void serialBufferingEntryPoint(List<dynamic> values) {
 
   ffi.Pointer<ffi.Int16> _dataThreshold = allocate<ffi.Int16>(
       count: samplesLength, sizeOfType: ffi.sizeOf<ffi.Int16>());
+  ffi.Pointer<ffi.Int16> _dataThreshold2 = allocate<ffi.Int16>(
+      count: samplesLength, sizeOfType: ffi.sizeOf<ffi.Int16>());
   Int16List _thresholdBytes = _dataThreshold.asTypedList(samplesLength);
+  Int16List _thresholdBytes2 = _dataThreshold.asTypedList(samplesLength);
   nativec.createThresholdProcess(
-      1, SEGMENT_SIZE_THRESHOLD, 0, 1, _dataThreshold);
+      1, SEGMENT_SIZE_THRESHOLD, 0, 1, _dataThreshold, _dataThreshold2);
   nativec.setThresholdParametersProcess(1, level, sampleRate.floor(), 6, 0);
 
   bool isThresholding = false;
@@ -1707,6 +1781,10 @@ void serialBufferingEntryPoint(List<dynamic> values) {
                 0,
                 zamples[c],
                 zamples[c].length,
+                zamples[c],
+                zamples[c].length,
+                THRESHOLD_CHANNEL_COUNT,
+                level,
                 divider,
                 CUR_START,
                 (allEnvelopes[0][level].length / divider).floor(),
@@ -1726,11 +1804,11 @@ void serialBufferingEntryPoint(List<dynamic> values) {
               int evtIdx = eventIndex * 2 - 20;
               if (evtIdx < 0) evtIdx = 0;
               print(rawSamples.sublist( (evtIdx).floor(), len) );
+              print('----------------------------');
               */
 
               // print('arrEventIndices');
               // print(arrEventIndices);
-              print('----------------------------');
               // writeResult['eventsData']['eventIndices'][0] = 0;
               // arrEventIndices[0] = 0;
               arrEventIndices.clear();
@@ -1742,6 +1820,10 @@ void serialBufferingEntryPoint(List<dynamic> values) {
                 0,
                 zamples[c],
                 zamples[c].length,
+                zamples[c],
+                zamples[c].length,
+                THRESHOLD_CHANNEL_COUNT,
+                level,
                 divider,
                 CUR_START,
                 (allEnvelopes[0][level].length / divider).floor(),
@@ -3188,8 +3270,10 @@ class _MyHomePageState extends State<MyHomePage> {
         //     channelsData.add(convSamples[i].map( (e) => e.toDouble() ).toList(growable: false));
         //   }
         // }
-        channelsData = [];
+        channelsData.clear();
         List<Int16List> convSamples = curSamples[0];
+        // print("convSamples.length");
+        // print(convSamples.length);
 
         for (int i = 0; i < convSamples.length; i++) {
           channelsData.add(
@@ -3263,6 +3347,7 @@ class _MyHomePageState extends State<MyHomePage> {
             timeScaleBar,
             thresholdType,
             forceThreshold,
+            selectedThresholdIdx,
             // DISPLAY_CHANNEL_FIX,
           ]);
           currentKey = "";
@@ -3272,7 +3357,6 @@ class _MyHomePageState extends State<MyHomePage> {
         // getAllChannelsSample(samples,maxOsChannel);
         // print("arrVisibleSamples[0]");
         // print(arrVisibleSamples[0]);
-
         iSendAudioPort.send([
           samples,
           level,
@@ -3294,6 +3378,8 @@ class _MyHomePageState extends State<MyHomePage> {
           timeScaleBar,
           thresholdType,
           forceThreshold,
+          selectedThresholdIdx,
+
           // DISPLAY_CHANNEL_FIX,
         ]);
         currentKey = "";
@@ -3430,6 +3516,7 @@ class _MyHomePageState extends State<MyHomePage> {
           timeScaleBar,
           thresholdType,
           forceThreshold,
+          selectedThresholdIdx,
           // DISPLAY_CHANNEL_FIX,
         ]);
       } else {
@@ -3454,6 +3541,7 @@ class _MyHomePageState extends State<MyHomePage> {
           timeScaleBar,
           thresholdType,
           forceThreshold,
+          selectedThresholdIdx,
           // DISPLAY_CHANNEL_FIX,
         ]);
         currentKey = "";
@@ -3730,18 +3818,38 @@ class _MyHomePageState extends State<MyHomePage> {
 
             // print("channelIdx");
             // print(channelIdx);
+            int c = channelIdx;
             if (channelIdx == -1) return;
             if (details.scale > 1) {
               // scale Up
               if (((details.scale * 10).round()) % 2 == 0) {
                 debouncerScale.run(() {
-                  increaseGain(channelIdx);
+                  // increaseGain(channelIdx);
+                  List<double> res = increaseGain(c);
+                  if (isThreshold) {
+                    forceThreshold = 0;
+                    if (res[0] != res[1]) {
+                      setThresholdMarker(c, thresholdMarkerTop,
+                          thresholdValue, res[0], res[1]);
+                    }
+                  }
+
                 });
               }
             } else {
               if (((details.scale * 10).round()) % 2 == 0) {
                 debouncerScale.run(() {
-                  decreaseGain(channelIdx);
+                  // decreaseGain(channelIdx);
+                  List<double> res = decreaseGain(c);
+                  if (isThreshold) {
+                    forceThreshold = 0;
+
+                    if (res[0] != res[1]) {
+                      setThresholdMarker(c, thresholdMarkerTop,
+                          thresholdValue, res[0], res[1]);
+                    }
+                  }
+
                 });
               }
               // scale Down
@@ -3840,6 +3948,7 @@ class _MyHomePageState extends State<MyHomePage> {
         body: GestureDetector(
           behavior: HitTestBehavior.translucent,
           onScaleUpdate: (ScaleUpdateDetails details) {
+            return;
             // onScaleUpdate: (details) {
             //ScaleUpdateDetails(focalPoint: Offset(104.9, 124.4), localFocalPoint: Offset(104.9, 124.4), scale: 1.0382496909924845, horizontalScale: 1.0382496909924845, verticalScale: 1.0382496909924845, rotation: 0.0, pointerCount: 1, focalPointDelta: Offset(0.0, 0.0))
             // print(details);
@@ -3866,13 +3975,33 @@ class _MyHomePageState extends State<MyHomePage> {
               // scale Up
               if (((details.scale * 10).round()) % 2 == 0) {
                 debouncerScale.run(() {
-                  increaseGain(channelIdx);
+                  // increaseGain(channelIdx);
+                  List<double> res = increaseGain(channelIdx);
+                  if (isThreshold) {
+                    forceThreshold = 0;
+
+                    if (res[0] != res[1]) {
+                      setThresholdMarker(channelIdx, thresholdMarkerTop,
+                          thresholdValue, res[0], res[1]);
+                    }
+                  }
+
                 });
               }
             } else {
               if (((details.scale * 10).round()) % 2 == 0) {
                 debouncerScale.run(() {
-                  decreaseGain(channelIdx);
+                  // decreaseGain(channelIdx);
+                  List<double> res = decreaseGain(channelIdx);
+                  if (isThreshold) {
+                    forceThreshold = 0;
+
+                    if (res[0] != res[1]) {
+                      setThresholdMarker(channelIdx, thresholdMarkerTop,
+                          thresholdValue, res[0], res[1]);
+                    }
+                  }
+
                 });
               }
               // scale Down
@@ -3940,7 +4069,6 @@ class _MyHomePageState extends State<MyHomePage> {
           child: RawKeyboardListener(
             onKey: (key) {
               if (isFeedback) return;
-
               if (key.character == null) {
                 prevKey = "~";
                 currentKey = "";
@@ -4092,8 +4220,8 @@ class _MyHomePageState extends State<MyHomePage> {
                       children: <Widget>[
                         GestureDetector(
                           onTap: () {
-                            print("onpress");
-                            print(item.idx);
+                            // print("onpress");
+                            // print(item.idx);
                             thresholdType = item.idx;
                             nativec.setTriggerTypeProcess(0, thresholdType);
 
@@ -4297,16 +4425,17 @@ class _MyHomePageState extends State<MyHomePage> {
       for (int c = 0; c < maxChannels; c++) {
         double idx = listIndexSerial[c];
         channelGains[c] = listChannelSerial[idx.toInt()];
+
+        double heightFactor = (channelGains[c] / signalMultiplier);
+        thresholdValue[c] = ((thresholdMarkerTop[c] +
+                        12 -
+                        (levelMedian[c] == -1
+                            ? initialLevelMedian[c]
+                            : levelMedian[c]))
+                    .floor() *
+                heightFactor)
+            .floor();
       }
-      double heightFactor = (channelGains[0] / signalMultiplier);
-      thresholdValue[0] = ((thresholdMarkerTop[0] +
-                      12 -
-                      (levelMedian[0] == -1
-                          ? initialLevelMedian[0]
-                          : levelMedian[0]))
-                  .floor() *
-              heightFactor)
-          .floor();
 
       callbackGetDeviceInfo([maxExpansionChannels, minChannels, maxChannels]);
     });
@@ -4469,12 +4598,36 @@ class _MyHomePageState extends State<MyHomePage> {
 
       _receiveQueue.rest.listen((curSamples) {
         // cBuffDouble = List<double>.from(curSamples);
+/*        
         channelsData = List<List<double>>.from(curSamples[0]);
         cBuffIdx = curSamples[1];
         markersData = List<double>.from(curSamples[2]);
         globalMarkers = List<int>.from(curSamples[3]);
 
         setState(() {});
+*/
+        if (isChangingThresholdType) {
+          print("isChangingThresholdType");
+          globalMarkers.clear();
+          markersData.clear();
+
+          return;
+        }
+        // cBuffDouble
+        // channelsData = List<Int16List>.from(curSamples[0]);
+        channelsData = [];
+        List<Int16List> convSamples = curSamples[0];
+        for (int i = 0; i < convSamples.length; i++) {
+          channelsData.add(
+              convSamples[i].map((e) => e.toDouble()).toList(growable: false));
+        }
+
+        cBuffIdx = curSamples[1];
+        markersData = List<double>.from(curSamples[2]);
+        globalMarkers = List<int>.from(curSamples[3]);
+        print(globalMarkers);
+
+        setState(() {});        
       });
 
       return;
@@ -5066,23 +5219,37 @@ class _MyHomePageState extends State<MyHomePage> {
         _channelActive = c;
       }
     }
+    // init Threshold Value
+    if (thresholdMarkerTop[selectedThresholdIdx] == -10000) {
 
-    if (thresholdMarkerTop[0] == -10000) {
-      double heightFactor = (channelGains[0] / signalMultiplier);
-      final halfMaxIntValue = 32767 / 2 / heightFactor;
+      for (int c = 0; c < 2; c++){
+        double heightFactor = (channelGains[c] / signalMultiplier);
+        final halfMaxIntValue = 32767 / 2 / heightFactor;
 
-      // thresholdMarkerTop[0] = (MediaQuery.of(context).size.height / 2) - 12;
-      thresholdMarkerTop[0] = halfMaxIntValue - 12;
-      thresholdValue[0] = ((thresholdMarkerTop[0] +
-                      12 -
-                      (MediaQuery.of(context).size.height / 2))
-                  .floor() *
-              heightFactor)
-          .floor();
+        // thresholdMarkerTop[0] = (MediaQuery.of(context).size.height / 2) - 12;
+        double calculatedMedian =
+            // (c * MediaQuery.of(context).size.height / channelsData.length) +
+            //     MediaQuery.of(context).size.height / channelsData.length / 2;
+            (c * MediaQuery.of(context).size.height / 2) +
+                MediaQuery.of(context).size.height / 2 / 2;
 
-      double median =
-          levelMedian[0] == -1 ? initialLevelMedian[0] : levelMedian[0];
-      listMedianDistance[0] = thresholdMarkerTop[0] + 12 - median;
+        thresholdMarkerTop[c] = halfMaxIntValue - 12;
+        thresholdValue[c] = ((thresholdMarkerTop[c] +
+                        12 -
+                        // (MediaQuery.of(context).size.height / 2))
+                        calculatedMedian)
+                    .floor() *
+                heightFactor)
+            .floor();
+        listMedianDistance[c] = thresholdMarkerTop[c] + 12 - calculatedMedian;
+        print('calculatedMedian');
+        print(calculatedMedian);
+        print(halfMaxIntValue);
+        print(thresholdMarkerTop[c]);
+        print(listMedianDistance[c]);
+
+      }
+
     }
 
     List<Widget> dataWidgets = [];
@@ -5415,10 +5582,23 @@ class _MyHomePageState extends State<MyHomePage> {
             onTap: () {
               if (c > -1) {
                 if (isRecording < 10) {
-                  settingParams["flagDisplay" + (c + 1).toString()] =
-                      settingParams["flagDisplay" + (c + 1).toString()] == 0
+
+                  selectedThresholdIdx = c;
+                  // if ( settingParams["flagDisplay${c + 1}"] == 1 ){
+                  //   for (var cIdx = 0; cIdx < channelsData.length; cIdx++) {
+                  //     if (settingParams["flagDisplay${cIdx + 1}"] == 1){
+
+                  //     }
+                  //     selectedThresholdIdx = c;
+                  //   }
+                  // }
+                  
+                  settingParams["flagDisplay${c + 1}"] =
+                      settingParams["flagDisplay${c + 1}"] == 0
                           ? 1
                           : 0;
+
+                  // if ( !isThreshold ) selectedThresholdIdx = c;
                   if (kIsWeb) {
                     // js.context.callMethod('setFlagChannelDisplay', [
                     //   settingParams["flagDisplay1"],
@@ -5440,6 +5620,8 @@ class _MyHomePageState extends State<MyHomePage> {
               }
             },
             onVerticalDragStart: (dragDetailStart) {
+              // if ( !isThreshold ) selectedThresholdIdx = c;
+              selectedThresholdIdx = c;
               if (!isMedianDragStart) {
                 print('isMedianDragStart');
                 print(isMedianDragStart);
@@ -5454,7 +5636,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 // if (thresholdMarkerTop[0] < 0){
                 //   curDistance = (thresholdMarkerTop[0] + 12 - median).abs();
                 // }else{
-                curDistance = thresholdMarkerTop[0] + 12 - median;
+                curDistance = thresholdMarkerTop[c] + 12 - median;
                 // }
                 // print('curDistance');
                 // print(curDistance);
@@ -5470,8 +5652,8 @@ class _MyHomePageState extends State<MyHomePage> {
                 }
 
                 listMedianDistance[c] = curDistance * scaleRatio;
-                thresholdMarkerTop[0] =
-                    median + listMedianDistance[0] / scaleRatio - 12;
+                thresholdMarkerTop[c] =
+                    median + listMedianDistance[c] / scaleRatio - 12;
 
                 // print('transformed Distance ');
                 // print(thresholdMarkerTop[0]);
@@ -5500,7 +5682,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       .floor();
               levelMedian[c] = dragUpdateVerticalDetails.globalPosition.dy;
 
-              double heightFactor = (channelGains[0] / signalMultiplier);
+              double heightFactor = (channelGains[c] / signalMultiplier);
               // thresholdValue[0] = ((thresholdMarkerTop[0] +
               //                 12 -
               //                 // (MediaQuery.of(context).size.height / 2))
@@ -5535,7 +5717,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   scaleRatio = listChannelSerial[defaultListIndexSerial] /
                       listChannelSerial[listIndexSerial[c].floor()];
                 }
-                thresholdMarkerTop[0] =
+                thresholdMarkerTop[c] =
                     median + listMedianDistance[0] * scaleRatio - 12;
 
                 // if (deviceType == 0){
@@ -5587,7 +5769,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     angle: 90 * pi / 180,
                     // child: settingParams["flagDisplay"+(c+1).toString()] == 0? Icon(Icons.water_drop_outlined ,color: audioChannelColors[c],size: 37,):Icon(Icons.water_drop_rounded,color: channelsColor[c],size: 37,),
                     child:
-                        settingParams["flagDisplay" + (c + 1).toString()] == 0
+                        settingParams["flagDisplay${c + 1}"] == 0
                             ? Icon(
                                 Icons.water_drop_outlined,
                                 color: channelsColor[c],
@@ -5892,10 +6074,11 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             child: Icon(
               Icons.stacked_line_chart,
-              color: isThreshold ? Colors.amber.shade900 : Color(0xFF800000),
+              color: isThreshold ? Colors.amber.shade900 : const Color(0xFF800000),
             ),
             onPressed: () {
               try {
+                selectedThresholdIdx = 0;
                 globalMarkers.clear();
                 markersData.clear();
                 isThreshold = !isThreshold;
@@ -5904,22 +6087,29 @@ class _MyHomePageState extends State<MyHomePage> {
                 CURRENT_START = 0;
                 isZooming = false;
                 for (int c = 0; c < 6; c++) {
+                  // initialLevelMedian[c] =
+                  //     MediaQuery.of(context).size.height / 2;
+                  // levelMedian[c] = MediaQuery.of(context).size.height / 2;
                   initialLevelMedian[c] =
-                      MediaQuery.of(context).size.height / 2;
-                  levelMedian[c] = MediaQuery.of(context).size.height / 2;
-                  listMedianDistance[0] =
-                      thresholdMarkerTop[0] + 12 - levelMedian[c];
+                      (c * MediaQuery.of(context).size.height / channelsData.length) +
+                          MediaQuery.of(context).size.height / channelsData.length / 2;
+                  levelMedian[c] = initialLevelMedian[c];
+
+                  listMedianDistance[c] =
+                      thresholdMarkerTop[c] + 12 - levelMedian[c];
+
+                  double heightFactor = (channelGains[c] / signalMultiplier);
+                  thresholdValue[c] = ((thresholdMarkerTop[c] +
+                                  12 -
+                                  (levelMedian[c] == -1
+                                      ? initialLevelMedian[c]
+                                      : levelMedian[c]))
+                              .floor() *
+                          heightFactor)
+                      .floor();
+
                 }
 
-                double heightFactor = (channelGains[0] / signalMultiplier);
-                thresholdValue[0] = ((thresholdMarkerTop[0] +
-                                12 -
-                                (levelMedian[0] == -1
-                                    ? initialLevelMedian[0]
-                                    : levelMedian[0]))
-                            .floor() *
-                        heightFactor)
-                    .floor();
                 // isChangingThresholdType = true;
                 // Future.delayed(Duration(milliseconds: 300), () {
                 //   globalMarkers.clear();
@@ -5947,12 +6137,12 @@ class _MyHomePageState extends State<MyHomePage> {
               ? 50
               : markerOutOfRange == 2
                   ? MediaQuery.of(context).size.height * 0.95
-                  : thresholdMarkerTop[0],
+                  : thresholdMarkerTop[selectedThresholdIdx],
           right: 20,
           child: GestureDetector(
             onVerticalDragUpdate: (dragUpdateVerticalDetails) {
               forceThreshold = 1;
-              int c = 0;
+              int c = selectedThresholdIdx;
 
               double currentY =
                   dragUpdateVerticalDetails.globalPosition.dy - 12;
@@ -5989,8 +6179,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   markerOutOfRange = 2;
                 } else {
                   markerOutOfRange = 0;
-                  thresholdValue[0] = tempThresholdValue;
-                  thresholdMarkerTop[0] = currentY;
+                  thresholdValue[c] = tempThresholdValue;
+                  thresholdMarkerTop[c] = currentY;
                 }
               }
 
@@ -6004,7 +6194,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 scaleRatio = listChannelSerial[listIndexSerial[c].floor()] /
                     listChannelSerial[defaultListIndexSerial];
               }
-              double curDistance = thresholdMarkerTop[0] + 12 - median;
+              double curDistance = thresholdMarkerTop[c] + 12 - median;
               listMedianDistance[c] = curDistance * scaleRatio;
 
               setState(() {});
@@ -6035,14 +6225,15 @@ class _MyHomePageState extends State<MyHomePage> {
                     : markerOutOfRange == 2
                         ? -180 * pi / 180
                         : 0,
-                child: Icon(Icons.water_drop_rounded, color: Colors.green),
+                // child: Icon(Icons.water_drop_rounded, color: Colors.green),
+                child: Icon(Icons.water_drop_rounded, color: channelsColor[selectedThresholdIdx]),
               ),
             ),
           ),
         ));
         if (markerOutOfRange == 0) {
           dataWidgets.add(Positioned(
-              top: thresholdMarkerTop[0] + 12,
+              top: thresholdMarkerTop[selectedThresholdIdx] + 12,
               right: 20,
               child: Container(
                 width: MediaQuery.of(context).size.width,
@@ -6051,7 +6242,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   lineLength: double.infinity,
                   lineThickness: 1.0,
                   dashLength: 4.0,
-                  dashColor: Colors.green,
+                  dashColor: channelsColor[selectedThresholdIdx],
                   dashRadius: 0.0,
                   dashGapLength: 4.0,
                   dashGapColor: Colors.transparent,
@@ -6599,33 +6790,33 @@ class _MyHomePageState extends State<MyHomePage> {
                       shape: BoxShape.circle,
                       color: Colors.white,
                     ),
-                    child: Icon(Icons.add,
+                    child: const Icon(Icons.add,
                         // key: keyTutorialAudioGainPlus,
                         color: Colors.black,
                         size: 17),
                   ),
                   SizedBox(width: 10),
-                  Text('Increase Gain',
+                  const Text('Increase Gain',
                       style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
                           color: Colors.white)),
                 ]),
-                Text('To increase the signal gain click on plus sign',
+                const Text('To increase the signal gain click on plus sign',
                     style: TextStyle(fontSize: 12, color: Colors.white)),
-                SizedBox(
+                const SizedBox(
                   height: 10,
                 ),
                 Row(
                   children: [
                     Transform.rotate(
                       angle: 90 * pi / 180,
-                      child: Icon(Icons.water_drop_outlined,
+                      child: const Icon(Icons.water_drop_outlined,
                           // key: keyTutorialAudioLevel,
                           color: Colors.green),
                     ),
                     SizedBox(width: 10),
-                    Text('Level',
+                    const Text('Level',
                         style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 15,
@@ -6633,14 +6824,14 @@ class _MyHomePageState extends State<MyHomePage> {
                   ],
                 ),
                 // Text( 'This is the median of the sample data', style: TextStyle( fontSize: 12, color:Colors.white) ),
-                Text('This is the origin (y=0) point of the signal channel. ',
+                const Text('This is the origin (y=0) point of the signal channel. ',
                     style: TextStyle(fontSize: 12, color: Colors.white)),
-                Text('Click this button to toggle the channel on/off and ',
+                const Text('Click this button to toggle the channel on/off and ',
                     style: TextStyle(fontSize: 12, color: Colors.white)),
-                Text('drag it to move the channel up or down. ',
+                const Text('drag it to move the channel up or down. ',
                     style: TextStyle(fontSize: 12, color: Colors.white)),
 
-                SizedBox(
+                const SizedBox(
                   height: 10,
                 ),
                 Row(
@@ -6650,26 +6841,26 @@ class _MyHomePageState extends State<MyHomePage> {
                         shape: BoxShape.circle,
                         color: Colors.white,
                       ),
-                      child: Icon(Icons.remove,
+                      child: const Icon(Icons.remove,
                           // key: keyTutorialAudioGainMinus,
                           color: Colors.black,
                           size: 17),
                     ),
-                    SizedBox(width: 10),
-                    Text('Decrease Gain',
+                    const SizedBox(width: 10),
+                    const Text('Decrease Gain',
                         style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 15,
                             color: Colors.white)),
                   ],
                 ),
-                Text('To decrease the signal gain click on minus sign',
+                const Text('To decrease the signal gain click on minus sign',
                     style: TextStyle(fontSize: 12, color: Colors.white)),
-                SizedBox(
+                const SizedBox(
                   height: 50,
                 ),
 
-                Text('Click here to continue',
+                const Text('Click here to continue',
                     style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 15,
@@ -7344,7 +7535,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   setThresholdMarker(int c, List<double> thresholdMarkerTop,
       List<int> thresholdValue, double prevVal, double curVal) {
-    c = 0;
+    // c = 0;
     // double idx = listIndexAudio[c];
     // if (idx - 1 > minIndexAudio) {
     //   idx--;
@@ -7457,23 +7648,23 @@ class _MyHomePageState extends State<MyHomePage> {
     if (tempMarkerTop < 50) {
       excessiveTopGain++;
       markerOutOfRange = 1;
-      thresholdMarkerTop[0] = tempMarkerTop;
+      thresholdMarkerTop[c] = tempMarkerTop;
     } else if (tempMarkerTop > MediaQuery.of(context).size.height * 0.95) {
       excessiveBottomGain++;
 
       markerOutOfRange = 2;
-      thresholdMarkerTop[0] = tempMarkerTop;
+      thresholdMarkerTop[c] = tempMarkerTop;
       // listIndexAudio[c] = listChannelAudio.indexOf(prevVal).toDouble();
       // channelGains[c] = prevVal;
     } else {
       excessiveTopGain = 0;
       excessiveBottomGain = 0;
       markerOutOfRange = 0;
-      thresholdMarkerTop[0] = tempMarkerTop;
+      thresholdMarkerTop[c] = tempMarkerTop;
       // listIndexAudio[c] = listChannelAudio.indexOf(prevVal).toDouble();
       // channelGains[c] = prevVal;
     }
-    double heightFactor = (channelGains[0] / signalMultiplier);
+    double heightFactor = (channelGains[c] / signalMultiplier);
     // thresholdValue[0] = ((thresholdMarkerTop[0] +
     //                 12 -
     //                 // (MediaQuery.of(context).size.height / 2))
@@ -7491,7 +7682,7 @@ class _MyHomePageState extends State<MyHomePage> {
     //         heightFactor)
     //     .floor();
 
-    print(thresholdMarkerTop[0].toString() +
+    print(thresholdMarkerTop[c].toString() +
         "  _  " +
         (levelMedian[0] == -1 ? initialLevelMedian[0] : levelMedian[0])
             .toString() +

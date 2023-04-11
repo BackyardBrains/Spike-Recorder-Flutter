@@ -82,6 +82,10 @@ typedef append_samples_threshold_func = ffi.Double Function(
   ffi.Int16,
   ffi.Pointer<ffi.Int16>,
   ffi.Uint32,
+  ffi.Pointer<ffi.Int16>,
+  ffi.Uint32,
+  ffi.Int16,
+  ffi.Int16,
   ffi.Double,
   ffi.Int32,
   ffi.Uint32,
@@ -96,6 +100,10 @@ typedef AppendSamplesThresholdProcess = double Function(
     int,
     int,
     ffi.Pointer<ffi.Int16>,
+    int,
+    ffi.Pointer<ffi.Int16>,
+    int,
+    int,
     int,
     double,
     int,
@@ -178,6 +186,8 @@ class Nativec {
       count: totalBytes, sizeOfType: ffi.sizeOf<ffi.Int16>());
   static ffi.Pointer<ffi.Int16> _dataThreshold = allocate<ffi.Int16>(
       count: totalThresholdBytes, sizeOfType: ffi.sizeOf<ffi.Int16>());
+  static ffi.Pointer<ffi.Int16> _dataThreshold2 = allocate<ffi.Int16>(
+      count: totalThresholdBytes, sizeOfType: ffi.sizeOf<ffi.Int16>());
 
   static ffi.Pointer<ffi.Int16> _dataEventIndices = allocate<ffi.Int16>(
       count: totalEventIndicesBytes, sizeOfType: ffi.sizeOf<ffi.Int16>());
@@ -186,6 +196,7 @@ class Nativec {
 
   late Int16List _bytes;
   late Int16List _thresholdBytes;
+  late Int16List _thresholdBytes2;
   late Int16List _thresholdEventIndices;
   late Int16List _thresholdEvents;
 
@@ -449,10 +460,12 @@ class Nativec {
   }
 
   void createThresholdProcess(
-      channelCount, sampleRate, threshold, averagedSampleCount, dataThreshold) {
+      channelCount, sampleRate, threshold, averagedSampleCount, dataThreshold, dataThreshold2) {
     Nativec.totalThresholdBytes = (timeSpan * sampleRate).floor();
     _dataThreshold = dataThreshold;
+    _dataThreshold2 = dataThreshold2;
     _thresholdBytes = _dataThreshold.asTypedList(Nativec.totalThresholdBytes);
+    _thresholdBytes2 = _dataThreshold2.asTypedList(Nativec.totalThresholdBytes);
     _thresholdEventIndices =
         _dataEventIndices.asTypedList(Nativec.totalEventIndicesBytes);
     _thresholdEvents = _dataEvents.asTypedList(Nativec.totalEventsBytes);
@@ -478,6 +491,10 @@ class Nativec {
       channelIdx,
       samples,
       sampleCount,
+      samples2,
+      sampleCount2,
+      channelCount,
+      level,
       divider,
       currentStart,
       sampleNeeded,
@@ -486,6 +503,7 @@ class Nativec {
       events,
       eventCount) {
     _thresholdBytes.fillRange(0, Nativec.totalThresholdBytes, 0);
+    _thresholdBytes2.fillRange(0, Nativec.totalThresholdBytes, 0);
     _thresholdEventIndices.fillRange(0, Nativec.totalEventIndicesBytes, 0);
     _thresholdEvents.fillRange(0, Nativec.totalEventsBytes, 0);
     // int len = samples.length;
@@ -494,7 +512,9 @@ class Nativec {
     // for (int i = 0; i < len; i++) {
     //   _thresholdBytes[i] = samples[i];
     // }
+
     _thresholdBytes.setAll(0, samples);
+    _thresholdBytes2.setAll(0, samples);
     if (eventCount > 0) {
       // _thresholdEventIndices.fillRange(0, _thresholdEventIndices.length, eventIndices[0]);
       // _thresholdEvents.fillRange(0, _thresholdEvents.length, events[0]);
@@ -518,6 +538,10 @@ class Nativec {
         channelIdx,
         _dataThreshold,
         sampleCount,
+        _dataThreshold2,
+        sampleCount2,
+        channelCount,
+        level,
         divider.toDouble(),
         currentStart.floor(),
         sampleNeeded,
@@ -553,4 +577,5 @@ class Nativec {
   double setTriggerTypeProcess(int channelIdx, int type) {
     return _setTriggerTypeProcess(channelIdx, type);
   }
+
 }
