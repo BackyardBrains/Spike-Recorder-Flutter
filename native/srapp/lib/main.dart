@@ -357,8 +357,9 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
   unitInitializeEnvelope(THRESHOLD_CHANNEL_COUNT, allThresholdEnvelopes,
       allThresholdEnvelopesSize, size, SIZE, SIZE_LOGS_THRESHOLD);
 
+  var _dataThresholds = [_dataThreshold,_dataThreshold2];
   nativec.createThresholdProcess(
-      THRESHOLD_CHANNEL_COUNT, SEGMENT_SIZE_THRESHOLD, 0, 1, _dataThreshold, _dataThreshold2);
+      THRESHOLD_CHANNEL_COUNT, SEGMENT_SIZE_THRESHOLD, 0, 1, _dataThresholds);
   print('create threshold process');
   nativec.setThresholdParametersProcess(THRESHOLD_CHANNEL_COUNT, level, sampleRate, 6, 0);
 
@@ -635,12 +636,12 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
           }
         }
       }
-
+      double processedSamplesCount = 0;
       if (isPrevThresholdingStatus){
           cBuffIdx = 0;
           try {
 
-            double processedSamplesCount =
+            processedSamplesCount =
                 (nativec.appendSamplesThresholdProcess(
                     snapshotAveragedSamples[0].floor(),
                     thresholdValue[selectedThresholdIdx].floor(),
@@ -649,6 +650,14 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
                     samples[0].length,
                     samples[1],
                     samples[1].length,
+                    [],
+                    0,
+                    [],
+                    0,
+                    [],
+                    0,
+                    [],
+                    0,
                     THRESHOLD_CHANNEL_COUNT,
                     level,
                     divider,
@@ -1205,10 +1214,28 @@ void serialBufferingEntryPoint(List<dynamic> values) {
       count: samplesLength, sizeOfType: ffi.sizeOf<ffi.Int16>());
   ffi.Pointer<ffi.Int16> _dataThreshold2 = allocate<ffi.Int16>(
       count: samplesLength, sizeOfType: ffi.sizeOf<ffi.Int16>());
+  ffi.Pointer<ffi.Int16> _dataThreshold3 = allocate<ffi.Int16>(
+      count: samplesLength, sizeOfType: ffi.sizeOf<ffi.Int16>());
+  ffi.Pointer<ffi.Int16> _dataThreshold4 = allocate<ffi.Int16>(
+      count: samplesLength, sizeOfType: ffi.sizeOf<ffi.Int16>());
+  ffi.Pointer<ffi.Int16> _dataThreshold5 = allocate<ffi.Int16>(
+      count: samplesLength, sizeOfType: ffi.sizeOf<ffi.Int16>());
+  ffi.Pointer<ffi.Int16> _dataThreshold6 = allocate<ffi.Int16>(
+      count: samplesLength, sizeOfType: ffi.sizeOf<ffi.Int16>());
+
   Int16List _thresholdBytes = _dataThreshold.asTypedList(samplesLength);
-  Int16List _thresholdBytes2 = _dataThreshold.asTypedList(samplesLength);
+  Int16List _thresholdBytes2 = _dataThreshold2.asTypedList(samplesLength);
+  Int16List _thresholdBytes3 = _dataThreshold3.asTypedList(samplesLength);
+  Int16List _thresholdBytes4 = _dataThreshold4.asTypedList(samplesLength);
+  Int16List _thresholdBytes5 = _dataThreshold5.asTypedList(samplesLength);
+  Int16List _thresholdBytes6 = _dataThreshold6.asTypedList(samplesLength);
+
+  List<Int16List> _thresholdArrs = [_thresholdBytes,_thresholdBytes2,_thresholdBytes3,_thresholdBytes4,_thresholdBytes5,_thresholdBytes6];
+
+  var _dataThresholds = [_dataThreshold,_dataThreshold2,_dataThreshold3,_dataThreshold4,_dataThreshold5,_dataThreshold6];
+
   nativec.createThresholdProcess(
-      1, SEGMENT_SIZE_THRESHOLD, 0, 1, _dataThreshold, _dataThreshold2);
+      1, SEGMENT_SIZE_THRESHOLD, 0, 1, _dataThresholds);
   nativec.setThresholdParametersProcess(1, level, sampleRate.floor(), 6, 0);
 
   bool isThresholding = false;
@@ -1353,6 +1380,8 @@ void serialBufferingEntryPoint(List<dynamic> values) {
     }
 
     Int16List curSamples = new Int16List(0);
+    double processedSamplesCount = 0;
+
     if (!isPaused) {
       // cBufHead = 0;
       // cBufTail = 0;
@@ -1747,7 +1776,6 @@ void serialBufferingEntryPoint(List<dynamic> values) {
               1, level, sampleRate, divider, CUR_START);
           Uint8List filledArray = Uint8List(arrEventIndices.length);
           filledArray.fillRange(0, arrEventIndices.length, 1);
-          double processedSamplesCount = 0;
           if (thresholdingType > -1) {
             int eventIndex = arrEventIndices.isEmpty ? 0 : arrEventIndices[0];
             if (cBufTail == cBufHead){
@@ -1779,10 +1807,18 @@ void serialBufferingEntryPoint(List<dynamic> values) {
                 snapshotAveragedSamples[0].floor(),
                 thresholdValue[selectedThresholdIdx].floor(),
                 selectedThresholdIdx,
-                zamples[c],
-                zamples[c].length,
-                zamples[c],
-                zamples[c].length,
+                zamples[0],
+                zamples[0].length,
+                zamples[1],
+                zamples[1].length,
+                zamples[2],
+                zamples[2].length,
+                zamples[3],
+                zamples[3].length,
+                zamples[4],
+                zamples[4].length,
+                zamples[5],
+                zamples[5].length,
                 THRESHOLD_CHANNEL_COUNT,
                 level,
                 divider,
@@ -1816,12 +1852,20 @@ void serialBufferingEntryPoint(List<dynamic> values) {
           } else {
             processedSamplesCount = (nativec.appendSamplesThresholdProcess(
                 snapshotAveragedSamples[0].floor(),
-                thresholdValue[0],
-                0,
-                zamples[c],
-                zamples[c].length,
-                zamples[c],
-                zamples[c].length,
+                thresholdValue[selectedThresholdIdx],
+                selectedThresholdIdx,
+                zamples[0],
+                zamples[0].length,
+                zamples[1],
+                zamples[1].length,
+                zamples[2],
+                zamples[2].length,
+                zamples[3],
+                zamples[3].length,
+                zamples[4],
+                zamples[4].length,
+                zamples[5],
+                zamples[5].length,
                 THRESHOLD_CHANNEL_COUNT,
                 level,
                 divider,
@@ -1842,8 +1886,8 @@ void serialBufferingEntryPoint(List<dynamic> values) {
           // print(thresholdingType);
 
           // curSamples = _thresholdBytes;
-          curSamples =
-              _thresholdBytes.sublist(0, processedSamplesCount.floor());
+          // curSamples =
+          //     _thresholdBytes.sublist(0, processedSamplesCount.floor());
 
           // thresholdHeads[c] = processedSamplesCount.floor();
 
@@ -1856,8 +1900,8 @@ void serialBufferingEntryPoint(List<dynamic> values) {
         samplesLength = curSamples.length;
         cBuffIdx = samplesLength;
         globalIdx = 0;
-        allThresholdEnvelopes[c][level]
-            .fillRange(0, allThresholdEnvelopes[c].length, 0);
+        // allThresholdEnvelopes[c][level]
+        //     .fillRange(0, allThresholdEnvelopes[c].length, 0);
       } else {
         // level = calculateLevel(
         //     10000, _sampleRate.floor(), surfaceWidth, skipCounts);
@@ -1969,7 +2013,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
             .floor();
         thresholdHeads[0] = sampleNeeded;
         cBuffIdx = sampleNeeded;
-        curSamples = _thresholdBytes.sublist(0, samplesLength);
+        // curSamples = _thresholdBytes.sublist(0, samplesLength);
       }
     }
 
@@ -2003,12 +2047,14 @@ void serialBufferingEntryPoint(List<dynamic> values) {
         // to = envelopeSamples.length;
 
         // Int16List cBuff = envelopeSamples;
-        Int16List cBuff = curSamples;
+        // Int16List cBuff = curSamples;
+        Int16List cBuff = _thresholdArrs[c].sublist(0, processedSamplesCount.floor());
         int lastIndex = curSamples.lastIndexWhere((element) => element != 0);
         // print(cBuff.getRange( (curSamples.length - 50).floor(), curSamples.length));
         if (lastIndex>-1){
           cBuff.fillRange(lastIndex, curSamples.length - 1, curSamples[lastIndex]);
         }
+
         buffers.add(cBuff);
       }
       // sendPort.send([buffers, arrHeads[0], arrIntMarkers.map((e)=> e.toDouble()).toList(), arrIndicesMarkers]);

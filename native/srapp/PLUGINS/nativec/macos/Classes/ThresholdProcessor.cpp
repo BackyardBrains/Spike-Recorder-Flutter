@@ -1285,7 +1285,7 @@ EXTERNC FUNCTION_ATTRIBUTE int getThresholdHitProcess(){
     }
     return 0;
 }
-EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedSampleCount, short _threshold, short selectedChannel, short *data, uint32_t sampleCount, short *data2, uint32_t sampleCount2, short _channelCount, short _forceLevel, double divider, int currentStart, int sampleNeeded, 
+EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedSampleCount, short _threshold, short selectedChannel, short *data, uint32_t sampleCount, short *data2, uint32_t sampleCount2, short *data3, uint32_t sampleCount3, short *data4, uint32_t sampleCount4, short *data5, uint32_t sampleCount5, short *data6, uint32_t sampleCount6, short _channelCount, short _forceLevel, double divider, int currentStart, int sampleNeeded, 
     // short* eventIndices, short* events, short eventCount){
     short eventIndices, short events, short eventCount){
 
@@ -1298,8 +1298,29 @@ EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedS
     // int layers = ((int)_averagedSampleCount);
     inSamplesPtr[0] = new short[sampleCount];
     inSampleCounts[0] = sampleCount;
-    inSamplesPtr[1] = new short[sampleCount2];
-    inSampleCounts[1] = sampleCount2;
+    if (channelCount > 1){
+        inSamplesPtr[1] = new short[sampleCount2];
+        inSampleCounts[1] = sampleCount2;
+    }
+    if (channelCount > 2){
+        inSamplesPtr[2] = new short[sampleCount3];
+        inSampleCounts[2] = sampleCount3;
+    }
+
+    if (channelCount > 3){
+        inSamplesPtr[3] = new short[sampleCount4];
+        inSampleCounts[3] = sampleCount4;
+    }
+
+    if (channelCount > 4){
+        inSamplesPtr[4] = new short[sampleCount5];
+        inSampleCounts[4] = sampleCount5;
+    }
+
+    if (channelCount > 5){
+        inSamplesPtr[5] = new short[sampleCount6];
+        inSampleCounts[5] = sampleCount6;
+    }
     // debug_print("appendSamples2");
     // inSampleCounts[1] = sampleCount;
     thresholdProcessor[0].setThreshold(_threshold);
@@ -1313,7 +1334,11 @@ EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedS
 
 // ****
     std::copy(data, data + sampleCount, inSamplesPtr[0]);
-    std::copy(data2, data2 + sampleCount2, inSamplesPtr[1]);
+    if (channelCount > 1) std::copy(data2, data2 + sampleCount2, inSamplesPtr[1]);
+    if (channelCount > 2) std::copy(data3, data3 + sampleCount3, inSamplesPtr[2]);
+    if (channelCount > 3) std::copy(data4, data4 + sampleCount4, inSamplesPtr[3]);
+    if (channelCount > 4) std::copy(data5, data5 + sampleCount5, inSamplesPtr[4]);
+    if (channelCount > 5) std::copy(data6, data6 + sampleCount6, inSamplesPtr[5]);
     // std::copy(event, data + sampleCount, inSamplesPtr[0]);
     // std::copy(data, data + sampleCount, inSamplesPtr[0]);
     // debug_print("trying to envelope5");
@@ -1399,13 +1424,50 @@ EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedS
             }else{
                 std::copy(envelopes[channelIdx][forceLevel]-envelopeCurrentStart, envelopes[channelIdx][forceLevel] - envelopeCurrentStart + sizeOfEnvelope, data);
             }
-        }else{
+        }else
+        if (i==1){
             if (current_start < 0){
                 int skipCount = skipCounts[forceLevel];
                 int difPos = 0;
                 std::copy(envelopes[channelIdx][forceLevel]+difPos, envelopes[channelIdx][forceLevel] + difPos + sizeOfEnvelope, data2);
             }else{
                 std::copy(envelopes[channelIdx][forceLevel]-envelopeCurrentStart, envelopes[channelIdx][forceLevel] - envelopeCurrentStart + sizeOfEnvelope, data2);
+            }            
+        }else
+        if (i==2){
+            if (current_start < 0){
+                int skipCount = skipCounts[forceLevel];
+                int difPos = 0;
+                std::copy(envelopes[channelIdx][forceLevel]+difPos, envelopes[channelIdx][forceLevel] + difPos + sizeOfEnvelope, data3);
+            }else{
+                std::copy(envelopes[channelIdx][forceLevel]-envelopeCurrentStart, envelopes[channelIdx][forceLevel] - envelopeCurrentStart + sizeOfEnvelope, data3);
+            }            
+        }else
+        if (i==3){
+            if (current_start < 0){
+                int skipCount = skipCounts[forceLevel];
+                int difPos = 0;
+                std::copy(envelopes[channelIdx][forceLevel]+difPos, envelopes[channelIdx][forceLevel] + difPos + sizeOfEnvelope, data4);
+            }else{
+                std::copy(envelopes[channelIdx][forceLevel]-envelopeCurrentStart, envelopes[channelIdx][forceLevel] - envelopeCurrentStart + sizeOfEnvelope, data4);
+            }            
+        }else
+        if (i==4){
+            if (current_start < 0){
+                int skipCount = skipCounts[forceLevel];
+                int difPos = 0;
+                std::copy(envelopes[channelIdx][forceLevel]+difPos, envelopes[channelIdx][forceLevel] + difPos + sizeOfEnvelope, data5);
+            }else{
+                std::copy(envelopes[channelIdx][forceLevel]-envelopeCurrentStart, envelopes[channelIdx][forceLevel] - envelopeCurrentStart + sizeOfEnvelope, data5);
+            }            
+        }else
+        if (i==5){
+            if (current_start < 0){
+                int skipCount = skipCounts[forceLevel];
+                int difPos = 0;
+                std::copy(envelopes[channelIdx][forceLevel]+difPos, envelopes[channelIdx][forceLevel] + difPos + sizeOfEnvelope, data6);
+            }else{
+                std::copy(envelopes[channelIdx][forceLevel]-envelopeCurrentStart, envelopes[channelIdx][forceLevel] - envelopeCurrentStart + sizeOfEnvelope, data6);
             }            
         }
 

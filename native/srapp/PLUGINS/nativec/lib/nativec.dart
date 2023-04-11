@@ -84,6 +84,14 @@ typedef append_samples_threshold_func = ffi.Double Function(
   ffi.Uint32,
   ffi.Pointer<ffi.Int16>,
   ffi.Uint32,
+  ffi.Pointer<ffi.Int16>,
+  ffi.Uint32,
+  ffi.Pointer<ffi.Int16>,
+  ffi.Uint32,
+  ffi.Pointer<ffi.Int16>,
+  ffi.Uint32,
+  ffi.Pointer<ffi.Int16>,
+  ffi.Uint32,
   ffi.Int16,
   ffi.Int16,
   ffi.Double,
@@ -98,6 +106,14 @@ typedef append_samples_threshold_func = ffi.Double Function(
 typedef AppendSamplesThresholdProcess = double Function(
     int,
     int,
+    int,
+    ffi.Pointer<ffi.Int16>,
+    int,
+    ffi.Pointer<ffi.Int16>,
+    int,
+    ffi.Pointer<ffi.Int16>,
+    int,
+    ffi.Pointer<ffi.Int16>,
     int,
     ffi.Pointer<ffi.Int16>,
     int,
@@ -188,6 +204,14 @@ class Nativec {
       count: totalThresholdBytes, sizeOfType: ffi.sizeOf<ffi.Int16>());
   static ffi.Pointer<ffi.Int16> _dataThreshold2 = allocate<ffi.Int16>(
       count: totalThresholdBytes, sizeOfType: ffi.sizeOf<ffi.Int16>());
+  static ffi.Pointer<ffi.Int16> _dataThreshold3 = allocate<ffi.Int16>(
+      count: totalThresholdBytes, sizeOfType: ffi.sizeOf<ffi.Int16>());
+  static ffi.Pointer<ffi.Int16> _dataThreshold4 = allocate<ffi.Int16>(
+      count: totalThresholdBytes, sizeOfType: ffi.sizeOf<ffi.Int16>());
+  static ffi.Pointer<ffi.Int16> _dataThreshold5 = allocate<ffi.Int16>(
+      count: totalThresholdBytes, sizeOfType: ffi.sizeOf<ffi.Int16>());
+  static ffi.Pointer<ffi.Int16> _dataThreshold6 = allocate<ffi.Int16>(
+      count: totalThresholdBytes, sizeOfType: ffi.sizeOf<ffi.Int16>());
 
   static ffi.Pointer<ffi.Int16> _dataEventIndices = allocate<ffi.Int16>(
       count: totalEventIndicesBytes, sizeOfType: ffi.sizeOf<ffi.Int16>());
@@ -197,6 +221,10 @@ class Nativec {
   late Int16List _bytes;
   late Int16List _thresholdBytes;
   late Int16List _thresholdBytes2;
+  late Int16List _thresholdBytes3;
+  late Int16List _thresholdBytes4;
+  late Int16List _thresholdBytes5;
+  late Int16List _thresholdBytes6;
   late Int16List _thresholdEventIndices;
   late Int16List _thresholdEvents;
 
@@ -460,12 +488,33 @@ class Nativec {
   }
 
   void createThresholdProcess(
-      channelCount, sampleRate, threshold, averagedSampleCount, dataThreshold, dataThreshold2) {
+      channelCount, sampleRate, threshold, averagedSampleCount, dataThresholds) {
     Nativec.totalThresholdBytes = (timeSpan * sampleRate).floor();
-    _dataThreshold = dataThreshold;
-    _dataThreshold2 = dataThreshold2;
+    _dataThreshold = dataThresholds[0];
     _thresholdBytes = _dataThreshold.asTypedList(Nativec.totalThresholdBytes);
-    _thresholdBytes2 = _dataThreshold2.asTypedList(Nativec.totalThresholdBytes);
+
+    if (channelCount>1){
+      _dataThreshold2 = dataThresholds[1];
+      _thresholdBytes2 = _dataThreshold2.asTypedList(Nativec.totalThresholdBytes);
+    }
+    if (channelCount>2){
+      _dataThreshold3 = dataThresholds[2];
+      _thresholdBytes3 = _dataThreshold3.asTypedList(Nativec.totalThresholdBytes);
+    }
+    if (channelCount>3){
+      _dataThreshold4 = dataThresholds[3];
+      _thresholdBytes4 = _dataThreshold4.asTypedList(Nativec.totalThresholdBytes);
+    }
+    if (channelCount>4){
+      _dataThreshold5 = dataThresholds[4];
+      _thresholdBytes5 = _dataThreshold5.asTypedList(Nativec.totalThresholdBytes);
+    }
+    if (channelCount>5){
+      _dataThreshold6 = dataThresholds[5];
+      _thresholdBytes6 = _dataThreshold6.asTypedList(Nativec.totalThresholdBytes);
+    }
+
+
     _thresholdEventIndices =
         _dataEventIndices.asTypedList(Nativec.totalEventIndicesBytes);
     _thresholdEvents = _dataEvents.asTypedList(Nativec.totalEventsBytes);
@@ -493,6 +542,14 @@ class Nativec {
       sampleCount,
       samples2,
       sampleCount2,
+      samples3,
+      sampleCount3,
+      samples4,
+      sampleCount4,
+      samples5,
+      sampleCount5,
+      samples6,
+      sampleCount6,
       channelCount,
       level,
       divider,
@@ -502,8 +559,14 @@ class Nativec {
       eventIndex,
       events,
       eventCount) {
-    _thresholdBytes.fillRange(0, Nativec.totalThresholdBytes, 0);
-    _thresholdBytes2.fillRange(0, Nativec.totalThresholdBytes, 0);
+    // _thresholdBytes.fillRange(0, Nativec.totalThresholdBytes, 0);
+    // if (channelCount>1) _thresholdBytes2.fillRange(0, Nativec.totalThresholdBytes, 0);
+    // if (channelCount>2) _thresholdBytes3.fillRange(0, Nativec.totalThresholdBytes, 0);
+    // if (channelCount>3) _thresholdBytes4.fillRange(0, Nativec.totalThresholdBytes, 0);
+    // if (channelCount>4) _thresholdBytes5.fillRange(0, Nativec.totalThresholdBytes, 0);
+    // if (channelCount>5) _thresholdBytes6.fillRange(0, Nativec.totalThresholdBytes, 0);
+
+
     _thresholdEventIndices.fillRange(0, Nativec.totalEventIndicesBytes, 0);
     _thresholdEvents.fillRange(0, Nativec.totalEventsBytes, 0);
     // int len = samples.length;
@@ -514,7 +577,12 @@ class Nativec {
     // }
 
     _thresholdBytes.setAll(0, samples);
-    _thresholdBytes2.setAll(0, samples);
+    if (channelCount>1) _thresholdBytes2.setAll(0, samples);
+    if (channelCount>2) _thresholdBytes3.setAll(0, samples);
+    if (channelCount>3) _thresholdBytes4.setAll(0, samples);
+    if (channelCount>4) _thresholdBytes5.setAll(0, samples);
+    if (channelCount>5) _thresholdBytes6.setAll(0, samples);
+
     if (eventCount > 0) {
       // _thresholdEventIndices.fillRange(0, _thresholdEventIndices.length, eventIndices[0]);
       // _thresholdEvents.fillRange(0, _thresholdEvents.length, events[0]);
@@ -540,6 +608,14 @@ class Nativec {
         sampleCount,
         _dataThreshold2,
         sampleCount2,
+        _dataThreshold3,
+        sampleCount3,
+        _dataThreshold4,
+        sampleCount4,
+        _dataThreshold5,
+        sampleCount5,
+        _dataThreshold6,
+        sampleCount6,
         channelCount,
         level,
         divider.toDouble(),
