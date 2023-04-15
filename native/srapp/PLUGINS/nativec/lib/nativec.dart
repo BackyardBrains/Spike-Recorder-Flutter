@@ -487,33 +487,37 @@ class Nativec {
     // print(_returnGainFilterProcess(1));
   }
 
-  void createThresholdProcess(
-      channelCount, sampleRate, threshold, averagedSampleCount, dataThresholds) {
+  void createThresholdProcess(channelCount, sampleRate, threshold,
+      averagedSampleCount, dataThresholds) {
     Nativec.totalThresholdBytes = (timeSpan * sampleRate).floor();
     _dataThreshold = dataThresholds[0];
     _thresholdBytes = _dataThreshold.asTypedList(Nativec.totalThresholdBytes);
 
-    if (channelCount>1){
+    if (dataThresholds.length > 1) {
       _dataThreshold2 = dataThresholds[1];
-      _thresholdBytes2 = _dataThreshold2.asTypedList(Nativec.totalThresholdBytes);
+      _thresholdBytes2 =
+          _dataThreshold2.asTypedList(Nativec.totalThresholdBytes);
     }
-    if (channelCount>2){
+    if (dataThresholds.length > 2) {
       _dataThreshold3 = dataThresholds[2];
-      _thresholdBytes3 = _dataThreshold3.asTypedList(Nativec.totalThresholdBytes);
+      _thresholdBytes3 =
+          _dataThreshold3.asTypedList(Nativec.totalThresholdBytes);
     }
-    if (channelCount>3){
+    if (dataThresholds.length > 3) {
       _dataThreshold4 = dataThresholds[3];
-      _thresholdBytes4 = _dataThreshold4.asTypedList(Nativec.totalThresholdBytes);
+      _thresholdBytes4 =
+          _dataThreshold4.asTypedList(Nativec.totalThresholdBytes);
     }
-    if (channelCount>4){
+    if (dataThresholds.length > 4) {
       _dataThreshold5 = dataThresholds[4];
-      _thresholdBytes5 = _dataThreshold5.asTypedList(Nativec.totalThresholdBytes);
+      _thresholdBytes5 =
+          _dataThreshold5.asTypedList(Nativec.totalThresholdBytes);
     }
-    if (channelCount>5){
+    if (dataThresholds.length > 5) {
       _dataThreshold6 = dataThresholds[5];
-      _thresholdBytes6 = _dataThreshold6.asTypedList(Nativec.totalThresholdBytes);
+      _thresholdBytes6 =
+          _dataThreshold6.asTypedList(Nativec.totalThresholdBytes);
     }
-
 
     _thresholdEventIndices =
         _dataEventIndices.asTypedList(Nativec.totalEventIndicesBytes);
@@ -566,7 +570,6 @@ class Nativec {
     // if (channelCount>4) _thresholdBytes5.fillRange(0, Nativec.totalThresholdBytes, 0);
     // if (channelCount>5) _thresholdBytes6.fillRange(0, Nativec.totalThresholdBytes, 0);
 
-
     _thresholdEventIndices.fillRange(0, Nativec.totalEventIndicesBytes, 0);
     _thresholdEvents.fillRange(0, Nativec.totalEventsBytes, 0);
     // int len = samples.length;
@@ -577,11 +580,11 @@ class Nativec {
     // }
 
     _thresholdBytes.setAll(0, samples);
-    if (channelCount>1) _thresholdBytes2.setAll(0, samples);
-    if (channelCount>2) _thresholdBytes3.setAll(0, samples);
-    if (channelCount>3) _thresholdBytes4.setAll(0, samples);
-    if (channelCount>4) _thresholdBytes5.setAll(0, samples);
-    if (channelCount>5) _thresholdBytes6.setAll(0, samples);
+    if (channelCount > 1) _thresholdBytes2.setAll(0, samples);
+    if (channelCount > 2) _thresholdBytes3.setAll(0, samples);
+    if (channelCount > 3) _thresholdBytes4.setAll(0, samples);
+    if (channelCount > 4) _thresholdBytes5.setAll(0, samples);
+    if (channelCount > 5) _thresholdBytes6.setAll(0, samples);
 
     if (eventCount > 0) {
       // _thresholdEventIndices.fillRange(0, _thresholdEventIndices.length, eventIndices[0]);
@@ -653,5 +656,4 @@ class Nativec {
   double setTriggerTypeProcess(int channelIdx, int type) {
     return _setTriggerTypeProcess(channelIdx, type);
   }
-
 }

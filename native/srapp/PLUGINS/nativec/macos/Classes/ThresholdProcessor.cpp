@@ -1040,7 +1040,8 @@ EXTERNC FUNCTION_ATTRIBUTE double createThresholdProcess(short _channelCount, ui
 
     sampleRate = _sampleRate;
 
-    for (int i = 0; i < _channelCount; i++){
+    // for (int i = 0; i < _channelCount; i++){
+    for (int i = 0; i < 6; i++){
         envelopes[i] = new short*[10];
     }
 
@@ -1050,7 +1051,7 @@ EXTERNC FUNCTION_ATTRIBUTE double createThresholdProcess(short _channelCount, ui
 
     double size = SIZE * 4;
     for (int i = 0; i < SIZE_LOGS2; i++) {
-        for (int j = 0 ; j < channelCount ; j++){
+        for (int j = 0 ; j < 6 ; j++){
 
             envelopes[j][i] = new short[size];
         }
@@ -1289,7 +1290,13 @@ EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedS
     // short* eventIndices, short* events, short eventCount){
     short eventIndices, short events, short eventCount){
 
-    channelCount = _channelCount;
+
+    if (_channelCount != channelCount){
+        channelCount = _channelCount;
+        thresholdProcessor[0].setChannelCount(channelCount);        
+    }else{
+        // channelCount = _channelCount;
+    }
     forceLevel = _forceLevel;
 
     // debug_print("appendSamples1");
@@ -1379,6 +1386,8 @@ EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedS
     int samplesLength = rawSizeOfEnvelope;
     int sampleStart = 0;
     int sampleEnd = samplesLength;
+    // debug_print("channelCount");
+    // debug_print(std::to_string(floor(channelCount)).c_str());
     // debug_print("sampleLength");
     // debug_print(std::to_string(floor(samplesLength)).c_str());
     int sizeOfEnvelope = floor(envelopeSizes[forceLevel]/(divider/6));
@@ -1433,6 +1442,8 @@ EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedS
             }else{
                 std::copy(envelopes[channelIdx][forceLevel]-envelopeCurrentStart, envelopes[channelIdx][forceLevel] - envelopeCurrentStart + sizeOfEnvelope, data2);
             }            
+            // debug_print("index 1");
+
         }else
         if (i==2){
             if (current_start < 0){

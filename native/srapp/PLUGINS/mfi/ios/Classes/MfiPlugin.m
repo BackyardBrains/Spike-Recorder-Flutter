@@ -1,5 +1,5 @@
 #import "MfiPlugin.h"
-#import "DemoAccessory.h"
+// #import "DemoAccessory.h"
 @interface spikestatusStreamHandler : NSObject<FlutterStreamHandler>
 @end
 @interface devicestatusStreamHandler : NSObject<FlutterStreamHandler>

@@ -1005,11 +1005,19 @@ serialParsing(List<List<Int16List>> allEnvelopes,Map<String, dynamic> map,int su
 
                   // isFull = true;
                 }
+                // if (numberOfParsedChannels > 3) {
+                //   print('numberOfParsedChannels');
+                //   print(sample);
+                //   print(allEnvelopes[numberOfParsedChannels - 1][9].sublist(0, cBuffIdx));
+                // }
+
                 arrHeads[numberOfParsedChannels - 1] = cBuffIdx;
               }
             // } catch (err) {}
           } else {
             if (numberOfParsedChannels<6) {
+              // print('numberOfParsedChannels');
+              // print(numberOfParsedChannels);
               processedSamples[numberOfParsedChannels - 1].add(sample);
             }
           }

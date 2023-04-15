@@ -644,7 +644,7 @@ void sampleBufferingEntryPoint(List<dynamic> values) {
             processedSamplesCount =
                 (nativec.appendSamplesThresholdProcess(
                     snapshotAveragedSamples[0].floor(),
-                    thresholdValue[selectedThresholdIdx].floor(),
+                    -thresholdValue[selectedThresholdIdx].floor(),
                     selectedThresholdIdx,
                     samples[0],
                     samples[0].length,
@@ -1395,6 +1395,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
       }
       int len = framesAvailable;
       // framesAvailable += samples.length;
+      // if (framesAvailable >= 100 && framesAvailable % 2 == 0 ){
       if (framesAvailable >= 100 && framesAvailable % 2 == 0 ){
         // print('framesAvailable');
         // print(framesAvailable);
@@ -1692,10 +1693,10 @@ void serialBufferingEntryPoint(List<dynamic> values) {
           thresholdValue);
 
       // print('END Serial Parsing');
-      int diffTime = (DateTime.now()).millisecondsSinceEpoch - prevTime;
-      if (diffTime > 1) {
-        print(diffTime);
-      }
+      // int diffTime = (DateTime.now()).millisecondsSinceEpoch - prevTime;
+      // if (diffTime > 1) {
+      //   print(diffTime);
+      // }
 
       // print('End Serial Parsing');
       cBufTail = map['cBufTail'];
@@ -1802,10 +1803,12 @@ void serialBufferingEntryPoint(List<dynamic> values) {
             if (eventIndex >= zamples[c].length){
               eventIndex = (zamples[c].length-1);
             }
+            // print('zamples[1] 00');
+            // print(zamples[1].sublist(0, (zamples[1].length/4).floor() ));
 
             processedSamplesCount = (nativec.appendSamplesThresholdProcess(
                 snapshotAveragedSamples[0].floor(),
-                thresholdValue[selectedThresholdIdx].floor(),
+                -thresholdValue[selectedThresholdIdx].floor(),
                 selectedThresholdIdx,
                 zamples[0],
                 zamples[0].length,
@@ -1819,7 +1822,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
                 zamples[4].length,
                 zamples[5],
                 zamples[5].length,
-                THRESHOLD_CHANNEL_COUNT,
+                numberOfChannels,
                 level,
                 divider,
                 CUR_START,
@@ -1850,9 +1853,16 @@ void serialBufferingEntryPoint(List<dynamic> values) {
               arrEventIndices.clear();
             }
           } else {
+            // print('thresholdValue');
+            // print(thresholdValue[selectedThresholdIdx].floor());
+            // if (numberOfChannels > 2){
+            //   print('zamples[3]');
+            //   print(zamples[3].sublist(0, (zamples[3].length/4).floor() ));
+            // }
+
             processedSamplesCount = (nativec.appendSamplesThresholdProcess(
                 snapshotAveragedSamples[0].floor(),
-                thresholdValue[selectedThresholdIdx],
+                -thresholdValue[selectedThresholdIdx],
                 selectedThresholdIdx,
                 zamples[0],
                 zamples[0].length,
@@ -1866,7 +1876,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
                 zamples[4].length,
                 zamples[5],
                 zamples[5].length,
-                THRESHOLD_CHANNEL_COUNT,
+                numberOfChannels,
                 level,
                 divider,
                 CUR_START,
@@ -1905,8 +1915,8 @@ void serialBufferingEntryPoint(List<dynamic> values) {
       } else {
         // level = calculateLevel(
         //     10000, _sampleRate.floor(), surfaceWidth, skipCounts);
-        // curSamples = Int16List.fromList(zamples[c]);
-        // samplesLength = curSamples.length;
+        curSamples = Int16List.fromList(zamples[c]);
+        samplesLength = curSamples.length;
         // print('samplesLength');
         // print(samplesLength);
       }
@@ -2049,10 +2059,14 @@ void serialBufferingEntryPoint(List<dynamic> values) {
         // Int16List cBuff = envelopeSamples;
         // Int16List cBuff = curSamples;
         Int16List cBuff = _thresholdArrs[c].sublist(0, processedSamplesCount.floor());
-        int lastIndex = curSamples.lastIndexWhere((element) => element != 0);
+        // if (c==3){
+        //   print('cBuff.sublist(0,10)');
+        //   print(cBuff.sublist(0,10));
+        // }
+        int lastIndex = cBuff.lastIndexWhere((element) => element != 0);
         // print(cBuff.getRange( (curSamples.length - 50).floor(), curSamples.length));
         if (lastIndex>-1){
-          cBuff.fillRange(lastIndex, curSamples.length - 1, curSamples[lastIndex]);
+          cBuff.fillRange(lastIndex, cBuff.length - 1, cBuff[lastIndex]);
         }
 
         buffers.add(cBuff);
@@ -2076,6 +2090,12 @@ void serialBufferingEntryPoint(List<dynamic> values) {
     int halfwayCap =
         // globalPositionCap - ((globalPositionCap * 0.2) / currentCap).floor();
         globalPositionCap - (globalPositionCap * 0.2).floor();
+
+
+
+    // print('deviceChannel');
+    // // // print(deviceChannel);
+    // print(allEnvelopes[deviceChannel-1][level].sublist(0, (100 ).floor() ));
     for (int c = 0; c < deviceChannel; c++) {
       Int16List envelopeSamples = allEnvelopes[c][level];
       double factor = _sampleRate / _maxSampleRate;
@@ -2240,6 +2260,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
     // if (isThresholding && thresholdingType != -1){
     sendPort.send(
         [buffers, arrHeads[0], eventPositionResultInt, arrIndicesMarkers]);
+        // [buffers, arrHeads[0], [], [] ]);
     eventPositionResultInt.fillRange(0, max_markers, 0);
     // arrIndicesMarkers.fillRange(0, max_markers,0);
     // }
@@ -4775,6 +4796,10 @@ class _MyHomePageState extends State<MyHomePage> {
       for (int i = 0; i < convSamples.length; i++) {
         channelsData.add(
             convSamples[i].map((e) => e.toDouble()).toList(growable: false));
+        // if (i == 3){
+        //   print('convSamples 1');
+        //   print(convSamples[i].sublist(0,10));
+        // }
       }
 
       cBuffIdx = curSamples[1];
@@ -5139,6 +5164,8 @@ class _MyHomePageState extends State<MyHomePage> {
                     var data = {
                       "channelCount": val,
                     };
+                    initLevelMedian(val);
+
                     callChangeSerialChannel(data);
                   }
 
@@ -5268,35 +5295,7 @@ class _MyHomePageState extends State<MyHomePage> {
     // init Threshold Value
     if (thresholdMarkerTop[selectedThresholdIdx] == -10000) {
 
-      for (int c = 0; c < 2; c++){
-        double heightFactor = (channelGains[c] / signalMultiplier);
-        final halfMaxIntValue = 32767 / 8 / heightFactor;
-
-        // thresholdMarkerTop[0] = (MediaQuery.of(context).size.height / 2) - 12;
-        double calculatedMedian =
-            // (c * MediaQuery.of(context).size.height / channelsData.length) +
-            //     MediaQuery.of(context).size.height / channelsData.length / 2;
-            (c * MediaQuery.of(context).size.height / 2) +
-                MediaQuery.of(context).size.height / 2 / 2;
-
-        thresholdMarkerTop[c] = calculatedMedian - halfMaxIntValue - 12;
-        thresholdValue[c] = ((thresholdMarkerTop[c] +
-                        12 -
-                        // (MediaQuery.of(context).size.height / 2))
-                        calculatedMedian)
-                    .floor() *
-                heightFactor)
-            .floor();
-        listMedianDistance[c] = thresholdMarkerTop[c] + 12 - calculatedMedian;
-        // print('calculatedMedian');
-        // print(calculatedMedian);
-        // print(halfMaxIntValue);
-        // print(thresholdMarkerTop[c]);
-        // print(thresholdValue[c]);
-        // print(listMedianDistance[c]);
-
-      }
-
+      initLevelMedian(2);
     }
 
     List<Widget> dataWidgets = [];
@@ -6441,6 +6440,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     } else {
                       getSerialParsing();
                     }
+                    initLevelMedian(1);
 
                     setState(() {});
                     _sendAnalyticsEvent("button_serial", {
@@ -7758,6 +7758,40 @@ class _MyHomePageState extends State<MyHomePage> {
             dashGapRadius: 0.0,
           ),
         ));
+  }
+  
+  void initLevelMedian(int channelsLength) {
+    for (int c = 0; c < channelsLength; c++){
+      double heightFactor = (channelGains[c] / signalMultiplier);
+      // final halfMaxIntValue = 32767 / 8 / heightFactor;
+
+      // thresholdMarkerTop[0] = (MediaQuery.of(context).size.height / 2) - 12;
+      double calculatedMedian =
+          (c * MediaQuery.of(context).size.height / channelsLength) +
+              MediaQuery.of(context).size.height / channelsLength / 2;
+
+      final halfMaxIntValue = MediaQuery.of(context).size.height / channelsLength / 8;
+      thresholdMarkerTop[c] = calculatedMedian - halfMaxIntValue - 12;
+      thresholdValue[c] = ((thresholdMarkerTop[c] +
+                      12 -
+                      // (MediaQuery.of(context).size.height / 2))
+                      calculatedMedian)
+                  .floor() *
+              heightFactor)
+          .floor();
+      listMedianDistance[c] = thresholdMarkerTop[c] + 12 - calculatedMedian;
+      print('calculatedMedian');
+      print(calculatedMedian);
+      print(halfMaxIntValue);
+      print(thresholdMarkerTop[c]);
+      print(thresholdValue[c]);
+      print(listMedianDistance[c]);
+
+    }
+      print('calculatedMedian result : ');
+      print(thresholdMarkerTop);
+      print(thresholdValue);
+
   }
 }
 
