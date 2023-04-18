@@ -18,9 +18,21 @@ default_platform(:ios)
 platform :ios do
   desc "Push a new beta build to TestFlight"
   lane :distribute do
-    build_app(workspace: "Runner.xcworkspace", scheme: "Runner")
+    build_app(
+      workspace: "Runner.xcworkspace", 
+      # xcargs: "-allowProvisioningUpdates",
+      export_method: "app-store",
+      export_options: {
+        provisioningProfiles: { 
+          "com.backyardbrains.srflutterios" => "SpikeRecorderFlutterPP",
+        }
+      },      
+      output_directory: "../build/ios", 
+      output_name: "sr-flutter.ipa", 
+      scheme: "Runner")
     release = firebase_app_distribution(
-      app: "1:62668804297:ios:3b36a86b4023db80523d18",
+      app: "1:62668804297:ios:2e1442d6910b0ba6523d18",
+      ipa_path: "../build/ios/sr-flutter.ipa",
       testers: "djojokusumo.stevanus@gmail.com",
       release_notes: "Lots of amazing new features to test out!"
     )
