@@ -850,6 +850,7 @@ serialParsing(List<List<Int16List>> allEnvelopes,Map<String, dynamic> map,int su
   // int cBuffIdx = map['cBuffIdx'];
   int cBuffIdx;
   int globalIdx = map['globalIdx'];
+  int level = map['level'];
   List<int> arrHeads = map['arrHeads'];
   var writeInteger = 0;
 

@@ -580,11 +580,11 @@ class Nativec {
     // }
 
     _thresholdBytes.setAll(0, samples);
-    if (channelCount > 1) _thresholdBytes2.setAll(0, samples);
-    if (channelCount > 2) _thresholdBytes3.setAll(0, samples);
-    if (channelCount > 3) _thresholdBytes4.setAll(0, samples);
-    if (channelCount > 4) _thresholdBytes5.setAll(0, samples);
-    if (channelCount > 5) _thresholdBytes6.setAll(0, samples);
+    if (channelCount > 1) _thresholdBytes2.setAll(0, samples2);
+    if (channelCount > 2) _thresholdBytes3.setAll(0, samples3);
+    if (channelCount > 3) _thresholdBytes4.setAll(0, samples4);
+    if (channelCount > 4) _thresholdBytes5.setAll(0, samples5);
+    if (channelCount > 5) _thresholdBytes6.setAll(0, samples6);
 
     if (eventCount > 0) {
       // _thresholdEventIndices.fillRange(0, _thresholdEventIndices.length, eventIndices[0]);
