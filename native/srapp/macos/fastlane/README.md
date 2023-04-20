@@ -15,10 +15,10 @@ For _fastlane_ installation instructions, see [Installing _fastlane_](https://do
 
 ## Mac
 
-### mac notarized
+### mac distribute
 
 ```sh
-[bundle exec] fastlane mac notarized
+[bundle exec] fastlane mac distribute
 ```
 
 Create a notarized build of the macOS App

@@ -359,6 +359,7 @@ public:
 //         // }
 //         delete[] counts;
 //     }    
+    int isThresholded = 0;
 
     void process(short **outSamples, int *outSamplesCounts, short **inSamples,
                                     const int *inSampleCounts,
@@ -481,6 +482,7 @@ public:
         // for (c = 0; c < channelCount; c++) {
             // for (i = 0; i < inSampleCounts[c]; i++) {
             for (i = 0; i < inSampleCounts[selectedChannel]; i++) {
+                currentSample = inSamples[selectedChannel][i];
 
                 // heartbeat processing Can't add incoming to buffer, it's larger then buffer
                 /*
@@ -502,7 +504,6 @@ public:
 
                 // if (triggerType == -1 && c == selectedChannel) { //TRIGGER_ON_THRESHOLD // triggering by a threshold value
                 if (triggerType == -1) { //TRIGGER_ON_THRESHOLD // triggering by a threshold value
-                    currentSample = inSamples[selectedChannel][i];
                     if (!inDeadPeriod) {
                         // check if we hit the threshold
                         if ((triggerValue[selectedChannel] >= 0 && currentSample > triggerValue[selectedChannel] &&
@@ -514,9 +515,13 @@ public:
                             thresholdHit = true;
 
                             // create new samples for current threshold
-                            for (j = 0; j < channelCount; j++) {
-                                prepareNewSamples(inSamples[j], inSampleCounts[j], j, i);
-                            }
+
+                            // if (isThresholded == 0){
+                            //     isThresholded = 1;
+                                for (j = 0; j < channelCount; j++) {                                    
+                                    prepareNewSamples(inSamples[j], inSampleCounts[j], j, i);
+                                }
+                            // }
 
                             // heartbeat processingA
                             if (processBpm) {
@@ -535,7 +540,7 @@ public:
                         }
                     }
 
-                    prevSample = currentSample;
+                    // prevSample = currentSample;
 
                 } else if (inEventCount > 0) { // triggering on events
                         // debug_print("Event Trigger");
@@ -592,7 +597,7 @@ public:
                 }
 
 
-                // prevSample = currentSample;
+                prevSample = currentSample;
             }
         // }
 
@@ -608,6 +613,11 @@ public:
             std::copy(tmpInSamples, tmpInSamples + copyFromIncoming,
                         buffer[i] + bufferSampleCount - copyFromIncoming);
             // debug_print("  1  - copy sample");
+            // debug_print("channelIndex");
+            // debug_print(std::to_string(floor(i)).c_str());
+            // debug_print(std::to_string(floor(copyFromBuffer)).c_str());
+            // debug_print(std::to_string(floor(copyFromIncoming)).c_str());
+            // debug_print(std::to_string(floor(sampleIndex)).c_str());
 
         }
 
@@ -697,7 +707,13 @@ public:
                         buffer[i] + bufferSampleCount - copyFromIncoming);
         // }
     }
+    int getChannelsCount(){
+        return getChannelCount();
+    }
 
+    void doClean(int channelCount, bool resetLocalBuffer){
+        clean(channelCount, resetLocalBuffer);
+    }
 private:
     static const char *TAG;
 
@@ -1009,7 +1025,7 @@ const int skipCounts[10] = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512};
 double divider = 6;
 int current_start = 0;
 short *tempData;
-
+int isAlreadyCreated = 0;
 
 
 void resetOutSamples(short channelIdx, short **outSamples, int outSampleCount){
@@ -1029,6 +1045,13 @@ EXTERNC FUNCTION_ATTRIBUTE double createThresholdProcess(short _channelCount, ui
     count = (int) timeSpan * sampleRate;
     // for (uint32_t c = 0 ; c < channelCount; c++){
     for (uint32_t c = 0 ; c < 6; c++){
+        if (isAlreadyCreated == 1){
+        // if (outSamplesPtr[c] != NULL){
+        //     debug_print("outSamplesPtr");
+            // delete[] outSamplesPtr[c];
+            // delete[] tempSamplesPtr[c];
+        // //     isAlreadyCreated = 1;
+        }
         outSamplesPtr[c] = new short[count * 2];
         tempSamplesPtr[c] = new short[count * 2];
         outSampleCounts[c]=count;
@@ -1038,9 +1061,14 @@ EXTERNC FUNCTION_ATTRIBUTE double createThresholdProcess(short _channelCount, ui
 
     // debug_print("create2");
 
-    for( int32_t i = 0; i < channelCount; i++ )
+    // for( int32_t i = 0; i < channelCount; i++ )
+    for( int32_t i = 0; i < 1; i++ )
     {
         // HeartbeatListener* hb = (new HeartbeatListener());
+        if (isAlreadyCreated == 1){
+            int prevChannelCount = thresholdProcessor[i].getChannelsCount();
+            thresholdProcessor[i].doClean(prevChannelCount, true);
+        }
         thresholdProcessor[i] = ThresholdProcessor( channelCount, sampleRate );
         float sr = (float) sampleRate;
         // std::string dbg = "test sample rate";
@@ -1077,7 +1105,10 @@ EXTERNC FUNCTION_ATTRIBUTE double createThresholdProcess(short _channelCount, ui
     double size = SIZE * 4;
     for (int i = 0; i < SIZE_LOGS2; i++) {
         for (int j = 0 ; j < 6 ; j++){
-
+            if (isAlreadyCreated == 1){
+                // debug_print("delete envelopes?");
+                // delete[] envelopes[j][i];
+            }
             envelopes[j][i] = new short[size];
         }
         size /= 2;
@@ -1090,6 +1121,7 @@ EXTERNC FUNCTION_ATTRIBUTE double createThresholdProcess(short _channelCount, ui
     
     // thresholdProcessor[0].setSampleRate((float) sampleRate);
     // debug_print("create3");
+    isAlreadyCreated = 1;
 
     return 1;
 }
@@ -1407,16 +1439,29 @@ EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedS
     // debug_print("trying to envelope");
 
     // int rawSizeOfEnvelope = floor(envelopeSizes[forceLevel]/2/(divider / 6) * skipCounts[forceLevel]);
-    int rawSizeOfEnvelope = floor(sampleNeeded/2) * skipCounts[forceLevel];
+    int rawSizeOfEnvelope = floor(sampleNeeded * skipCounts[forceLevel] / 2) ;
+    //need to divide by 2 because Threshold data is not interleaved
     int maxEnvelopeSize = floor(envelopeSizes[0]/2);
+    //need to divide by 2 because envelope sizes expanded by 2 to prevent jaggies signal
     int samplesLength = rawSizeOfEnvelope;
     int sampleStart = 0;
     int sampleEnd = samplesLength;
     // debug_print("channelCount");
     // debug_print(std::to_string(floor(channelCount)).c_str());
+
     // debug_print("sampleLength");
     // debug_print(std::to_string(floor(samplesLength)).c_str());
-    int sizeOfEnvelope = floor(envelopeSizes[forceLevel]/(divider/6));
+    // debug_print("sampleNeeded");
+    // debug_print(std::to_string(floor(sampleNeeded)).c_str());
+    // debug_print("sampleRawNeeded");
+    // debug_print(std::to_string(floor(sampleNeeded * skipCounts[forceLevel])).c_str());
+    // debug_print("maxEnvelopeSize");
+    // debug_print(std::to_string(floor(maxEnvelopeSize)).c_str());
+    // debug_print("samplerate * timespance");
+    // debug_print(std::to_string(floor(sampleRate * timeSpan)).c_str());
+
+    // int sizeOfEnvelope = floor(envelopeSizes[forceLevel]/(divider/6));
+    int sizeOfEnvelope = floor(sampleNeeded);
     for( int32_t i = 0; i < channelCount; i++ )
     {
         int channelIdx = i;
@@ -1524,6 +1569,12 @@ EXTERNC FUNCTION_ATTRIBUTE double appendSamplesThresholdProcess(short _averagedS
 
     }
     delete[] inSamplesPtr[0];
+    if (channelCount > 1) delete[] inSamplesPtr[1];
+    if (channelCount > 2) delete[] inSamplesPtr[2];
+    if (channelCount > 3) delete[] inSamplesPtr[3];
+    if (channelCount > 4) delete[] inSamplesPtr[4];
+    if (channelCount > 5) delete[] inSamplesPtr[5];
+
     return sizeOfEnvelope;
 
     // debug_print(std::to_string(outSampleCounts[0]).c_str());

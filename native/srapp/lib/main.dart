@@ -1200,12 +1200,13 @@ void serialBufferingEntryPoint(List<dynamic> values) {
   List<int> allThresholdEnvelopesSize = [];
   int SEGMENT_SIZE_THRESHOLD = 10000;
   int NUMBER_OF_SEGMENTS_THRESHOLD = 10;
-  int SIZE = NUMBER_OF_SEGMENTS_THRESHOLD * SEGMENT_SIZE_THRESHOLD;
+  int SIZE = NUMBER_OF_SEGMENTS_THRESHOLD * SEGMENT_SIZE_THRESHOLD * 2;
   double size = SIZE.toDouble() * 2;
   int SIZE_LOGS_THRESHOLD = 10;
   int THRESHOLD_CHANNEL_COUNT = 1;
   int samplesLength = SIZE;
   bool isPrevThresholdingStatus = false;
+  int prevSampleRate = -1;
 
   unitInitializeEnvelope(THRESHOLD_CHANNEL_COUNT, allThresholdEnvelopes,
       allThresholdEnvelopesSize, size, SIZE, SIZE_LOGS_THRESHOLD);
@@ -1237,6 +1238,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
   nativec.createThresholdProcess(
       1, SEGMENT_SIZE_THRESHOLD, 0, 1, _dataThresholds);
   nativec.setThresholdParametersProcess(1, level, sampleRate.floor(), 6, 0);
+  prevSampleRate = sampleRate.floor();
 
   bool isThresholding = false;
   // if (isThresholding) {
@@ -1305,7 +1307,9 @@ void serialBufferingEntryPoint(List<dynamic> values) {
     // print('deviceChannel');
     // print(deviceChannel);
     var _sampleRate = arr[4];
-    var _maxSampleRate = 10000;
+    // print('_maxSampleRate');
+    var _maxSampleRate = arr[5];
+    // print(_sampleRate/_maxSampleRate);
     int CUR_START = arr[6];
     bool isPaused = arr[7];
     String curKey = arr[8];
@@ -1367,6 +1371,14 @@ void serialBufferingEntryPoint(List<dynamic> values) {
       }
 
       cBuffIdx = 0;
+    }
+
+    if (prevSampleRate != _sampleRate.floor() ){
+      print("Change Multi Channels");
+      prevSampleRate = _sampleRate.floor();
+      nativec.createThresholdProcess(
+          numberOfChannels, _sampleRate.floor(), 0, 1, _dataThresholds);
+
     }
 
     if (cBuffIdx == -1) {
@@ -1807,6 +1819,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
             }
             // print('zamples[1] 00');
             // print(zamples[1].sublist(0, (zamples[1].length/4).floor() ));
+            int sampleNeeded = (allEnvelopes[0][level].length / divider * (_sampleRate/_maxSampleRate)).floor();
             processedSamplesCount = (nativec.appendSamplesThresholdProcess(
                 snapshotAveragedSamples[0].floor(),
                 -thresholdValue[selectedThresholdIdx].floor(),
@@ -1827,7 +1840,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
                 level,
                 divider,
                 CUR_START,
-                (allEnvelopes[0][level].length / divider).floor(),
+                sampleNeeded,
                 // [0],[thresholdingType], sendingEventCount
                 // arrEventIndices.isEmpty ? [0] : arrEventIndices , [thresholdingType], arrEventIndices.isEmpty ? 0 : 1
                 eventIndex,
@@ -1868,6 +1881,8 @@ void serialBufferingEntryPoint(List<dynamic> values) {
             // print(zamples[0].sublist(0,10));
             // print(zamples[1].sublist(0,10));
             // print(zamples[2].reduce((value, element) => value + element));
+            // int sampleNeeded = (allEnvelopes[0][level].length / divider / deviceChannel).floor();
+            int sampleNeeded = (allEnvelopes[0][level].length / divider * (_sampleRate/_maxSampleRate)).floor();
 
             processedSamplesCount = (nativec.appendSamplesThresholdProcess(
                 snapshotAveragedSamples[0].floor(),
@@ -1889,7 +1904,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
                 level,
                 divider,
                 CUR_START,
-                (allEnvelopes[0][level].length / divider).floor(),
+                sampleNeeded,
                 // [0],[thresholdingType], sendingEventCount
                 // [1],[-1], 0
                 1,
@@ -2026,7 +2041,7 @@ void serialBufferingEntryPoint(List<dynamic> values) {
       // nativec.setThresholdParametersProcess(1,level, sampleRate, divider, CUR_START);
       // curSamples = _thresholdBytes.sublist(0, allThresholdEnvelopes[0][level].length.floor());
       if (isThresholding) {
-        int sampleNeeded = (allEnvelopes[0][level].length / divider).floor();
+        int sampleNeeded = (allEnvelopes[0][level].length / divider * (_sampleRate/_maxSampleRate)).floor();
         int samplesLength = nativec
             .getSamplesThresholdProcess(
                 0, level, divider, CUR_START, sampleNeeded)
@@ -7450,7 +7465,6 @@ class _MyHomePageState extends State<MyHomePage> {
           (int.parse(CURRENT_DEVICE['maxSampleRate']) / DISPLAY_CHANNEL)
               .floor();
       cBuffIdx = -1;
-      print(sampleRate);
     }
   }
 

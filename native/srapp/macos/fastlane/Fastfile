@@ -33,7 +33,7 @@ platform :mac do
   end
 
   desc "Create a notarized build of the macOS App"
-  lane :notarized do
+  lane :distribute do
     # |options|
     
     # ensure_git_branch(
@@ -47,8 +47,12 @@ platform :mac do
     build_mac_app(
       # scheme: 'Project', # Skip if you only have a single scheme
       configuration: 'Release',
-      export_method: "app-store",
+      # export_method: "app-store",
       # export_method: "development",
+      export_method: "developer-id",
+      output_directory: "../build/macos", 
+      output_name: "sr-desktop.app", 
+
       xcargs: '-allowProvisioningUpdates' # Needed for automatic signing
     )
 
