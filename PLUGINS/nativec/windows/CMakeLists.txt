@@ -28,6 +28,8 @@ add_library(${PLUGIN_NAME} SHARED
   "../macos/Classes/LowPassFilter.cpp"
   "../macos/Classes/NotchPassFilter.cpp"
   "../macos/Classes/GainFilter.cpp"
+  "../windows/Processor.cpp"
+  "../windows/ThresholdProcessor.cpp"
   "nativec_plugin_c_api.cpp"
   ${PLUGIN_SOURCES}
 )

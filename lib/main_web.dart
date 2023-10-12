@@ -61,7 +61,7 @@ int numberOfFrames = 0;
 int numberOfZeros = 0;
 int lastWasZero = 0;
 
-List<List<List<double>>> allEnvelopes = [];
+List<List<Int16List>> allEnvelopes = [];
 int level = 6;
 double divider = 6;
 int globalIdx = 0;
@@ -84,11 +84,11 @@ bool isPaused = false;
 bool isHighPass = false;
 bool isLowPass = false;
 
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (kIsWeb) {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform);
   } else if (Platform.isWindows) {
     // await Firebase.initializeApp(options: {
 
@@ -130,14 +130,14 @@ getScreenBuffers(
   int bufferCount = 0;
   if (globalIdx == 0) {
     if (to - prevSegment < 0) {
-      List<double> arr = allEnvelopes[c][level].sublist(0, to);
+      Int16List arr = allEnvelopes[c][level].sublist(0, to);
       // print(arr);
       bufferCount = arr.length;
       cBuff.setAll(prevSegment - arr.length, arr);
     } else {
       start = to - prevSegment;
 
-      List<double> arr = allEnvelopes[c][level].sublist(start, to);
+      Int16List arr = allEnvelopes[c][level].sublist(start, to);
       bufferCount = arr.length;
       cBuff.setAll(prevSegment - arr.length, arr);
     }
@@ -757,19 +757,21 @@ class _MyHomePageState extends State<MyHomePage> {
     // channelsData = (params[0]).toList().cast<double>();
     // setState(() {});
 
-    if (isFeedback){ return; }
-    
-    int len = params.length-1;
-    if (channelsData.length != len){
-      channelsData= [];
-      for (int i=0;i<len;i++){
+    if (isFeedback) {
+      return;
+    }
+
+    int len = params.length - 1;
+    if (channelsData.length != len) {
+      channelsData = [];
+      for (int i = 0; i < len; i++) {
         chartData = (params[i]).toList().cast<double>();
         channelsData.add(chartData);
       }
-    }else{
-      for (int i=0;i<len;i++){
+    } else {
+      for (int i = 0; i < len; i++) {
         chartData = (params[i]).toList().cast<double>();
-        channelsData[i]=(chartData);
+        channelsData[i] = (chartData);
       }
     }
     eventMarkersNumber = params[len][0];
@@ -779,9 +781,7 @@ class _MyHomePageState extends State<MyHomePage> {
     // duration = currentRecordingTime.difference(startRecordingTime);
     // labelDuration = ( (duration.inHours) ).toString().padLeft(2,'0')+":"+( (duration.inMinutes % 60) ).toString().padLeft(2,'0')+":"+(duration.inSeconds % 60).toString().padLeft(2,'0')+"."+(duration.inMilliseconds % 1000).toString().padLeft(3,'0');
 
-    setState(() {
-      
-    });    
+    setState(() {});
   }
 
   callbackErrorLog(params) {
@@ -894,8 +894,17 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     int initialPosition;
-    initialPosition = screenPositionToElementPosition(row["posX"], "first : ",
-        level, skipCount, envelopeSizes[level], cBuffIdx, divider, innerWidth);
+    initialPosition = screenPositionToElementPosition(
+        row["posX"],
+        "first : ",
+        level,
+        skipCount,
+        envelopeSizes[level],
+        cBuffIdx,
+        divider,
+        innerWidth,
+        isThreshold,
+        envelopeSizes[level]);
     // double initialLength = envelopeSizes[level];
     // console.log("INITIAL ", row["timeScaleBar"]);
 
@@ -924,6 +933,7 @@ class _MyHomePageState extends State<MyHomePage> {
       // const subArrMaxSize = Math.floor ( SIZE / divider );
 
       int endingPosition;
+
       endingPosition = screenPositionToElementPosition(
           row["posX"],
           "second : ",
@@ -932,7 +942,9 @@ class _MyHomePageState extends State<MyHomePage> {
           envelopeSizes[level],
           cBuffIdx,
           divider,
-          innerWidth);
+          innerWidth,
+          isThreshold,
+          envelopeSizes[level]);
       print("CURRENT_POSITION_START");
       print(endingPosition.toString() + " @: " + initialPosition.toString());
 
@@ -1133,7 +1145,7 @@ class _MyHomePageState extends State<MyHomePage> {
       js.context['callbackIsOpeningWavFile'] = callbackIsOpeningWavFile;
       js.context['changeResetPlayback'] = changeResetPlayback;
       js.context['resetToAudio'] = resetToAudio;
-      js.context['callbackHorizontalDiff'] = (params){};
+      js.context['callbackHorizontalDiff'] = (params) {};
       js.context['changeSampleRate'] = (params) {
         print("changeSampleRate dart side");
         sampleRate = params[0];
@@ -1154,14 +1166,12 @@ class _MyHomePageState extends State<MyHomePage> {
         } else {
           isHighPass = true;
         }
-
       };
 
       js.context
           .callMethod('recordAudio', ['Flutter is calling upon JavaScript!']);
       return;
     }
-
   }
 
   zoomGesture(dragDetails) {
@@ -1239,7 +1249,7 @@ class _MyHomePageState extends State<MyHomePage> {
     if (deviceType == 0) {
     } else {}
     if (kIsWeb) {
-        js.context.callMethod('setZoomLevel', [json.encode(data)]);
+      js.context.callMethod('setZoomLevel', [json.encode(data)]);
       //   level = calculateLevel(
       //       timeScale, sampleRate, MediaQuery.of(context).size.width, skipCounts);
     } else {
@@ -1364,42 +1374,41 @@ class _MyHomePageState extends State<MyHomePage> {
         // child: Focus(
         //   onKey: (FocusNode node, RawKeyEvent event) =>
         //       KeyEventResult.handled,
-          child: RawKeyboardListener(
-            onKey: (key) {
-              if (isFeedback) return;
+        child: RawKeyboardListener(
+          onKey: (key) {
+            if (isFeedback) return;
 
-              if (key.character == null) {
-                prevKey = "~";
-                currentKey = "";
-              } else {
-                if (key.character.toString().codeUnitAt(0) >= 48 &&
-                    key.character.toString().codeUnitAt(0) <= 57) {
-                  if (prevKey != key.character.toString()) {
-                    prevKey = key.character.toString();
-                    if (kIsWeb) {
-                      // js.context.callMethod('setEventKeypress', [prevKey]);
-                    } else {
-                      if (globalMarkers.length + 1 >= max_markers) {
-                        globalMarkers.clear();
-                      }
-                      globalMarkers.add((prevKey.codeUnitAt(0) - 48));
-                      currentKey = prevKey;
+            if (key.character == null) {
+              prevKey = "~";
+              currentKey = "";
+            } else {
+              if (key.character.toString().codeUnitAt(0) >= 48 &&
+                  key.character.toString().codeUnitAt(0) <= 57) {
+                if (prevKey != key.character.toString()) {
+                  prevKey = key.character.toString();
+                  if (kIsWeb) {
+                    // js.context.callMethod('setEventKeypress', [prevKey]);
+                  } else {
+                    if (globalMarkers.length + 1 >= max_markers) {
+                      globalMarkers.clear();
                     }
+                    globalMarkers.add((prevKey.codeUnitAt(0) - 48));
+                    currentKey = prevKey;
                   }
                 }
               }
-              return;
-            },
-            focusNode: keyboardFocusNode,
-            // child:getMainWidget()
-            child: isLoadingFile
-                ? getLoadingWidget(context)
-                : (isFeedback ? getFeedbackWidget() : getMainWidget()),
-          ),
+            }
+            return;
+          },
+          focusNode: keyboardFocusNode,
+          // child:getMainWidget()
+          child: isLoadingFile
+              ? getLoadingWidget(context)
+              : (isFeedback ? getFeedbackWidget() : getMainWidget()),
+        ),
         // ),
       ),
     );
-    
   }
 
   void initPorts() {
@@ -1440,8 +1449,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   //Platform.isWindows
-  void closeRawSerial() async {
-  }
+  void closeRawSerial() async {}
 
   void closeAudio() {
     try {
@@ -1483,12 +1491,10 @@ class _MyHomePageState extends State<MyHomePage> {
     iReceiveDeviceInfoPort = ReceivePort();
     iReceiveExpansionDeviceInfoPort = ReceivePort();
 
-    List<double> envelopeSamples = allEnvelopes[0][level];
+    Int16List envelopeSamples = allEnvelopes[0][level];
     int divider = 60;
     int prevSegment = (envelopeSamples.length / divider).floor();
-
   }
-
 
   void getWebSerial() {
     js.context
@@ -1643,13 +1649,13 @@ class _MyHomePageState extends State<MyHomePage> {
                   print(isHighPass);
 
                   double result = -100;
-                  if (kIsWeb){
-                    js.context.callMethod('changeFilter',[
-                      channelsData.length,//'maxChannel': 
-                      isLowPass, //'isLowPass': 
-                      _lowPassFilter,//'lowPassFilter': 
-                      isHighPass,//'isHighPass': 
-                      _highPassFilter,//'highPassFilter': 
+                  if (kIsWeb) {
+                    js.context.callMethod('changeFilter', [
+                      channelsData.length, //'maxChannel':
+                      isLowPass, //'isLowPass':
+                      _lowPassFilter, //'lowPassFilter':
+                      isHighPass, //'isHighPass':
+                      _highPassFilter, //'highPassFilter':
                     ]);
                   }
 
@@ -1855,7 +1861,6 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   List<Widget> getDataWidgets() {
-
     const shapeLevelHeight = 35;
     int _channelActive = -1;
     for (var c = 0; c < channelsData.length; c++) {
@@ -2052,7 +2057,6 @@ class _MyHomePageState extends State<MyHomePage> {
     }
     dataWidgets.addAll(widgetsChannelGainLevel);
 
-
     if (isOpeningFile == 1) {
       // strMinTime = "00:00 000";
       dataWidgets.add(Positioned(
@@ -2095,7 +2099,6 @@ class _MyHomePageState extends State<MyHomePage> {
                 if (kIsWeb) {
                   // js.context.callMethod(
                   //     'setScrollValue', [horizontalDragX, horizontalDragXFix]);
-
                 } else {}
               });
             },
@@ -2118,7 +2121,6 @@ class _MyHomePageState extends State<MyHomePage> {
                 if (kIsWeb) {
                   // js.context.callMethod(
                   //     'setScrollValue', [horizontalDragX, horizontalDragXFix]);
-
                 } else {}
               });
             },
@@ -2209,7 +2211,6 @@ class _MyHomePageState extends State<MyHomePage> {
                   //   settingParams["defaultMicrophoneLeftColor"] as int,
                   //   settingParams['defaultMicrophoneRightColor'] as int
                   // ]);
-
                 } else {}
               } else if (deviceType == 1) {
                 if (isRecording < 10) {
@@ -2240,7 +2241,6 @@ class _MyHomePageState extends State<MyHomePage> {
                   //   settingParams['defaultSerialColor5'] as int,
                   //   settingParams['defaultSerialColor6'] as int
                   // ]);
-
                 } else {}
               } else if (deviceType == 2) {
                 if (isRecording < 10) {
@@ -2271,7 +2271,6 @@ class _MyHomePageState extends State<MyHomePage> {
                   //   settingParams['defaultSerialColor5'] as int,
                   //   settingParams['defaultSerialColor6'] as int
                   // ]);
-
                 } else {}
               }
             },
@@ -2331,7 +2330,6 @@ class _MyHomePageState extends State<MyHomePage> {
                     if (kIsWeb) {
                       // js.context.callMethod(
                       //     'recordSerial', ['Flutter is calling upon JavaScript!']);
-
                     } else {
                       getSerialParsing();
                     }
@@ -2350,7 +2348,6 @@ class _MyHomePageState extends State<MyHomePage> {
                     if (kIsWeb) {
                       // js.context.callMethod(
                       //     'recordAudio', ['Flutter is calling upon JavaScript!']);
-
                     } else {
                       closeRawSerial();
                       getMicrophoneData();
@@ -2406,7 +2403,6 @@ class _MyHomePageState extends State<MyHomePage> {
                         if (kIsWeb) {
                           // js.context.callMethod('recordHid',
                           //     ['Flutter is calling upon JavaScript!']);
-
                         } else {}
 
                         setState(() {});
@@ -2418,7 +2414,6 @@ class _MyHomePageState extends State<MyHomePage> {
                         if (kIsWeb) {
                           // js.context.callMethod('recordAudio',
                           //     ['Flutter is calling upon JavaScript!']);
-
                         } else {}
 
                         setState(() {});
@@ -2961,7 +2956,7 @@ class _MyHomePageState extends State<MyHomePage> {
               timeScale = arrTimeScale[transformScale];
             }
             if (kIsWeb) {
-                js.context.callMethod('setZoomLevel', [json.encode(data)]);
+              js.context.callMethod('setZoomLevel', [json.encode(data)]);
               //   level = calculateLevel(
               //       timeScale, sampleRate, MediaQuery.of(context).size.width, skipCounts);
             } else {
@@ -3213,7 +3208,7 @@ class _MyHomePageState extends State<MyHomePage> {
     if (kIsWeb) {
       // js.context
       //     .callMethod('changeSerialChannel', [json.encode(data)]);
-    } 
+    }
     // else if (Platform.isAndroid) {
     //   var data = asciiToUint8Array("b:;\n");
     //   print(data);
@@ -3369,4 +3364,3 @@ class _MyHomePageState extends State<MyHomePage> {
     print(listIndexSerial);
   }
 }
-

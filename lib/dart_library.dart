@@ -53,8 +53,17 @@ differentInScreenPosition(posX, part, level, skipCounts, int envelopeSize,
   return curStart;
 }
 
-screenPositionToElementPosition(posX, part, level, skipCount,
-    double envelopeSize, int cBuffIdx, double divider, double innerWidth, isThreshold, maxEnvelopeSize) {
+screenPositionToElementPosition(
+    posX,
+    part,
+    level,
+    skipCount,
+    double envelopeSize,
+    int cBuffIdx,
+    double divider,
+    double innerWidth,
+    isThreshold,
+    maxEnvelopeSize) {
   int head = cBuffIdx;
   int prevSegment = (envelopeSize / divider).floor();
 
@@ -70,7 +79,7 @@ screenPositionToElementPosition(posX, part, level, skipCount,
       ((innerWidth - posX) * samplesPerPixel / division * skipCount).floor();
 
   int curStart;
-  if (isThreshold){
+  if (isThreshold) {
     // int thresholdSamplesCanvas = (innerWidth * samplesPerPixel /division * skipCount).floor();
     // curStart = thresholdSamplesCanvas - (elementLength).floor();
 
@@ -82,14 +91,13 @@ screenPositionToElementPosition(posX, part, level, skipCount,
     // print(divider);
     // curStart = ( (maxEnvelopeSize / division / divider / 2) - envelopeSize / division / divider / 2 ).floor();
 
-
-    if (divider == 6){
+    if (divider == 6) {
       curStart = (maxEnvelopeSize / 2 / divider / 2).floor();
-    }else{
+    } else {
       curStart = ((posX) * samplesPerPixel / division * skipCount).floor();
       curStart = (curStart).floor();
     }
-  }else{
+  } else {
     curStart = head - (elementLength).floor();
   }
   // print("INNER WIDTH : " + innerWidth.toString() + " POS X  : "+ posX.toString() + " prev Segment : " + prevSegment.toString()+" LEVEL : " + level.toString() + " DIVIDER " + divider.toString() + " Samples per pixel : " + samplesPerPixel.toString() + "Skip Counts : " + skipCount.toString()+ "Element Length "+ elementLength.toString()+ "cur Start : "+ curStart.toString()+ "head : "+ head.toString()+ "Envelope Size : " + envelopeSize.toString());
@@ -161,8 +169,7 @@ getAllChannelsSample(samples, int maxOsChannel) {
   for (int i = 0; i < maxOsChannel; i++) {
     final len = samples.length;
     // tempBuffIdx = cBuffIdx;
-    List<int> visibleSamples =
-        getVisibleSamples(samples, i, len, maxOsChannel);
+    List<int> visibleSamples = getVisibleSamples(samples, i, len, maxOsChannel);
 
     // for (int sample in samples) {
 
