@@ -27,7 +27,7 @@
 		33CC10F62044A3C60003C045 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 33CC10F42044A3C60003C045 /* MainMenu.xib */; };
 		33CC11132044BFA00003C045 /* MainFlutterWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33CC11122044BFA00003C045 /* MainFlutterWindow.swift */; };
 		EB7A72CF05DABBE3376E8F02 /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C06C90BFC5652E2DA3C22830 /* Pods_Runner.framework */; };
-		FAF4CB4A298B66E200058E93 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = FAF4CB49298B66E200058E93 /* GoogleService-Info.plist */; };
+		FAE8E7912AD792C700C8370E /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = FAE8E7902AD792C700C8370E /* GoogleService-Info.plist */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -77,7 +77,7 @@
 		FA384F9528F8159D00DD4BBA /* RunnerDebug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = RunnerDebug.entitlements; sourceTree = "<group>"; };
 		FA924D05295EA568006FA651 /* libxml2.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libxml2.tbd; path = usr/lib/libxml2.tbd; sourceTree = SDKROOT; };
 		FA924D07295EA5B0006FA651 /* libxml2.2.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libxml2.2.tbd; path = usr/lib/libxml2.2.tbd; sourceTree = SDKROOT; };
-		FAF4CB49298B66E200058E93 /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = "GoogleService-Info.plist"; path = "../../ios/Runner/GoogleService-Info.plist"; sourceTree = "<group>"; };
+		FAE8E7902AD792C700C8370E /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -147,7 +147,7 @@
 		33FAB671232836740065AC1E /* Runner */ = {
 			isa = PBXGroup;
 			children = (
-				FAF4CB49298B66E200058E93 /* GoogleService-Info.plist */,
+				FAE8E7902AD792C700C8370E /* GoogleService-Info.plist */,
 				FA384F9528F8159D00DD4BBA /* RunnerDebug.entitlements */,
 				33CC10F02044A3C60003C045 /* AppDelegate.swift */,
 				33CC11122044BFA00003C045 /* MainFlutterWindow.swift */,
@@ -212,7 +212,7 @@
 			isa = PBXProject;
 			attributes = {
 				LastSwiftUpdateCheck = 0920;
-				LastUpgradeCheck = 1300;
+				LastUpgradeCheck = 1430;
 				ORGANIZATIONNAME = "";
 				TargetAttributes = {
 					33CC10EC2044A3C60003C045 = {
@@ -256,7 +256,7 @@
 			files = (
 				33CC10F32044A3C60003C045 /* Assets.xcassets in Resources */,
 				33CC10F62044A3C60003C045 /* MainMenu.xib in Resources */,
-				FAF4CB4A298B66E200058E93 /* GoogleService-Info.plist in Resources */,
+				FAE8E7912AD792C700C8370E /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

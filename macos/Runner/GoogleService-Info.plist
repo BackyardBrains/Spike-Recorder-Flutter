@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>62668804297-mnl9lq4b30gl2qnhjb2a4ohfmkvkql35.apps.googleusercontent.com</string>
+	<string>62668804297-kniaql0kbi2a69o08uqolg69bck8m7h9.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.62668804297-mnl9lq4b30gl2qnhjb2a4ohfmkvkql35</string>
+	<string>com.googleusercontent.apps.62668804297-kniaql0kbi2a69o08uqolg69bck8m7h9</string>
 	<key>ANDROID_CLIENT_ID</key>
 	<string>62668804297-e5l5ghtojirdcfm8lj0idtaa4cptj3n0.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
@@ -15,7 +15,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.backyardbrains.srflutterios</string>
+	<string>com.backyardbrains.srfluttermac</string>
 	<key>PROJECT_ID</key>
 	<string>webspikerecorder</string>
 	<key>STORAGE_BUCKET</key>
@@ -31,8 +31,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:62668804297:ios:2e1442d6910b0ba6523d18</string>
-	<key>DATABASE_URL</key>
-	<string>https://webspikerecorder-default-rtdb.firebaseio.com</string>
+	<string>1:62668804297:ios:948434efb4e92672523d18</string>
 </dict>
 </plist>
