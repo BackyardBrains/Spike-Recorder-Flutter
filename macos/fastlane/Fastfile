@@ -1,0 +1,102 @@
+# gs://webspikerecorder.appspot.com
+# This file contains the fastlane.tools configuration
+# You can find the documentation at https://docs.fastlane.tools
+#
+# For a list of all available actions, check out
+#
+#     https://docs.fastlane.tools/actions
+#
+# For a list of all available plugins, check out
+#
+#     https://docs.fastlane.tools/plugins/available-plugins
+#
+
+# Uncomment the line if you want fastlane to automatically update itself
+# update_fastlane
+
+# default_platform(:ios)
+
+# platform :ios do
+#   desc "Description of what the lane does"
+#   lane :custom_lane do
+#     # add actions here: https://docs.fastlane.tools/actions
+#   end
+# end
+
+
+default_platform(:mac)
+
+platform :mac do
+  before_all do
+    # Make sure we start off with a clean slate
+    # ensure_git_status_clean
+  end
+
+  desc "Create a notarized build of the macOS App"
+  lane :distribute do
+    # |options|
+    
+    # ensure_git_branch(
+    #   branch: 'dev'
+    # )
+
+    # increment_build_number(
+    #   xcodeproj: "Project.xcodeproj"
+    # )
+
+    build_mac_app(
+      # scheme: 'Project', # Skip if you only have a single scheme
+      configuration: 'Release',
+      # export_method: "app-store",
+      # export_method: "development",
+      export_method: "developer-id",
+      output_directory: "../build/macos", 
+      output_name: "sr-desktop.app", 
+
+      xcargs: '-allowProvisioningUpdates' # Needed for automatic signing
+    )
+
+    notarize(
+      asc_provider: "MLGRKD657P", 
+      username: 'stevanus.djojokusumo@gmail.com',
+      print_log: true,
+      bundle_id: 'com.backyardbrains.srfluttermac',
+      package: '../build/macos/sr-desktop.app',
+      verbose: true # Useful for showing notarization logs if it fails 
+    )
+    # project = options[:project] || UI.input('Please enter Google Cloud Storage project: ')
+    # keyfile = options[:keyfile] || UI.input('Please enter Google Cloud Storage keyfile: ')
+    # bucket = options[:bucket] || UI.input('Please enter Google Cloud Storage bucket: ')
+    # file_to_upload = options[:upload_path] || UI.input('Please enter path for file to upload: ')
+    # # file_to_download = options[:download_file_name] || UI.input('Please enter name for file to download: ')
+  
+    # if file_to_upload
+    #   google_cloud_storage_upload(
+    #     project: project,
+    #     keyfile: keyfile,
+    #     bucket: bucket,
+    #     content_path: file_to_upload
+    #   )
+    # end
+  end
+
+  # after_all do |lane|
+  #   say "done"
+  #   commit_version_bump(
+  #       message: 'Version Bump via Fastlane',
+  #       xcodeproj: 'Project.xcodeproj', # optional, if you have multiple Xcode project files, you must specify your main project here
+  #   )
+
+  #   add_git_tag
+
+  #   push_to_git_remote
+  # end
+
+  # Handle errors
+  error do |lane, exception|
+    # reset version bumps
+    # reset_git_repo(
+    #   disregard_gitignore: false
+    # )
+  end
+end

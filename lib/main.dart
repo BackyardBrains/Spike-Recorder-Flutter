@@ -1,91 +1,2326 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
-import 'dart:ui';
+import 'dart:ffi' as ffi;
+import 'package:custom_pop_up_menu/custom_pop_up_menu.dart';
+import 'package:ffi/ffi.dart';
+import 'package:nativec/allocation.dart';
 
-import 'package:count_stepper/count_stepper.dart';
+// import 'dart:js' as js;
+import 'package:another_xlider/another_xlider.dart';
+import 'package:crypto/crypto.dart';
+import 'package:desktop_window/desktop_window.dart';
+import 'package:dotted_line/dotted_line.dart';
+import 'package:http/http.dart' as https;
+import 'package:alert_dialog/alert_dialog.dart';
+import 'package:async/async.dart';
+// import 'package:circular_buffer/circular_buffer.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:fialogs/fialogs.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flash/flash.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
-import 'package:flutter_audio_waveforms/flutter_audio_waveforms.dart' as WavForm;
-import 'package:localstorage/localstorage.dart';
-import 'package:micsound/mainoldbloc/mainold_bloc.dart';
-import 'package:micsound/ui/dialog/custom_audio_dialog.dart';
-import 'package:micsound/ui/dialog/custom_serial_dialog.dart';
-import 'package:micsound/ui/dialog/feedback_dialog.dart';
-import 'package:micsound/ui/widgets/canvas_scroll_behavior.dart';
-import 'package:micsound/utils/debouncers.dart';
-import 'package:syncfusion_flutter_charts/charts.dart';
-import 'package:syncfusion_flutter_charts/sparkcharts.dart';
-import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
-import 'core/models/wav_parser.dart';
-import 'core/models/waveform_data_model.dart';
-import 'firebase_config.dart';
-import 'jsfunction.dart';
-import 'dart:js' as js;
-import 'dart:typed_data';
-// import 'package:flutter_fps/flutter_fps.dart';
-// import 'package:fps_widget/fps_widget.dart';
-
-import 'ui/widgets/waveform_painter.dart';
-import 'workers/sample_service.dart';
-// import 'src/c_strings.dart';
-// import 'src/proxy_ffi.dart';
-// import 'src/generated.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:form_builder_validators/form_builder_validators.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_audio_waveforms/flutter_audio_waveforms.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
-import 'package:http/http.dart' as https;
+// import 'package:fps_widget/fps_widget.dart';
+import 'package:mfi/mfi.dart';
 
-// 10s - 27 seconds delay
+import 'package:mic_stream/mic_stream.dart';
+import 'package:nativec/nativec.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:srmobileapp/firebase_options.dart';
+// import 'package:flutter_wasm/flutter_wasm.dart';
+import 'package:srmobileapp/library.dart';
+import 'package:srmobileapp/dart_library.dart';
+// import 'package:quick_usb/quick_usb.dart';
+import 'package:gesture_x_detector/gesture_x_detector.dart';
 
-const String _basePath = 'assets';
-final LocalStorage storage = new LocalStorage('tutorial_app');
+// if platform isWindows
+import 'package:flutter_libserialport/flutter_libserialport.dart';
+import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
+import 'package:winaudio/winaudio.dart';
+import 'package:usb_serial/usb_serial.dart';
+
+import 'bloc/main_bloc.dart';
+import 'board-config.dart';
+import 'dialog/custom_audio_dialog.dart';
+import 'dialog/custom_serial_dialog.dart';
+import 'utils/debouncers.dart';
+
+int thresholdType = -1;
+int selectedThresholdIdx = 0;
+int forceThreshold = 1;
+int markerOutOfRange = 0;
+int excessiveTopGain = 0;
+int excessiveBottomGain = 0;
+
+const max_markers = 300;
+const signalMultiplier = 150;
+int maxOsChannel = 1;
+int DISPLAY_CHANNEL_FIX = 1;
+int DISPLAY_CHANNEL = 1;
+var DEVICE_PRODUCT = {};
+var DEVICE_CATALOG = {};
+var CURRENT_DEVICE = {};
+var EXPANSION_BOARD = {};
+
+// import 'package:quick_usb/quick_usb.dart';
+const SIZE_LOGS2 = 10;
+const NUMBER_OF_SEGMENTS = 60;
+const skipCounts = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512];
+
+int cBuffIdx = 0;
+int tempBuffIdx = 0;
+List<double> cBuff = [];
+List<double> cBuffDouble = [];
+List<int> thresholdHeads = List<int>.generate(6, (index) => 0);
+
+int writeInteger = 0;
+int numberOfFrames = 0;
+int numberOfZeros = 0;
+int lastWasZero = 0;
+
+List<List<Int16List>> allEnvelopes = [];
+int level = 6;
+double divider = 6;
+int globalIdx = 0;
+
+final _data = Uint8List.fromList([
+  0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60, //
+  0x01, 0x7e, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x04, 0x05, 0x01, 0x70,
+  0x01, 0x01, 0x01, 0x05, 0x03, 0x01, 0x00, 0x02, 0x06, 0x08, 0x01, 0x7f,
+  0x01, 0x41, 0x80, 0x88, 0x04, 0x0b, 0x07, 0x13, 0x02, 0x06, 0x6d, 0x65,
+  0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x06, 0x73, 0x71, 0x75, 0x61, 0x72,
+  0x65, 0x00, 0x00, 0x0a, 0x09, 0x01, 0x07, 0x00, 0x20, 0x00, 0x20, 0x00,
+  0x7e, 0x0b,
+]);
+
+// PLAYING WAV
+bool isPlayingWav = false;
+bool isPaused = false;
+Nativec nativec = Nativec();
+
+bool isHighPass = false;
+bool isLowPass = false;
+bool isNotch50 = false;
+bool isNotch60 = false;
+
+// final mod = WasmModule(data);
+// print(mod.describe());
+// final inst = mod.builder().build();
+// final square = inst.lookupFunction('square');
+
+// Future<dynamic> readFileAsync() async {
+//   ByteData data = await rootBundle.load("wasm/fib.wasm");
+//   final dataList = data.buffer.asUint8List(0);
+//   print("dataList");
+//   print(dataList);
+//   final _inst = WasmModule(dataList).builder().build();
+//   final _wasmSquare = _inst.lookupFunction('fib');
+
+//   print("_wasmSquare(12)");
+//   print(_wasmSquare(10));
+//   return _wasmSquare(10);
+// }
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseConfig.platformOptions);
-  // await initFfi();
-  // DynamicLibrary dynLib = openOpus();
-  // FunctionsAndGlobals opusLibinfo = FunctionsAndGlobals(dynLib);
-  // String version = fromCString(opusLibinfo.opus_get_version_string());
-  // print("VERSION "+version.toString());
+  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    await DesktopWindow.setWindowSize(Size(800, 600));
+    await DesktopWindow.setMinWindowSize(Size(800, 600));
+  }
+  if (kIsWeb) {
+    // await Firebase.initializeApp(options: DefaultFirebaseConfig.platformOptions);
+  } else if (Platform.isWindows) {
+    // await Firebase.initializeApp(options: {
+
+    // });
+  } else if (Platform.isAndroid) {
+    await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform);
+  } else {
+    await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform);
+  }
+
+  // _nativec.getPlatformVersion();
+  // _nativec.init();
   runApp(const MyApp());
+  // final data = File('fib.wasm').readAsBytesSync();
+
+  // readFileAsync();
+}
+
+// getScreenBuffers(
+//     c,
+//     globalIdx,
+//     int start,
+//     int to,
+//     int prevSegment,
+//     int surfaceWidth,
+//     head,
+//     offsetHead,
+//     globalPositionCap,
+//     halfwayCap,
+//     skipCount,
+//     int excess,
+//     cBuff,
+//     eventPositionResultInt,
+//     eventPositionInt,
+//     eventGlobalPositionInt,
+//     arrMarkers,
+//     List<double> envelopeSamples) {
+//   int bufferCount = 0;
+//   if (globalIdx == 0) {
+//     if (to - prevSegment < 0) {
+//       List<double> arr = allEnvelopes[c][level].sublist(0, to);
+//       // print(arr);
+//       bufferCount = arr.length;
+//       cBuff.setAll(prevSegment - arr.length, arr);
+//     } else {
+//       start = to - prevSegment;
+
+//       List<double> arr = allEnvelopes[c][level].sublist(start, to);
+//       bufferCount = arr.length;
+//       cBuff.setAll(prevSegment - arr.length, arr);
+//     }
+
+//     if (c == 0) {
+//       int bufferLength = prevSegment;
+//       int evtCounter = arrMarkers.length;
+//       eventPositionResultInt.fillRange(0, max_markers, 0);
+//       double offsetTail = offsetHead - bufferLength / 2 * skipCount;
+
+//       for (int ctr = 0; ctr < evtCounter; ctr++) {
+//         if (eventGlobalPositionInt[ctr] >= globalPositionCap) {
+//           int headPosition = (eventPositionInt[ctr] / skipCount * 2)
+//               .floor(); // headPosition in envelope realm
+//           if (headPosition < start) {
+//             eventPositionResultInt[ctr] = 0;
+//           } else //{
+//           if (headPosition >= start && headPosition <= to) {
+//             eventPositionResultInt[ctr] =
+//                 (bufferLength - excess - (to - (headPosition))) /
+//                     bufferLength *
+//                     surfaceWidth;
+//           }
+//         }
+//       }
+//     }
+//   } else {
+//     if (start < 0) {
+//       int processedHead = head * 2;
+//       int segmentCount = prevSegment;
+//       int bufferLength = prevSegment;
+
+//       segmentCount = segmentCount - processedHead - 1;
+//       start = envelopeSamples.length - segmentCount;
+//       List<double> firstPartOfData = envelopeSamples.sublist(start);
+//       List<double> secondPartOfData =
+//           envelopeSamples.sublist(0, processedHead + 1);
+//       if (secondPartOfData.length > 0) {
+//         try {
+//           cBuff.setAll(0, firstPartOfData);
+//           cBuff.setAll(firstPartOfData.length, secondPartOfData);
+//         } catch (err) {
+//           print("err signal dividing");
+//           print(err);
+//         }
+//         bufferCount = firstPartOfData.length + secondPartOfData.length;
+//       } else {
+//         cBuff.setAll(
+//             bufferLength - firstPartOfData.length - 1, firstPartOfData);
+//         bufferCount = firstPartOfData.length;
+//       }
+
+//       if (c == 0) {
+//         int evtCounter = arrMarkers.length;
+
+//         for (int ctr = 0; ctr < evtCounter; ctr++) {
+//           int headPosition = (eventPositionInt[ctr] / skipCount * 2)
+//               .floor(); // headPosition in envelope realm
+
+//           if (eventGlobalPositionInt[ctr] >= halfwayCap) {
+//             if (headPosition < start && headPosition > to) {
+//               eventPositionResultInt[ctr] = 0;
+//             } else {
+//               if (headPosition <= envelopeSamples.length &&
+//                   headPosition >= start) {
+//                 // upper
+//                 int counter = bufferLength -
+//                     (envelopeSamples.length -
+//                         headPosition +
+//                         secondPartOfData.length);
+//                 eventPositionResultInt[ctr] =
+//                     counter / bufferLength * surfaceWidth;
+//                 // console.log("upper ", eventPositionResultInt[ctr].toString());
+//               } else //{ // headPosition < to // below
+//               if (headPosition <= to && headPosition >= 0) {
+//                 // console.log("below");
+//                 int counter = bufferLength - excess - (to - (headPosition));
+//                 eventPositionResultInt[ctr] =
+//                     counter / bufferLength * surfaceWidth;
+//               }
+//             }
+//           }
+//         }
+//       }
+//     } else {
+//       // print("start > 0");
+//       cBuff = List<double>.from(allEnvelopes[c][level].sublist(start, to));
+//       bufferCount = cBuff.length;
+
+//       if (c == 0) {
+//         int bufferLength = prevSegment;
+//         int evtCounter = arrMarkers.length;
+
+//         for (int ctr = 0; ctr < evtCounter; ctr++) {
+//           if (eventGlobalPositionInt[ctr] >= globalPositionCap) {
+//             int headPosition = (eventPositionInt[ctr] / skipCount * 2)
+//                 .floor(); // headPosition in envelope realm
+//             if (headPosition < start) {
+//               eventPositionResultInt[ctr] = 0;
+//             } else if (headPosition >= start && headPosition <= to) {
+//               // eventPositionResultInt[ctr] = prevSegment - excess - ( to - (headPosition) );
+//               eventPositionResultInt[ctr] =
+//                   (bufferLength - excess - (to - (headPosition))) /
+//                       bufferLength *
+//                       surfaceWidth;
+//             }
+//           }
+//         }
+//       }
+//     }
+//   }
+//   return bufferCount;
+// }
+
+void sampleBufferingEntryPoint(List<dynamic> values) {
+  final iReceivePort = ReceivePort();
+  SendPort sendPort = values[0];
+  allEnvelopes = values[1];
+  int cBufferSize = values[2];
+  double sampleRate = values[3];
+  List<double> myArrTimescale = values[4];
+  List<double> arrTimeScale = [0.1, 1, 10, 50, 100, 500, 1000, 5000, 10000];
+
+  double devicePixelRatio = values[5];
+  double C_START = 0;
+  int thresholdHit = 0;
+
+  sendPort.send(iReceivePort.sendPort);
+  int cBuffIdx = 0;
+  int globalIdx = 0;
+  List<int> arrHeads = List<int>.generate(6, (index) => 0);
+  List<int> arrOffsetHeads = List<int>.generate(6, (index) => 0);
+  List<String> arrMarkers = [];
+  List<int> arrIntMarkers = [];
+  List<double> eventPositionInt =
+      List<double>.generate(max_markers, (index) => 0.0);
+  List<double> eventPositionResultInt =
+      List<double>.generate(max_markers, (index) => 0.0);
+  List<int> eventGlobalPositionInt =
+      List<int>.generate(max_markers, (index) => 0);
+  List<int> arrGlobalIdx = List<int>.generate(6, (index) => 0);
+  int tempPrevSegment = 0;
+
+  List<List<Int16List>> allThresholdEnvelopes = [];
+  List<int> allThresholdEnvelopesSize = [];
+  int SEGMENT_SIZE_THRESHOLD = sampleRate.floor();
+  int NUMBER_OF_SEGMENTS_THRESHOLD = 10;
+  int SIZE = NUMBER_OF_SEGMENTS_THRESHOLD * SEGMENT_SIZE_THRESHOLD;
+  double size = SIZE.toDouble() * 2;
+  int SIZE_LOGS_THRESHOLD = 10;
+  int THRESHOLD_CHANNEL_COUNT = 2;
+  int samplesLength = SIZE;
+  bool isPrevThresholdingStatus = false;
+  String prevKey = "";
+
+  ffi.Pointer<ffi.Int16> _dataThreshold = allocate<ffi.Int16>(
+      count: samplesLength, sizeOfType: ffi.sizeOf<ffi.Int16>());
+  ffi.Pointer<ffi.Int16> _dataThreshold2 = allocate<ffi.Int16>(
+      count: samplesLength, sizeOfType: ffi.sizeOf<ffi.Int16>());
+  Int16List _thresholdBytes = _dataThreshold.asTypedList(samplesLength);
+  Int16List _thresholdBytes2 = _dataThreshold2.asTypedList(samplesLength);
+  // ffi.Pointer<ffi.Int16> _dataThreshold2 = allocate<ffi.Int16>(
+  //     count: samplesLength, sizeOfType: ffi.sizeOf<ffi.Int16>());
+  // Int16List _thresholdBytes2 = _dataThreshold.asTypedList(samplesLength);
+
+  unitInitializeEnvelope(THRESHOLD_CHANNEL_COUNT, allThresholdEnvelopes,
+      allThresholdEnvelopesSize, size, SIZE, SIZE_LOGS_THRESHOLD);
+
+  var _dataThresholds = [_dataThreshold, _dataThreshold2];
+  nativec.createThresholdProcess(
+      THRESHOLD_CHANNEL_COUNT, SEGMENT_SIZE_THRESHOLD, 0, 1, _dataThresholds);
+  print('create threshold process');
+  nativec.setThresholdParametersProcess(
+      THRESHOLD_CHANNEL_COUNT, level, sampleRate, 6, 0);
+
+  bool isThresholding = false;
+  int thresholdingType = -1;
+  int prevThresholdingType = thresholdingType;
+  int thresholdFlag = 1;
+  List<int> thresholdValue = [];
+  int forceThreshold = 1;
+  bool isInitial = true;
+  List<List<int>> samples = [];
+  String tempKey = '';
+  // List<List<List<double>>> allEnvelopes = [];
+  // int level = 8;
+  // int divider = 6;
+  // int globalIdx = 0;
+  // int surfaceSize = (48000 * 60);
+  // String data = values[1];
+
+  int selectedThresholdIdx = 0;
+  iReceivePort.listen((Object? message) async {
+    // print("allEnvelopes");
+    // print(allEnvelopes);
+    List<dynamic> arr = message as List<dynamic>;
+    // int cBuffIdx = arr[0];
+    var rawSamples = arr[0];
+    // int globalIdx = arr[2];
+    // var surfaceSize = arr[2];
+    var level = arr[1];
+    var divider = arr[2];
+    var numberOfChannels = arr[3];
+    // print(numberOfChannels);
+
+    // var numberOfChannels = 1;
+    int CUR_START = arr[4];
+    bool isPaused = arr[5];
+    String curKey = arr[6];
+    double surfaceWidth = arr[7];
+    double lowPassFilter = arr[8];
+    double highPassFilter = arr[9];
+    bool isLowPass = arr[10];
+    bool isHighPass = arr[11];
+    bool isNotch50 = arr[12];
+    bool isNotch60 = arr[13];
+    isThresholding = arr[14];
+
+    // if (isThresholding) {
+    //   numberOfChannels = 1;
+    //   // if (isInitial) {
+    //   //   isInitial = false;
+    //   // }
+    // }
+    if (thresholdingType != prevThresholdingType) {
+      prevThresholdingType = thresholdingType;
+      thresholdFlag = 1;
+    }
+
+    if (isPrevThresholdingStatus != isThresholding) {
+      isPrevThresholdingStatus = isThresholding;
+      if (isThresholding) {
+        cBufferSize = SIZE;
+        // threshold will be filled with c++
+      } else {
+        arrMarkers.clear();
+        arrIntMarkers.clear();
+        // arrIndicesMarkers.clear();
+        // arrEventIndices.clear();
+        cBufferSize = (sampleRate * 60).floor();
+        allEnvelopes.forEach((element) {
+          element.forEach((envelope) {
+            envelope.fillRange(0, envelope.length, 0);
+          });
+        });
+      }
+
+      cBuffIdx = 0;
+    }
+
+    List<double> snapshotAveragedSamples = arr[15];
+    forceThreshold = arr[19];
+    if (forceThreshold == 1) thresholdValue = arr[16];
+
+    int timeScaleBar = arr[17];
+    thresholdingType = arr[18];
+    selectedThresholdIdx = arr[20];
+
+    int maxSize = (allEnvelopes[0][0]).length;
+    int globalPositionCap = (globalIdx * maxSize / 2).floor();
+
+    // bool isBufferFull = false;
+    // samples =
+    //     getAllChannelsSample(rawSamples, numberOfChannels);
+
+    // Buffers data
+    // /*
+    if (samples.isEmpty) {
+      // print('samples is empt');
+      // samples = List<List<int>>.filled(numberOfChannels, List<int>.filled(1, 0, growable:true), growable:true);
+      // samples = List.filled(numberOfChannels, List.filled(1, 0,growable:true), growable:false);
+      samples = [];
+      for (int cIdx = 0; cIdx < numberOfChannels; cIdx++) {
+        samples.add([]);
+      }
+      // print("init : ${samples[0].length}");
+    }
+
+    List<Int16List> audioSamples =
+        getAllChannelsSample(rawSamples, numberOfChannels);
+    for (int cc = 0; cc < numberOfChannels; cc++) {
+      // samples[c].addAll( audioSamples[c] );
+      // samples[c] = audioSamples[c].toList();//working
+      // print("1st samples ${cc}:  ${samples[cc].length} - ${samples[0].length} vs ${audioSamples[cc].toList().length}");
+      for (int idx = 0; idx < audioSamples[cc].length; idx++) {
+        samples[cc].add(audioSamples[cc][idx]);
+      }
+      // print("concat samples ${cc}:  ${samples[cc].length} - ${samples[0].length} vs ${audioSamples[cc].toList().length}");
+    }
+
+    // samples = List<List<int>>.from(audioSamples, growable:false);
+    if (samples[numberOfChannels - 1].length < 441 * 4) {
+      // print('insufficient');
+      if (curKey != '') {
+        tempKey = curKey;
+      }
+      return;
+    } else {
+      if (tempKey != '') {
+        curKey = tempKey;
+        tempKey = '';
+      }
+      // print('samples[0].length ${numberOfChannels} : ${isPrevThresholdingStatus}');
+      // print(samples[0].sublist(0,20));
+      // print(samples[1].sublist(0,20));
+      // print(samples[0].length);
+      // print(samples[1].length);
+      // print(audioSamples[1].length);
+      // isBufferFull = true;
+    }
+    // */
+    //END of buffers data first
+
+    // print("!=======");
+    // print(level);
+    // print(divider);
+    // print(CUR_START);
+
+    // print(arr[5]);
+    // print("divider");
+    // print(divider);
+    // print("level");
+    // print(level);
+
+    // Map<String, dynamic> map = message as Map<String, dynamic>;
+    // // enveloping
+    // var surfaceSize = map["surfaceSize"];
+    // var cBuffIdx = map["cBuffIdx"];
+    // var samples = map["samples"];
+    // allEnvelopes = map["envelopes"];
+    // print(surfaceSize);
+    // print(divider);
+    // print(globalIdx);
+
+    // print("cBuffIdx 0");
+    // print(allEnvelopes[0][8].sublist(0, 100));
+    // print(samples);
+
+    Int16List curSamples = Int16List(0);
+    if (!isPaused) {
+      // print('numberOfChannels');
+      // print(numberOfChannels);
+      for (int c = 0; c < numberOfChannels; c++) {
+        cBuffIdx = arrHeads[c];
+        globalIdx = arrGlobalIdx[c];
+        // print("Cbuff ${c}");
+        // print(cBuffIdx);
+        // 2875. audioInputConfigArray[INPUT_TYPE_NEURONSS].filterLowPass = 5000.0f;
+        // audioInputConfigArray[INPUT_TYPE_NEURONSS].filterHighPass = 1.0f;
+
+        // List<int> temp = List<int>.from(samples[c]);
+        // print("lowPassFilter");
+        if (isLowPass) {
+          samples[c] = nativec.lowPassFilter(c, samples[c], samples[c].length);
+        }
+        // samples[c] = nativec.lowPassFilter(c, samples[c], samples[c].length);
+        if (isHighPass) {
+          samples[c] = nativec.highPassFilter(c, samples[c], samples[c].length);
+        }
+
+        if (isNotch50) {
+          samples[c] =
+              nativec.notchPassFilter(true, c, samples[c], samples[c].length);
+        }
+        if (isNotch60) {
+          samples[c] =
+              nativec.notchPassFilter(false, c, samples[c], samples[c].length);
+        }
+
+        // curSamples = Int16List.from(samples[c]);
+        if (isPrevThresholdingStatus) {
+        } else {
+          // level = calculateLevel(
+          //     10000, sampleRate.floor(), surfaceWidth, skipCounts);
+          curSamples = Int16List.fromList(samples[c]);
+          samplesLength = curSamples.length;
+          // print('samplesLength');
+          // print(samplesLength);
+        }
+
+        // final int forceLevel = level;
+        // if (isThresholding) {
+        //   if (allThresholdEnvelopes.length < c + 1) {
+        //     print('numberOfChannels');
+        //     print(numberOfChannels);
+        //     return;
+        //   }
+        //   // allThresholdEnvelopes[c][level]
+        //   //     .fillRange(0, allThresholdEnvelopes[c][level].length, 0);
+        // }
+
+        if (isThresholding) {
+          // allThresholdEnvelopes[c][level] = curSamples;
+          continue;
+        } else {
+          for (int i = 0; i < samplesLength; i++) {
+            int tmp = curSamples[i];
+            // print(tmp);
+            // print(nativec.gain(seri(), 10.0));
+            try {
+              // if (isThresholding) {
+              //   try {
+              //     // allThresholdEnvelopes[c][forceLevel].fillRange(0, allThresholdEnvelopes[c].length,0);
+              //     // envelopingSamples(cBuffIdx, tmp.toDouble(), allThresholdEnvelopes[c],
+              //     //     SIZE_LOGS2, skipCounts, forceLevel);
+              //     envelopingSamples(cBuffIdx, tmp, allThresholdEnvelopes[c],
+              //         SIZE_LOGS2, skipCounts, forceLevel);
+              //   } catch (err) {
+              //     print('error enveloping');
+              //     print(curSamples.length);
+              //     print(allThresholdEnvelopes[c].length);
+              //   }
+              // } else {
+              // print(skipCounts);
+              envelopingSamples(
+                  cBuffIdx, tmp, allEnvelopes[c], SIZE_LOGS2, skipCounts, -1);
+              // }
+
+              cBuffIdx++;
+              if (cBuffIdx >= cBufferSize - 1) {
+                cBuffIdx = 0;
+                globalIdx++;
+              }
+            } catch (err) {
+              print("err !isthresholding");
+              print(err);
+            }
+          }
+        }
+
+        // });
+        arrHeads[c] = cBuffIdx;
+        arrGlobalIdx[c] = globalIdx;
+      }
+
+      if (isThresholding) {
+        if (curKey != "") {
+          // print('curKey');
+          // print(curKey);
+          if (thresholdingType == 0 || curKey == thresholdingType.toString()) {
+            thresholdFlag = 1;
+            prevKey = curKey;
+          }
+        }
+      }
+      double processedSamplesCount = 0;
+      if (isPrevThresholdingStatus) {
+        cBuffIdx = 0;
+        try {
+          processedSamplesCount = (nativec.appendSamplesThresholdProcess(
+              snapshotAveragedSamples[0].floor(),
+              -thresholdValue[selectedThresholdIdx].floor(),
+              selectedThresholdIdx,
+              samples[0],
+              samples[0].length,
+              samples[1],
+              samples[1].length,
+              [],
+              0,
+              [],
+              0,
+              [],
+              0,
+              [],
+              0,
+              THRESHOLD_CHANNEL_COUNT,
+              level,
+              divider,
+              CUR_START,
+              (allEnvelopes[0][level].length / divider).floor(),
+              0,
+              [thresholdingType],
+              thresholdFlag));
+          // print('_thresholdBytes');
+          thresholdFlag = 0;
+          // curSamples =
+          //     _thresholdBytes.sublist(0, processedSamplesCount.floor());
+          allThresholdEnvelopes[0][level] =
+              _thresholdBytes.sublist(0, processedSamplesCount.floor());
+          allThresholdEnvelopes[1][level] =
+              _thresholdBytes2.sublist(0, processedSamplesCount.floor());
+
+          thresholdHeads[0] = processedSamplesCount.floor();
+          thresholdHeads[1] = processedSamplesCount.floor();
+        } catch (err) {
+          print("isThresholding Error");
+          print(err);
+        }
+
+        // cBuffIdx = curSamples.length-1;
+        samplesLength = curSamples.length;
+        cBuffIdx = samplesLength;
+        globalIdx = 0;
+        arrHeads[0] = cBuffIdx;
+        arrGlobalIdx[0] = globalIdx;
+        arrHeads[1] = cBuffIdx;
+        arrGlobalIdx[1] = globalIdx;
+      }
+
+      if (curKey != "") {
+        cBuffIdx = arrHeads[0];
+        if (isThresholding || arrMarkers.length + 1 >= max_markers) {
+          arrMarkers.clear();
+          arrIntMarkers.clear();
+        }
+        int markerIdx = arrMarkers.length;
+        eventPositionInt[markerIdx] = (cBuffIdx.toDouble());
+
+        eventGlobalPositionInt[markerIdx] = globalPositionCap + cBuffIdx;
+
+        // eventPositionResultInt[markerIdx] = (cBuffIdx.toDouble());
+        arrIntMarkers.add(int.parse(curKey));
+        arrMarkers.add(curKey);
+        // print('arrIntMarkers');
+        // print(arrIntMarkers);
+      }
+
+      for (int c = 0; c < numberOfChannels; c++) {
+        samples[c].clear();
+      }
+      // print("samples clear");
+    } else {
+      // nativec.setThresholdParametersProcess(1,level, sampleRate, divider, CUR_START);
+      if (isThresholding) {
+        // if (allThresholdEnvelopes[0][level][0] == 0) {}
+        int sampleNeeded = (allEnvelopes[0][level].length / divider).floor();
+        int samplesLength = nativec
+            .getSamplesThresholdProcess(
+                0, level, divider, CUR_START, sampleNeeded)
+            .floor();
+        thresholdHeads[0] = sampleNeeded;
+        cBuffIdx = sampleNeeded;
+
+        // int samplesLength = (allThresholdEnvelopes[0][level].length/(divider/6)).floor();
+        // curSamples = Int16List(samplesLength);
+        // print("PAUSED CURSAMPLES0");
+        //allThresholdEnvelopes[0][level].length.floor()
+        curSamples = _thresholdBytes.sublist(0, samplesLength);
+        // allThresholdEnvelopes[0][level] = curSamples;
+        // print("PAUSED CURSAMPLES");
+        // print(samplesLength);
+      }
+    }
+
+    // // filter
+    // // print("level");
+    // // print(level);
+    // print("samples");
+    // print(samples);
+
+    List<Int16List> buffers = [];
+    const maxMinMultiplier = 2;
+    if (isThresholding) {
+      // level =
+      //     calculateLevel(10000, 44100, surfaceWidth, skipCounts);
+      // level =
+      //     calculateLevel(2000, sampleRate.floor(), surfaceWidth, skipCounts);
+      // level = 8;
+
+      for (int c = 0; c < numberOfChannels; c++) {
+        // Int16List envelopeSamples = (allThresholdEnvelopes[c][level]);
+        // Int16List envelopeSamples = curSamples;
+        // int prevSegment = (envelopeSamples.length / 1).floor();
+        // int drawSamplesCount = prevSegment;
+        // // int from = ((envelopeSamples.length - drawSamplesCount) * .5).floor();
+        // // int to = ((envelopeSamples.length + drawSamplesCount) * .5).floor();
+        // int from = 0;
+        // int to = curSamples.length;
+
+        // List<double> cBuff = List<double>.from( ( envelopeSamples.map((val)=> val.toDouble()) ).toList(growable:false));
+        // Int16List cBuff = curSamples;
+        // if (c==1) continue;
+        Int16List cBuff = allThresholdEnvelopes[c][level];
+        // int sumInt =  envelopeSamples.sublist(from,to).reduce((value, element) => value+element);
+        // double sumDouble = ( Float32List.sublistView( envelopeSamples, from,to ) ).reduce((value, element) => value+element);
+        // print("SUMS");
+        // print(sumInt);
+        // print(sumDouble);
+        // List<double> cBuff =  List<double>.from(( envelopeSamples.sublist(from,to) ).buffer.asFloat32List().toList(growable:false));
+        buffers.add(cBuff);
+      }
+      // print('buffers[1]');
+      // print(buffers[1]);
+
+      if (thresholdHit == 1) {
+        if (C_START != 0) {
+          sendPort.send([buffers, arrHeads[0], eventPositionResultInt]);
+        } else {
+          sendPort.send([buffers, arrHeads[0], eventPositionResultInt]);
+        }
+        thresholdHit = 0;
+        print("SEND c_start " + thresholdHit.toString());
+        print(C_START);
+      } else {
+        if (prevKey == "") {
+          sendPort.send([
+            buffers,
+            arrHeads[0],
+            List<double>.filled(0, 0),
+            List<double>.filled(0, 0)
+          ]);
+        } else {
+          // print('prevKey');
+          // print(prevKey);
+          sendPort.send([
+            buffers,
+            arrHeads[0],
+            [(surfaceWidth / 2)],
+            [int.parse(prevKey)]
+          ]);
+        }
+      }
+      for (int c = 0; c < numberOfChannels; c++) {
+        samples[c].clear();
+      }
+
+      return;
+    } // end of threshold
+
+    const excess = 0;
+    int halfwayCap =
+        // globalPositionCap - ((globalPositionCap * 0.2) / currentCap).floor();
+        globalPositionCap - (globalPositionCap * 0.2).floor();
+
+    /*
+    for (int c = 0; c < numberOfChannels; c++) {
+      Int16List envelopeSamples = allEnvelopes[c][level];
+      int prevSegment = (envelopeSamples.length / divider).floor();
+      buffers.add(envelopeSamples.sublist(0,prevSegment));
+      // print(envelopeSamples.sublist(0,30));
+    }
+    sendPort
+        .send([buffers, arrHeads[0], eventPositionResultInt, arrIntMarkers]);
+
+    return;
+    */
+    for (int c = 0; c < numberOfChannels; c++) {
+      Int16List envelopeSamples = allEnvelopes[c][level];
+      int prevSegment = (envelopeSamples.length / divider).floor();
+      // print(prevSegment);
+      if (tempPrevSegment != prevSegment) {
+        // print("prevSegment " + level.toString());
+        // print(prevSegment);
+        tempPrevSegment = prevSegment;
+      }
+      // print(envelopeSamples.length);
+      // print(divider);
+      Int16List cBuff = Int16List(prevSegment);
+      // List<double>.generate(prevSegment, (i) => 0, growable: false);
+      int rawHead = arrHeads[c];
+      int rawOffsetHead = arrOffsetHeads[c];
+      // print("CUR_START");
+      // print(CUR_START);
+      if (CUR_START != 0) {
+        // print("CUR_START");
+        // print(CUR_START);
+        if (rawHead - CUR_START >= 0) {
+          rawHead = rawHead - (CUR_START);
+          if (rawHead > cBuffIdx) {
+            rawHead = cBuffIdx;
+          }
+          // print("cBuffIdx");
+          // print(cBuffIdx);
+          // print(rawHead);
+          // rawOffsetHead = rawOffsetHead - (CUR_START) ;
+        } else {
+          // print("zero");
+          // print(rawHead - CUR_START);
+          // print(rawHead);
+          // print(CUR_START);
+        }
+        // head = head - (CUR_START as int) ;
+        // offsetHead = offsetHead - Math.floor(zoomHorizontalDifference) ;
+      }
+      int skipCount = skipCounts[level];
+      int head = (rawHead / skipCount).floor();
+      int offsetHead = (rawOffsetHead).floor();
+
+      int interleavedIdx = head * 2;
+      int start = interleavedIdx - prevSegment;
+      int to = interleavedIdx;
+
+      if (globalIdx == 0) {
+        if (to - prevSegment < 0) {
+          Int16List arr = allEnvelopes[c][level].sublist(0, to);
+          // print(arr);
+          cBuff.setAll(prevSegment - arr.length, arr);
+        } else {
+          start = to - prevSegment;
+          // print("----@---");
+          // print(start);
+          // print(to);
+          // print(prevSegment);
+
+          Int16List arr = allEnvelopes[c][level].sublist(start, to);
+          cBuff.setAll(prevSegment - arr.length, arr);
+        }
+
+        if (c == 0) {
+          int bufferLength = prevSegment;
+          int evtCounter = arrMarkers.length;
+          eventPositionResultInt.fillRange(0, max_markers, 0);
+          double offsetTail = offsetHead - bufferLength / 2 * skipCount;
+
+          for (int ctr = 0; ctr < evtCounter; ctr++) {
+            if (eventGlobalPositionInt[ctr] >= globalPositionCap) {
+              int headPosition = (eventPositionInt[ctr] / skipCount * 2)
+                  .floor(); // headPosition in envelope realm
+              if (headPosition < start) {
+                eventPositionResultInt[ctr] = 0;
+              } else //{
+              if (headPosition >= start && headPosition <= to) {
+                eventPositionResultInt[ctr] =
+                    (bufferLength - excess - (to - (headPosition))) /
+                        bufferLength *
+                        surfaceWidth;
+              }
+            }
+          }
+          // print("eventPositionResultInt");
+          // print(eventPositionResultInt);
+
+          // for ( int ctr = 0; ctr < evtCounter; ctr++ ){
+          //   if ( offsetTail < 0 ) offsetTail = 0;
+
+          //   if (eventGlobalPositionInt[ctr] < offsetTail){
+          //     eventPositionResultInt[ctr] = 0;
+          //   }else
+          //   if (eventGlobalPositionInt[ctr] >= offsetTail && eventGlobalPositionInt[ctr] <= offsetHead){
+          //     // eventPositionResultInt[ctr] = ( bufferLength - excess - (to - (markerPosition)) ) / bufferLength * vm.drawSurfaceWidth;
+          //     // eventPositionResultInt[ctr] = ( bufferLength - excess - (bufferLength - (markerPosition)) ) / bufferLength * vm.drawSurfaceWidth;
+          //     int posMarker = ( (offsetHead - eventGlobalPositionInt[ctr] ) /skipCount * maxMinMultiplier ).floor();
+          //     // print("posMarker");
+          //     // print(posMarker);
+          //     // print(( bufferLength - excess - posMarker ) / bufferLength * surfaceWidth);
+          //     eventPositionResultInt[ctr] = ( bufferLength - excess - posMarker ) / bufferLength * surfaceWidth;
+          //   }else
+          //   if (eventGlobalPositionInt[ctr] > offsetHead){
+          //     eventPositionResultInt[ctr] = 0;
+          //   }
+          //   // print("markers : ");
+          //   // print(eventPositionResultInt);
+
+          // }
+        }
+
+        // print(prevSegment - arr.length);
+      } else {
+        if (start < 0) {
+          // it is divided into 2 sections
+          int processedHead = head * 2;
+          int segmentCount = prevSegment;
+          int bufferLength = prevSegment;
+
+          segmentCount = segmentCount - processedHead - 1;
+          start = envelopeSamples.length - segmentCount;
+          Int16List firstPartOfData = envelopeSamples.sublist(start);
+          Int16List secondPartOfData =
+              envelopeSamples.sublist(0, processedHead + 1);
+          if (secondPartOfData.length > 0) {
+            try {
+              cBuff.setAll(0, firstPartOfData);
+              cBuff.setAll(firstPartOfData.length, secondPartOfData);
+            } catch (err) {
+              print("err signal dividing");
+              print(err);
+            }
+          } else {
+            cBuff.setAll(
+                bufferLength - firstPartOfData.length - 1, firstPartOfData);
+          }
+
+          if (c == 0) {
+            int evtCounter = arrMarkers.length;
+
+            for (int ctr = 0; ctr < evtCounter; ctr++) {
+              int headPosition = (eventPositionInt[ctr] / skipCount * 2)
+                  .floor(); // headPosition in envelope realm
+
+              if (eventGlobalPositionInt[ctr] >= halfwayCap) {
+                if (headPosition < start && headPosition > to) {
+                  eventPositionResultInt[ctr] = 0;
+                } else {
+                  if (headPosition <= envelopeSamples.length &&
+                      headPosition >= start) {
+                    // upper
+                    int counter = bufferLength -
+                        (envelopeSamples.length -
+                            headPosition +
+                            secondPartOfData.length);
+                    eventPositionResultInt[ctr] =
+                        counter / bufferLength * surfaceWidth;
+                    // console.log("upper ", eventPositionResultInt[ctr].toString());
+                  } else //{ // headPosition < to // below
+                  if (headPosition <= to && headPosition >= 0) {
+                    // console.log("below");
+                    int counter = bufferLength - excess - (to - (headPosition));
+                    eventPositionResultInt[ctr] =
+                        counter / bufferLength * surfaceWidth;
+                  }
+                }
+              }
+            }
+          }
+        } else {
+          // print("start > 0");
+          // cBuff = List<double>.from(allEnvelopes[c][level].sublist(start, to));
+          cBuff = allEnvelopes[c][level].sublist(start, to);
+
+          if (c == 0) {
+            int bufferLength = prevSegment;
+            int evtCounter = arrMarkers.length;
+
+            for (int ctr = 0; ctr < evtCounter; ctr++) {
+              if (eventGlobalPositionInt[ctr] >= globalPositionCap) {
+                int headPosition = (eventPositionInt[ctr] / skipCount * 2)
+                    .floor(); // headPosition in envelope realm
+                if (headPosition < start) {
+                  eventPositionResultInt[ctr] = 0;
+                } else if (headPosition >= start && headPosition <= to) {
+                  // eventPositionResultInt[ctr] = prevSegment - excess - ( to - (headPosition) );
+                  eventPositionResultInt[ctr] =
+                      (bufferLength - excess - (to - (headPosition))) /
+                          bufferLength *
+                          surfaceWidth;
+                }
+              }
+            }
+          }
+        }
+      }
+      buffers.add(cBuff);
+      // print("cBuff.length " + c.toString());
+      // print(cBuff);
+    }
+
+    // print("cBuff.length");
+    // print("cBuff.length");
+    // print(level);
+    // print(cBuff.length);
+    // print(start);
+    // print(to);
+    // print("buffers[1]");
+    // print(buffers[1]);
+    // sendPort.send([buffers, arrHeads[0], eventPositionResultInt, arrMarkers.map((m)=>{ int.parse(m) }).toList() ]);
+    sendPort
+        .send([buffers, arrHeads[0], eventPositionResultInt, arrIntMarkers]);
+
+    // List<double> data =
+    //     List.generate(samples.length, (index) => index.toDouble());
+    // sendPort.send(samples);
+  });
+}
+
+double simulateCurrentStartPosition(
+    int sampleRate,
+    int cBuffIdx,
+    row,
+    level,
+    skipCount,
+    double divider,
+    double innerWidth,
+    bool isThreshold,
+    int deviceType,
+    double CURRENT_START,
+    devicePixelRatio,
+    myArrTimescale,
+    isOpeningFile) {
+  int NUMBER_OF_SEGMENTS = 60;
+  int SEGMENT_SIZE = sampleRate;
+  double SIZE = (NUMBER_OF_SEGMENTS * SEGMENT_SIZE).toDouble();
+  final SIZE_LOGS2 = 10;
+
+  double size = SIZE;
+  // size/=2;
+  var envelopeSizes = [];
+  int i = 0;
+  for (; i < SIZE_LOGS2; i++) {
+    // final sz = (size).floor();
+    envelopeSizes.add(size);
+    size /= 2;
+  }
+
+  int headIdx = cBuffIdx;
+  int initialPosition = screenPositionToElementPosition(
+      row["posX"],
+      "first : ",
+      level,
+      skipCount,
+      envelopeSizes[level],
+      headIdx,
+      divider,
+      innerWidth,
+      isThreshold,
+      envelopeSizes[0]);
+
+  int curLevel =
+      calculateLevel(row["timeScaleBar"], sampleRate, innerWidth, skipCounts);
+
+  int transformedScale = (row['levelScale']).floor();
+  int levelScale = (row['levelScale']).floor();
+  skipCount = skipCounts[curLevel];
+
+  divider = myArrTimescale[transformedScale] / 10; // 0 - 40
+
+  double surfaceWidth = innerWidth;
+
+  int _divider = (divider).floor();
+  if (_divider == 6) {
+    CURRENT_START = 0;
+  }
+
+  int endingPosition;
+  endingPosition = screenPositionToElementPosition(
+      row["posX"],
+      "second : ",
+      curLevel,
+      skipCount,
+      envelopeSizes[curLevel],
+      headIdx,
+      divider,
+      innerWidth,
+      isThreshold,
+      envelopeSizes[0]);
+
+  int diffPosition;
+  double platformMultiplier = devicePixelRatio;
+  if (Platform.isWindows) {
+    platformMultiplier = 2;
+  }
+
+  if (deviceType == 0) {
+    if (curLevel == 0) {
+      diffPosition =
+          ((endingPosition - initialPosition) * platformMultiplier).floor();
+    } else {
+      diffPosition =
+          ((endingPosition - initialPosition) * platformMultiplier).floor();
+    }
+  } else {
+    if (deviceType == 1) {
+      if (curLevel == 0) {
+        diffPosition =
+            ((endingPosition - initialPosition) * platformMultiplier).floor();
+      } else {
+        diffPosition =
+            ((endingPosition - initialPosition) * platformMultiplier).floor();
+      }
+    } else {
+      if (isOpeningFile == 1) {
+        if (curLevel == 0) {
+          diffPosition = ((endingPosition - initialPosition) / 1).floor();
+        } else {
+          diffPosition = ((endingPosition - initialPosition) / 1).floor();
+        }
+      } else {
+        if (curLevel == 0) {
+          diffPosition = ((endingPosition - initialPosition) / 2).floor();
+        } else {
+          diffPosition = ((endingPosition - initialPosition) / 2).floor();
+        }
+      }
+    }
+  }
+  if (isThreshold) {
+    CURRENT_START += (diffPosition).floor();
+  } else {
+    CURRENT_START += (diffPosition).floor();
+  }
+  // print('CURRENT_START Func : ');
+  // print(CURRENT_START);
+  level = curLevel;
+  return CURRENT_START;
+}
+
+void serialBufferingEntryPoint(List<dynamic> values) {
+  final UINT8_BYTES_PER_ELEMENT = 1;
+
+  final iReceivePort = ReceivePort();
+  SendPort sendPort = values[0];
+  List<List<Int16List>> allEnvelopes = values[1];
+  int cBufferSize = values[2];
+  // Uint8List circularBuffer = values[3];
+  int rawInputReadIndex = 0;
+  int inputReadIndex = 0;
+  Uint8List circularBuffer = Uint8List(SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER);
+  setCircularBuffer(circularBuffer);
+  int processedFrame = 0;
+  int framesAvailable = 0;
+  List<int> thresholdValue = [];
+  int forceThreshold = 1;
+
+  bool isInitial = true;
+
+  String deviceType = values[4];
+  // print(values[5]);
+  DEVICE_CATALOG = values[5];
+  // iReceiveDeviceInfoPort = values[6];
+  deviceInfoPort = values[6];
+  double sampleRate = values[8];
+
+  List<List<Int16List>> allThresholdEnvelopes = [];
+  List<int> allThresholdEnvelopesSize = [];
+  int SEGMENT_SIZE_THRESHOLD = 10000;
+  int NUMBER_OF_SEGMENTS_THRESHOLD = 10;
+  int SIZE = NUMBER_OF_SEGMENTS_THRESHOLD * SEGMENT_SIZE_THRESHOLD * 2;
+  double size = SIZE.toDouble() * 2;
+  int SIZE_LOGS_THRESHOLD = 10;
+  int THRESHOLD_CHANNEL_COUNT = 1;
+  int samplesLength = SIZE;
+  bool isPrevThresholdingStatus = false;
+  int prevSampleRate = -1;
+
+  unitInitializeEnvelope(THRESHOLD_CHANNEL_COUNT, allThresholdEnvelopes,
+      allThresholdEnvelopesSize, size, SIZE, SIZE_LOGS_THRESHOLD);
+
+  ffi.Pointer<ffi.Int16> _dataThreshold = allocate<ffi.Int16>(
+      count: samplesLength, sizeOfType: ffi.sizeOf<ffi.Int16>());
+  ffi.Pointer<ffi.Int16> _dataThreshold2 = allocate<ffi.Int16>(
+      count: samplesLength, sizeOfType: ffi.sizeOf<ffi.Int16>());
+  ffi.Pointer<ffi.Int16> _dataThreshold3 = allocate<ffi.Int16>(
+      count: samplesLength, sizeOfType: ffi.sizeOf<ffi.Int16>());
+  ffi.Pointer<ffi.Int16> _dataThreshold4 = allocate<ffi.Int16>(
+      count: samplesLength, sizeOfType: ffi.sizeOf<ffi.Int16>());
+  ffi.Pointer<ffi.Int16> _dataThreshold5 = allocate<ffi.Int16>(
+      count: samplesLength, sizeOfType: ffi.sizeOf<ffi.Int16>());
+  ffi.Pointer<ffi.Int16> _dataThreshold6 = allocate<ffi.Int16>(
+      count: samplesLength, sizeOfType: ffi.sizeOf<ffi.Int16>());
+
+  Int16List _thresholdBytes = _dataThreshold.asTypedList(samplesLength);
+  Int16List _thresholdBytes2 = _dataThreshold2.asTypedList(samplesLength);
+  Int16List _thresholdBytes3 = _dataThreshold3.asTypedList(samplesLength);
+  Int16List _thresholdBytes4 = _dataThreshold4.asTypedList(samplesLength);
+  Int16List _thresholdBytes5 = _dataThreshold5.asTypedList(samplesLength);
+  Int16List _thresholdBytes6 = _dataThreshold6.asTypedList(samplesLength);
+
+  List<Int16List> _thresholdArrs = [
+    _thresholdBytes,
+    _thresholdBytes2,
+    _thresholdBytes3,
+    _thresholdBytes4,
+    _thresholdBytes5,
+    _thresholdBytes6
+  ];
+
+  var _dataThresholds = [
+    _dataThreshold,
+    _dataThreshold2,
+    _dataThreshold3,
+    _dataThreshold4,
+    _dataThreshold5,
+    _dataThreshold6
+  ];
+
+  nativec.createThresholdProcess(
+      1, SEGMENT_SIZE_THRESHOLD, 0, 1, _dataThresholds);
+  nativec.setThresholdParametersProcess(1, level, sampleRate.floor(), 6, 0);
+  prevSampleRate = sampleRate.floor();
+
+  bool isThresholding = false;
+  // if (isThresholding) {
+  //   cBufferSize = SIZE;
+  // }
+
+  // Uint8List messagesBuffer = Uint8List(SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER);
+  Uint8List messagesBuffer = Uint8List(SIZE_OF_MESSAGES_BUFFER);
+  Uint8List rawSamples = new Uint8List(RAW_SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER);
+
+  int numberOfChannels = 1;
+  //NEED to be an array
+  int cBuffIdx = 0;
+  int globalIdx = 0;
+  List<int> arrHeads = List<int>.generate(6, (index) => 0);
+  List<int> arrOffsetHeads = List<int>.generate(6, (index) => 0);
+  List<String> arrMarkers = [];
+  // List<int> arrIntMarkers = [];
+  List<int> arrIndicesMarkers = [];
+  List<int> arrEventIndices = [];
+  List<double> eventPositionInt = List<double>.filled(max_markers, 0.0);
+  List<double> eventPositionResultInt = List<double>.filled(max_markers, 0.0);
+  List<int> eventGlobalPositionInt = List<int>.filled(max_markers, 0);
+  List<int> arrGlobalIdx = List<int>.filled(6, 0);
+
+  MainBloc deviceBloc = MainBloc();
+
+  int cBufHead = 0;
+  int cBufTail = 0;
+  bool weAreInsideEscapeSequence = false;
+  int escapeSequenceDetectorIndex = 0;
+  int messageBufferIndex = 0;
+  int resetHead = 0;
+  int totalRawMessage = 0;
+
+  int batchCounter = 0;
+  int batchModulo = 2;
+  bool debugError = false;
+  int sendingEventCount = 0;
+
+  int receivedBufferCounts = 0;
+
+  // List<int> escapeSequence = [255, 255, 1, 1, 129, 255];
+
+  sendPort.send(iReceivePort.sendPort);
+
+  iReceivePort.listen((Object? message) async {
+    // cBufHead = 0;
+    // cBufTail = 0;
+    // circularBuffer.fillRange(0, SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER, 0);
+    // messageBufferIndex = 0;
+    // weAreInsideEscapeSequence = false;
+
+    // numberOfZeros = 0;
+    // lastWasZero = 0;
+    // numberOfFrames = 0;
+    int numberOfFrames = 0;
+    int numberOfZeros = 0;
+    int lastWasZero = 0;
+
+    List<dynamic> arr = message as List<dynamic>;
+    List<int> samples = arr[0] as List<int>;
+    var level = arr[1];
+    var divider = arr[2];
+    var deviceChannel = arr[3];
+    // print('deviceChannel');
+    // print(deviceChannel);
+    var _sampleRate = arr[4];
+    // print('_maxSampleRate');
+    var _maxSampleRate = arr[5];
+    // print(_sampleRate/_maxSampleRate);
+    int CUR_START = arr[6];
+    bool isPaused = arr[7];
+    String curKey = arr[8];
+    double surfaceWidth = 0;
+    try {
+      surfaceWidth = arr[9];
+    } catch (err) {
+      print("err surface width");
+      print(err);
+      // arr[9];
+    }
+    double lowPassFilter = arr[10];
+    double highPassFilter = arr[11];
+    bool isLowPass = arr[12];
+    bool isHighPass = arr[13];
+    bool isNotch50 = arr[14];
+    bool isNotch60 = arr[15];
+
+    isThresholding = arr[16];
+    List<double> snapshotAveragedSamples = arr[17];
+    forceThreshold = arr[20];
+    if (forceThreshold == 1) {
+      thresholdValue = arr[18];
+    }
+    int thresholdingType = arr[19];
+    selectedThresholdIdx = arr[21];
+
+    int maxSize = (allEnvelopes[0][0]).length;
+    int globalPositionCap = (globalIdx * maxSize / 2).floor();
+
+    numberOfChannels = deviceChannel;
+    if (isThresholding) {
+      cBufferSize = SIZE;
+      numberOfChannels = 1;
+    }
+    // print('numberOfChannels');
+    // print(numberOfChannels);
+
+    //if prevsampleRate != curSampleRate
+    // _dataThreshold = allocate<ffi.Int16>(count: samplesLength, sizeOfType: ffi.sizeOf<ffi.Int16>());
+    // _thresholdBytes = _dataThreshold.asTypedList( Nativec.totalThresholdBytes );
+
+    if (isPrevThresholdingStatus != isThresholding) {
+      isPrevThresholdingStatus = isThresholding;
+      arrMarkers.clear();
+      // arrIntMarkers.clear();
+      arrIndicesMarkers.clear();
+      arrEventIndices.clear();
+      if (isThresholding) {
+        cBufferSize = SIZE;
+        // threshold will be filled with c++
+      } else {
+        cBufferSize = (_sampleRate * 60).floor();
+        allEnvelopes.forEach((element) {
+          element.forEach((envelope) {
+            envelope.fillRange(0, envelope.length, 0);
+          });
+        });
+      }
+
+      cBuffIdx = 0;
+    }
+
+    if (prevSampleRate != _sampleRate.floor()) {
+      print("Change Multi Channels");
+      prevSampleRate = _sampleRate.floor();
+      nativec.createThresholdProcess(
+          numberOfChannels, _sampleRate.floor(), 0, 1, _dataThresholds);
+    }
+
+    if (cBuffIdx == -1) {
+      cBuffIdx = 0;
+      // print("reset CBUFFIDX");
+      // print(cBuffIdx);
+      final maxChannels = max(numberOfChannels, 6);
+      for (int c = 0; c < maxChannels; c++) {
+        for (int l = 0; l < skipCounts.length; l++) {
+          allEnvelopes[c][l].clear();
+        }
+      }
+    }
+
+    Int16List curSamples = new Int16List(0);
+    double processedSamplesCount = 0;
+
+    if (!isPaused) {
+      // cBufHead = 0;
+      // cBufTail = 0;
+      // circularBuffer.fillRange(0, SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER, 0);
+      // messagesBuffer.fillRange(0, SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER, 0);
+      // messageBufferIndex = 0;
+      // weAreInsideEscapeSequence = false;
+
+      for (int idx = 0; idx < samples.length; idx++) {
+        rawSamples[framesAvailable++] = samples[idx];
+      }
+      int len = framesAvailable;
+      // framesAvailable += samples.length;
+      // if (framesAvailable >= 100 && framesAvailable % 2 == 0 ){
+      if (framesAvailable >= 100) {
+        // print('framesAvailable');
+        // print(framesAvailable);
+        framesAvailable = 0;
+      } else {
+        return;
+      }
+/*
+      framesAvailable += samples.length;
+      int len = framesAvailable;
+      // print("framesAvailable : " + framesAvailable.toString());
+      // inputReadIndex is catching the rawInputReadIndex
+      for (int readIndex = 0; readIndex < samples.length ; readIndex++){
+        circularBuffer[rawInputReadIndex] = samples[readIndex];
+        rawInputReadIndex++;
+        if (rawInputReadIndex >= RAW_SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER){
+          rawInputReadIndex = 0;
+        }
+      }
+*/
+      int i = 0;
+      // int rawIndex;
+      // int len = samples.length;
+      // int sample;
+      // print('TestEscape Sequence start');
+      // print( (DateTime.now()).millisecondsSinceEpoch );
+      // int tempInputReadIndex = inputReadIndex;
+      resetHead = 0;
+      for (i = 0; i < len; i++) {
+        int sample = rawSamples[i];
+        // int sample = samples[i];
+        // rawIndex = (tempInputReadIndex++) % RAW_SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER;
+        // int sample = circularBuffer[rawIndex];
+        // if (rawIndex < 10){
+
+        //   print(rawIndex);
+        // }
+
+        if (weAreInsideEscapeSequence) {
+          messagesBuffer[messageBufferIndex] = sample;
+          // print(messageBufferIndex.toString() + ' : main weareinsideES true : '+sample.toString());
+          messageBufferIndex++;
+        } else {
+          resetHead++;
+          circularBuffer[cBufHead++] = sample;
+          //uint debugMSB  = ((uint)(buffer[i])) & 0xFF;
+
+          if (cBufHead >= SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER) {
+            cBufHead = 0;
+          }
+        }
+        int offsetIn = 0;
+        Map<String, dynamic> writeResult = {
+          "totalRawMessage": totalRawMessage,
+          "cBufHead": cBufHead,
+          "resetHead": resetHead,
+          "cBufTail": cBufTail,
+          // "messagesBuffer": messagesBuffer,
+          "messageBufferIndex": messageBufferIndex,
+          "weAreInsideEscapeSequence": weAreInsideEscapeSequence,
+          "escapeSequenceDetectorIndex": escapeSequenceDetectorIndex,
+          'posCurSample': resetHead,
+          'isThresholding': isThresholding,
+          'thresholdingType': thresholdingType,
+          'cBuffIdx': arrHeads[0]
+        };
+        if (deviceType == "serial") {
+          if (sample == 0) {
+            if (lastWasZero == 1) {
+              numberOfZeros++;
+            }
+            lastWasZero = 1;
+          } else {
+            lastWasZero = 0;
+          }
+          // offsetIn = (((i) / 2) / numberOfChannels - 1).floor();
+          offsetIn = (((i - (numberOfZeros > 0 ? numberOfZeros + 1 : 0)) / 2) /
+                      numberOfChannels -
+                  1)
+              .floor();
+          if (offsetIn == -1)
+            offsetIn = 0;
+          else {
+            // int tempOffset = 0;
+            // if (weAreInsideEscapeSequence){
+            //   tempOffset = ( ((i - escapeSequenceDetectorIndex - messageBufferIndex + (numberOfZeros > 0 ? numberOfZeros + 1 : 0)) ) /
+            //             numberOfChannels -1)
+            //     .floor();
+            // }else{
+            //   tempOffset = ( ((i + (numberOfZeros > 0 ? numberOfZeros + 1 : 0)) ) /
+            //             numberOfChannels -1)
+            //     .floor();
+
+            // }
+
+            // if (tempOffset > len){
+            //   print('tempOffset');
+            //   print(tempOffset);
+            //   print(len);
+            //   // offsetIn = ( (len - 5) / 2 ).floor();
+            //   offsetIn = ( (len - escapeSequenceDetectorIndex - messageBufferIndex) / 2 ).floor();
+            //   if (offsetIn < 0){
+            //     offsetIn = 0;
+            //   }
+            // }
+          }
+          // writeResult['sampleLength'] = len;
+          writeResult['posCurSample'] = offsetIn;
+          writeResult['numberOfZeros'] = numberOfZeros;
+          writeResult['numberOfChannels'] = numberOfChannels;
+          writeResult['offsetIn'] = offsetIn;
+
+          // testEscapeSequence(
+          //     sample & 0xFF,
+          //     offsetIn);
+          testEscapeSequence(
+              sample & 0xFF,
+              offsetIn,
+              messagesBuffer,
+              weAreInsideEscapeSequence,
+              messageBufferIndex,
+              escapeSequenceDetectorIndex,
+              writeResult,
+              isThreshold,
+              offsetIn);
+          cBufHead = writeResult["cBufHead"]!;
+          resetHead = writeResult["resetHead"]!;
+          cBufTail = writeResult["cBufTail"]!;
+          weAreInsideEscapeSequence = writeResult["weAreInsideEscapeSequence"]!;
+          totalRawMessage = writeResult["totalRawMessage"];
+          // print("writer result esc "+ weAreInsideEscapeSequence.toString());
+          // messagesBuffer = writeResult["messagesBuffer"]!;
+          messageBufferIndex = writeResult["messageBufferIndex"]!;
+          escapeSequenceDetectorIndex =
+              writeResult["escapeSequenceDetectorIndex"]!;
+          // if (weAreInsideEscapeSequence && messageBufferIndex == 0){
+          //   print('circularBuffer.sublist(0, cBufHead)');
+          //   print(circularBuffer.sublist(0, cBufHead));
+          // }
+          if (writeResult['debugError'] != null) {
+            debugError = true;
+          }
+        } else {
+          offsetIn = (((i) / 2) / numberOfChannels - 1).floor();
+
+          // testEscapeSequence(
+          //     sample,
+          //     offsetIn);
+          testEscapeSequence(
+              sample,
+              offsetIn,
+              messagesBuffer,
+              weAreInsideEscapeSequence,
+              messageBufferIndex,
+              escapeSequenceDetectorIndex,
+              writeResult,
+              isThreshold,
+              // (((i) / 2) / numberOfChannels - 1).floor());
+              i);
+          cBufHead = writeResult["cBufHead"]!;
+          cBufTail = writeResult["cBufTail"]!;
+          resetHead = writeResult["resetHead"]!;
+          weAreInsideEscapeSequence = writeResult["weAreInsideEscapeSequence"]!;
+          // messagesBuffer = writeResult["messagesBuffer"]!;
+          messageBufferIndex = writeResult["messageBufferIndex"]!;
+          escapeSequenceDetectorIndex =
+              writeResult["escapeSequenceDetectorIndex"]!;
+        }
+        // inputReadIndex = ( inputReadIndex + processedFrame ) % RAW_SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER;
+
+        if (isThresholding) {
+          if (writeResult['eventsData'] != null) {
+            if (thresholdingType == 0 ||
+                thresholdingType ==
+                    writeResult['eventsData']['indices'][0].floor())
+              sendingEventCount = 1;
+            else {
+              sendingEventCount = 0;
+            }
+
+            arrMarkers.clear();
+            // arrIntMarkers.clear();
+            arrIndicesMarkers.clear();
+            arrEventIndices.clear();
+            arrMarkers.add(writeResult['eventsData']['numbers'][0]);
+            // arrIntMarkers
+            //     .add(writeResult['eventsData']['positions'][0].floor());
+            arrIndicesMarkers
+                .add(writeResult['eventsData']['indices'][0].floor());
+            // print('arrEventIndices.addAll()');
+            // print(writeResult['eventsData']['eventIndices'][0].floor());
+            arrEventIndices
+                .add(writeResult['eventsData']['eventIndices'][0].floor());
+
+            if (thresholdingType != -1) {
+              eventPositionInt.fillRange(0, max_markers, 0);
+              eventPositionResultInt.fillRange(0, max_markers, 0);
+              eventGlobalPositionInt.fillRange(0, max_markers, 0);
+              eventPositionInt[arrMarkers.length - 1] =
+                  (surfaceWidth / 2).floorToDouble();
+              eventPositionResultInt[arrMarkers.length - 1] =
+                  (surfaceWidth / 2).floorToDouble();
+              eventGlobalPositionInt[arrMarkers.length - 1] =
+                  (surfaceWidth / 2).floor();
+            } else {
+              eventPositionInt.fillRange(0, max_markers, -1);
+              eventPositionResultInt.fillRange(0, max_markers, -1);
+              eventGlobalPositionInt.fillRange(0, max_markers, 0);
+            }
+          }
+        } else {
+          if (writeResult['eventsData'] != null) {
+            if (arrMarkers.length + 1 >= max_markers) {
+              arrMarkers.clear();
+              // arrIntMarkers.clear();
+              arrIndicesMarkers.clear();
+              arrEventIndices.clear();
+            }
+
+            arrMarkers.add(writeResult['eventsData']['numbers'][0]);
+            // arrIntMarkers
+            //     .add(writeResult['eventsData']['positions'][0].floor());
+            arrIndicesMarkers
+                .add(writeResult['eventsData']['indices'][0].floor());
+            arrEventIndices
+                .add(writeResult['eventsData']['eventIndices'][0].floor());
+
+            int cBuffIdx = arrHeads[0];
+            eventPositionInt[arrMarkers.length - 1] = cBuffIdx.toDouble();
+            eventPositionResultInt[arrMarkers.length - 1] = cBuffIdx.toDouble();
+            eventGlobalPositionInt[arrMarkers.length - 1] =
+                globalPositionCap + cBuffIdx;
+
+            // eventPositionInt[arrMarkers.length] = writeResult['cBufHead'].toDouble() + offsetIn;
+            // eventPositionResultInt[arrMarkers.length] = writeResult['cBufHead'].toDouble() + offsetIn;
+            // eventGlobalPositionInt[arrMarkers.length] = (writeResult['cBufHead'] + offsetIn).floor();
+
+            // eventPositionInt[arrMarkers.length] = writeResult['eventsData']['positions'][0].toDouble();
+            // eventPositionResultInt[arrMarkers.length] = writeResult['eventsData']['positions'][0].toDouble();
+            // eventGlobalPositionInt[arrMarkers.length] = (writeResult['eventsData']['positions'][0]).floor();
+          }
+        }
+      }
+      /*
+      int writeBytes = len - cBufHead;
+      if (writeBytes>0){
+        print('len');
+        print(writeBytes);
+
+      }
+      // print(len);
+      // print(cBufHead);
+      // int writeBytes = messageBufferIndex * UINT8_BYTES_PER_ELEMENT;
+      processedFrame = writeBytes;
+      */
+
+      // print('TestEscape Sequence End');
+      // print( (DateTime.now()).millisecondsSinceEpoch );
+
+      int LSB;
+      int MSB;
+      bool haveData = true;
+      bool weAlreadyProcessedBeginingOfTheFrame;
+      int numberOfParsedChannels;
+      int sample;
+      // String deviceType = 'serial';
+
+      Map<String, dynamic> map = {
+        'cBufTail': cBufTail,
+        'numberOfParsedChannels': 0,
+        'numberOfChannels': deviceChannel,
+        'numberOfFrames': numberOfFrames,
+        'cBufHead': cBufHead,
+        'deviceType': deviceType,
+        'level': level,
+        // 'cBuffIdx': cBuffIdx,
+        'globalIdx': globalIdx,
+        'arrHeads': arrHeads,
+        'escapeSequenceDetectorIndex': escapeSequenceDetectorIndex,
+      };
+
+      // print('Serial Parsing');
+      // print( (DateTime.now()).millisecondsSinceEpoch );
+      int prevTime = (DateTime.now()).millisecondsSinceEpoch;
+
+      serialParsing(
+          // circularBuffer,
+          allEnvelopes,
+          map,
+          cBufferSize,
+          SIZE_LOGS2,
+          skipCounts,
+          isThresholding,
+          snapshotAveragedSamples,
+          thresholdValue);
+
+      // print('END Serial Parsing');
+      // int diffTime = (DateTime.now()).millisecondsSinceEpoch - prevTime;
+      // if (diffTime > 1) {
+      //   print(diffTime);
+      // }
+
+      // print('End Serial Parsing');
+      cBufTail = map['cBufTail'];
+      numberOfParsedChannels = map['numberOfParsedChannels'];
+      numberOfChannels = map['numberOfChannels'];
+      numberOfFrames = map['numberOfFrames'];
+      cBufHead = map['cBufHead'];
+      deviceType = map['deviceType'];
+      // cBuffIdx = map['cBuffIdx'];
+      globalIdx = map['globalIdx'];
+      arrHeads = map['arrHeads'];
+      // 16 bit?
+      /*
+      int readFrame = (numberOfFrames * 2 * numberOfChannels);
+      // int readFrame = (numberOfFrames * 2);
+      processedFrame += readFrame;
+      // print('writeBytes');
+      // print(writeBytes);
+      // print(readFrame);
+      framesAvailable -= processedFrame;
+      batchCounter++;
+      if (writeBytes>0){
+        print('batchCounter');
+        print(batchCounter);
+      }
+      if (debugError){
+        print('len');
+        print(batchCounter);
+        batchModulo = batchCounter + 2;
+        print(len);
+        print(writeBytes);
+        print(readFrame);
+        print(rawInputReadIndex);
+        print(inputReadIndex);
+        print(framesAvailable);
+        // print(circularBuffer.sublist(0, (inputReadIndex + processedFrame) + 50));
+        print(circularBuffer.sublist(inputReadIndex, inputReadIndex + processedFrame));
+        print(circularBuffer.sublist(inputReadIndex, rawInputReadIndex));
+        
+      }
+      inputReadIndex = ( inputReadIndex + processedFrame ) % RAW_SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER;
+      if (debugError){
+        iReceivePort.close();
+
+      }
+      */
+
+      // List<Int16List> zamples = map['processedSamples'];
+      List<List<int>> zamples = map['processedSamples'];
+      // if (isLowPass) {
+      //   zamples[c] = nativec.lowPassFilter(c, zamples[c], zamples[c].length);
+      // }
+      // // samples[c] = nativec.lowPassFilter(c, zamples[c], zamples[c].length);
+      // if (isHighPass) {
+      //   zamples[c] = nativec.highPassFilter(c, zamples[c], zamples[c].length);
+      // }
+
+      // if (isNotch50) {
+      //   zamples[c] =
+      //       nativec.notchPassFilter(true, c, zamples[c], zamples[c].length);
+      // }
+      // if (isNotch60) {
+      //   zamples[c] =
+      //       nativec.notchPassFilter(false, c, zamples[c], zamples[c].length);
+      // }
+      // int c = 0;
+      if (isThresholding) {
+        cBuffIdx = 0;
+        // for (int i = 0; i < zamples[0].length; i++) {
+        //   // if (zamples[0][i].abs() > 2000) zamples[0][i] = 0;
+        //   zamples[c][i] = -zamples[c][i];
+        // }
+        try {
+          // curSamples = (nativec.appendSamplesThresholdProcess(snapshotAveragedSamples[0].floor(), thresholdValue[0] * 2, 0, zamples[c], zamples[c].length));
+          // curSamples = (nativec.appendSamplesThresholdProcess(2, 30000, 0, zamples[c], zamples[c].length));
+          // nativec.setThresholdParametersProcess(
+          //     1, level, sampleRate, divider, CUR_START);
+          Uint8List filledArray = Uint8List(arrEventIndices.length);
+          filledArray.fillRange(0, arrEventIndices.length, 1);
+          if (thresholdingType > -1) {
+            int eventIndex = arrEventIndices.isEmpty ? 0 : arrEventIndices[0];
+            if (cBufTail == cBufHead) {
+              eventIndex = (len / 2 - 10).floor();
+              if (eventIndex < 0) eventIndex = 0;
+            }
+            // else
+            // if (len == 19){
+            //   eventIndex = 4;
+            // }else
+            // if ( (eventIndex * 2) + 14 >= len){
+            //   eventIndex = min( (eventIndex/2).floor(), (len / 2).floor() );
+            // }
+
+            // int eventIndex = 0;
+            // if (thresholdingType == 0){
+            //   eventIndex = 1;
+            // }else
+            // if (eventIndex >= len || eventIndex> 10){
+            //   print(' eventIndex wrong ');
+            //   // eventIndex=0;
+            //   eventIndex=(eventIndex/2).floor();
+            // }
+            if (eventIndex >= zamples[0].length) {
+              eventIndex = (zamples[0].length - 1);
+            }
+            // print('zamples[1] 00');
+            // print(zamples[1].sublist(0, (zamples[1].length/4).floor() ));
+            int sampleNeeded = (allEnvelopes[0][level].length /
+                    divider *
+                    (_sampleRate / _maxSampleRate))
+                .floor();
+            processedSamplesCount = (nativec.appendSamplesThresholdProcess(
+                snapshotAveragedSamples[0].floor(),
+                -thresholdValue[selectedThresholdIdx].floor(),
+                selectedThresholdIdx,
+                zamples[0],
+                zamples[0].length,
+                zamples[1],
+                zamples[1].length,
+                zamples[2],
+                zamples[2].length,
+                zamples[3],
+                zamples[3].length,
+                zamples[4],
+                zamples[4].length,
+                zamples[5],
+                zamples[5].length,
+                numberOfChannels,
+                level,
+                divider,
+                CUR_START,
+                sampleNeeded,
+                // [0],[thresholdingType], sendingEventCount
+                // arrEventIndices.isEmpty ? [0] : arrEventIndices , [thresholdingType], arrEventIndices.isEmpty ? 0 : 1
+                eventIndex,
+                [thresholdingType],
+                arrEventIndices.isEmpty ? 0 : 1
+                // arrEventIndices.length > 0 ?arrEventIndices:[0],[thresholdingType], sendingEventCount
+                ));
+            if (arrEventIndices.isNotEmpty) {
+              /*
+              print('eventIndex');
+              print(eventIndex);
+              print(zamples[c].length);
+              print(arrMarkers[0]);
+              int evtIdx = eventIndex * 2 - 20;
+              if (evtIdx < 0) evtIdx = 0;
+              print(rawSamples.sublist( (evtIdx).floor(), len) );
+              print('----------------------------');
+              */
+
+              // print('arrEventIndices');
+              // print(arrEventIndices);
+              // writeResult['eventsData']['eventIndices'][0] = 0;
+              // arrEventIndices[0] = 0;
+              arrEventIndices.clear();
+            }
+          } else {
+            // print('thresholdValue');
+            // print(thresholdValue[selectedThresholdIdx].floor());
+            // if (numberOfChannels > 2){
+            //   print('zamples[3]');
+            //   print(zamples[3].sublist(0, (zamples[3].length/4).floor() ));
+            // }
+            // print('selectedThresholdIdx');
+            // print(selectedThresholdIdx);
+            // print('zamples[0] vs [1]');
+            // print(zamples[0].reduce((value, element) => value + element));
+            // print(zamples[1].reduce((value, element) => value + element));
+            // print(zamples[0].sublist(0,10));
+            // print(zamples[1].sublist(0,10));
+            // print(zamples[2].reduce((value, element) => value + element));
+            // int sampleNeeded = (allEnvelopes[0][level].length / divider / deviceChannel).floor();
+            int sampleNeeded = (allEnvelopes[0][level].length /
+                    divider *
+                    (_sampleRate / _maxSampleRate))
+                .floor();
+
+            processedSamplesCount = (nativec.appendSamplesThresholdProcess(
+                snapshotAveragedSamples[0].floor(),
+                -thresholdValue[selectedThresholdIdx],
+                selectedThresholdIdx,
+                zamples[0],
+                zamples[0].length,
+                zamples[1],
+                zamples[1].length,
+                zamples[2],
+                zamples[2].length,
+                zamples[3],
+                zamples[3].length,
+                zamples[4],
+                zamples[4].length,
+                zamples[5],
+                zamples[5].length,
+                numberOfChannels,
+                level,
+                divider,
+                CUR_START,
+                sampleNeeded,
+                // [0],[thresholdingType], sendingEventCount
+                // [1],[-1], 0
+                1,
+                [-1],
+                0));
+          }
+
+          // print('reset Head when the EVNT triggered');
+          // print(arrEventIndices);
+          // print(len);
+          sendingEventCount = 0;
+          // print('thresholdingType');
+          // print(thresholdingType);
+
+          // curSamples = _thresholdBytes;
+          // curSamples =
+          //     _thresholdBytes.sublist(0, processedSamplesCount.floor());
+
+          // thresholdHeads[c] = processedSamplesCount.floor();
+
+          // print(curSamples.length);
+        } catch (err) {
+          print("isThresholding Error");
+          print(err);
+        }
+        // level = calculateLevel(NUMBER_OF_SEGMENTS_THRESHOLD * 1000, _sampleRate, surfaceWidth, skipCounts);
+        samplesLength = curSamples.length;
+        cBuffIdx = samplesLength;
+        globalIdx = 0;
+        // allThresholdEnvelopes[c][level]
+        //     .fillRange(0, allThresholdEnvelopes[c].length, 0);
+      } else {
+        // level = calculateLevel(
+        //     10000, _sampleRate.floor(), surfaceWidth, skipCounts);
+        // curSamples = Int16List.fromList(zamples[c]);
+        // samplesLength = curSamples.length;
+        samplesLength = zamples[0].length;
+        // print('samplesLength');
+        // print(samplesLength);
+      }
+
+      //ENVELOPING
+      final int forceLevel = level;
+      if (isThresholding) {
+        if (allThresholdEnvelopes.length < 1) {
+          print('numberOfChannels');
+          print(numberOfChannels);
+          return;
+        }
+        // allThresholdEnvelopes[c][level]
+        //     .fillRange(0, allThresholdEnvelopes[c][level].length, 0);
+      }
+
+      // cBuffIdx = 0;
+      if (isThresholding) {
+        if (isInitial) {
+          final limit = 2000;
+          final negLimit = -limit;
+          // print("isthresholding");
+          int transformedCount = 0;
+          int lastTransformedIdx = 0;
+          for (int sIdx = 0; sIdx < samplesLength; sIdx++) {
+            if (curSamples[sIdx] > limit || curSamples[sIdx] < negLimit) {
+              transformedCount++;
+              curSamples[sIdx] = 0;
+              lastTransformedIdx = sIdx;
+            }
+          }
+          if (transformedCount == 0 && lastTransformedIdx > samplesLength / 3) {
+            isInitial = false;
+          }
+          // for (int i = 0; i < samplesLength; i++) {
+          //   // if (zamples[0][i].abs() > 2000) zamples[0][i] = 0;
+          //   curSamples[i] = -curSamples[i];
+          // }
+        } else {
+          // for (int i = 0; i < samplesLength; i++) {
+          //   // if (zamples[0][i].abs() > 2000) zamples[0][i] = 0;
+          //   curSamples[i] = -curSamples[i];
+          // }
+        }
+
+        // allThresholdEnvelopes[c][level] = curSamples;
+        // continue;
+      } else {
+        // print('samplesLength');
+        // print(samplesLength);
+
+        // for (int i = 0; i < samplesLength; i++) {
+        //   print("loop samplesLength");
+        //   int tmp = curSamples[i];
+
+        //   try {
+        //     // if (isThresholding) {
+        //     //   try {
+        //     //     envelopingSamples(cBuffIdx, tmp, allThresholdEnvelopes[c],
+        //     //         SIZE_LOGS2, skipCounts, forceLevel);
+        //     //   } catch (err) {
+        //     //     print('error enveloping');
+        //     //     print(curSamples.length);
+        //     //     print(allThresholdEnvelopes[c].length);
+        //     //   }
+        //     // } else {
+        //     envelopingSamples(
+        //         cBuffIdx, tmp, allEnvelopes[c], SIZE_LOGS2, skipCounts, -1);
+        //     // }
+        //     print('cBuffIdx');
+        //     print(cBuffIdx);
+        //     cBuffIdx++;
+        //     if (cBuffIdx >= cBufferSize - 1) {
+        //       cBuffIdx = 0;
+        //       globalIdx++;
+        //     }
+        //   } catch (err) {
+        //     print("err");
+        //     print(err);
+        //   }
+        // }
+      }
+
+      if (!isThresholding && curKey != "") {
+        cBuffIdx = arrHeads[0];
+        if (arrMarkers.length + 1 >= max_markers) {
+          arrMarkers.clear();
+          // arrIntMarkers.clear();
+        }
+        arrMarkers.add(curKey);
+        int markerIdx = arrMarkers.length - 1;
+        eventPositionInt[markerIdx] = (cBuffIdx.toDouble());
+        eventGlobalPositionInt[markerIdx] = globalPositionCap + cBuffIdx;
+        curKey = '';
+      }
+    } else {
+      // nativec.setThresholdParametersProcess(1,level, sampleRate, divider, CUR_START);
+      // curSamples = _thresholdBytes.sublist(0, allThresholdEnvelopes[0][level].length.floor());
+      if (isThresholding) {
+        int sampleNeeded = (allEnvelopes[0][level].length /
+                divider *
+                (_sampleRate / _maxSampleRate))
+            .floor();
+        int samplesLength = nativec
+            .getSamplesThresholdProcess(
+                0, level, divider, CUR_START, sampleNeeded)
+            .floor();
+        thresholdHeads[0] = sampleNeeded;
+        cBuffIdx = sampleNeeded;
+        // curSamples = _thresholdBytes.sublist(0, samplesLength);
+      }
+    }
+
+    // level = 7;
+    // int deviceChannel = 2;
+    List<Int16List> buffers = [];
+
+    if (isThresholding) {
+      // print("123 forceLevel");
+      // print(level);
+      level = calculateLevel(NUMBER_OF_SEGMENTS_THRESHOLD * 1000, _sampleRate,
+          surfaceWidth, skipCounts);
+      // print("allThresholdEnvelopes[0][level]");
+      // print(allThresholdEnvelopes[0][level-1].sublist(0,30));
+      // print(allThresholdEnvelopes[0][level].sublist(0,30));
+      // print(allThresholdEnvelopes[0][level+1].sublist(0,30));
+
+      for (int c = 0; c < numberOfChannels; c++) {
+        // Int16List envelopeSamples = (allThresholdEnvelopes[c][level]);
+        // // Int16List envelopeSamples = (allThresholdEnvelopes[0][0]);
+        // // print('envelopeSamples');
+        // // print(envelopeSamples.reduce((value, element) => value+element));
+
+        // int prevSegment = (envelopeSamples.length / 1).floor();
+        // int drawSamplesCount = prevSegment;
+        // int from = ((envelopeSamples.length - drawSamplesCount) * .5).floor();
+        // int to = ((envelopeSamples.length + drawSamplesCount) * .5).floor();
+        // // if (to> envelopeSamples.length){
+        // // }
+        // from = 0;
+        // to = envelopeSamples.length;
+
+        // Int16List cBuff = envelopeSamples;
+        // Int16List cBuff = curSamples;
+        Int16List cBuff =
+            _thresholdArrs[c].sublist(0, processedSamplesCount.floor());
+        // if (c==3){
+        //   print('cBuff.sublist(0,10)');
+        //   print(cBuff.sublist(0,10));
+        // }
+        // int lastIndex = cBuff.lastIndexWhere((element) => element != 0);
+        // // print(cBuff.getRange( (curSamples.length - 50).floor(), curSamples.length));
+        // if (lastIndex>-1){
+        //   cBuff.fillRange(lastIndex, cBuff.length - 1, cBuff[lastIndex]);
+        // }
+
+        buffers.add(cBuff);
+      }
+      // sendPort.send([buffers, arrHeads[0], arrIntMarkers.map((e)=> e.toDouble()).toList(), arrIndicesMarkers]);
+      if (thresholdingType == -1) {
+        sendPort.send([buffers, arrHeads[0], Uint16List(0), Uint16List(0)]);
+      } else {
+        // sendPort.send([buffers, arrHeads[0], Uint8List(0), Uint16List(0)]);
+        if (eventPositionResultInt[0] != surfaceWidth / 2) {
+          sendPort.send([buffers, arrHeads[0], Uint16List(0), Uint16List(0)]);
+        }
+        sendPort.send(
+            [buffers, arrHeads[0], eventPositionResultInt, arrIndicesMarkers]);
+      }
+
+      return;
+    }
+
+    const excess = 0;
+    int halfwayCap =
+        // globalPositionCap - ((globalPositionCap * 0.2) / currentCap).floor();
+        globalPositionCap - (globalPositionCap * 0.2).floor();
+
+    // print('deviceChannel');
+    // // // print(deviceChannel);
+    // print(allEnvelopes[deviceChannel-1][level].sublist(0, (100 ).floor() ));
+    for (int c = 0; c < deviceChannel; c++) {
+      Int16List envelopeSamples = allEnvelopes[c][level];
+      double factor = _sampleRate / _maxSampleRate;
+      int bufferLength =
+          (_sampleRate * 60 / divider * 2 / skipCounts[level]).floor();
+      Int16List cBuff = Int16List(bufferLength);
+      int prevSegment = (envelopeSamples.length / divider * factor).floor();
+      // print(bufferLength.toString() + " VS " + (prevSegment).toString());
+      int rawHead = arrHeads[c];
+      int rawOffsetHead = arrOffsetHeads[c];
+      if (CUR_START != 0) {
+        if (rawHead - CUR_START >= 0) {
+          rawHead = rawHead - (CUR_START);
+        } else {
+          print("rawHead - Curstart <= 0");
+        }
+      }
+
+      int skipCount = skipCounts[level];
+      // int cBuffHead = arrHeads[c];
+      // int head = (cBuffHead / skipCount).floor();
+      int head = (rawHead / skipCount).floor();
+      int offsetHead = (rawOffsetHead).floor();
+
+      int interleavedIdx = head * 2;
+      int start = interleavedIdx - prevSegment;
+      int to = interleavedIdx;
+      int nearFull = head * 2 + prevSegment;
+      // print("Zerial Level : " + level.toString());
+      // int myStart = head * 2 - prevSegment;
+      // if (myStart < 0) myStart = 0;
+      // int myTo = head * 2;
+
+      // cBuff = allEnvelopes[c][level].sublist(myStart, myTo);
+      // int evtCounter = arrMarkers.length;
+      // for (int ctr = 0; ctr < evtCounter; ctr++) {
+      //   double headPosition = myTo - (eventPositionInt[ctr] / skipCount * 2);
+      //   if (headPosition < 0 ){
+      //     eventPositionResultInt[ctr] = 0;
+      //   }else{
+      //     eventPositionResultInt[ctr] = headPosition / bufferLength * surfaceWidth;
+      //   }
+      // }
+
+      if (globalIdx == 0) {
+        if (start < 0) start = 0;
+        Int16List arr = allEnvelopes[c][level].sublist(start, to);
+
+        if (arr.length < bufferLength) {
+          // if (to-prevSegment < bufferLength) {
+          // print(arr);
+          cBuff.setAll(bufferLength - arr.length - 1, arr);
+        } else {
+          // start = to - bufferLength;
+          cBuff.setAll(0, arr);
+        }
+
+        if (c == 0) {
+          int bufferLength = prevSegment;
+          int evtCounter = arrMarkers.length;
+          eventPositionResultInt.fillRange(0, max_markers, 0);
+          double offsetTail = offsetHead - bufferLength / 2 * skipCount;
+
+          for (int ctr = 0; ctr < evtCounter; ctr++) {
+            if (eventGlobalPositionInt[ctr] >= globalPositionCap) {
+              int headPosition = (eventPositionInt[ctr] / skipCount * 2)
+                  .floor(); // headPosition in envelope realm
+              if (headPosition < start) {
+                eventPositionResultInt[ctr] = 0;
+              } else //{
+              if (headPosition >= start && headPosition <= to) {
+                eventPositionResultInt[ctr] =
+                    (bufferLength - excess - (to - (headPosition))) /
+                        bufferLength *
+                        surfaceWidth;
+              }
+            }
+          }
+        }
+      } else {
+        if (start < 0) {
+          // it is divided into 2 sections
+          int processedHead = head * 2;
+          int segmentCount = prevSegment;
+          int bufferLength = prevSegment;
+
+          segmentCount = segmentCount - processedHead - 1;
+          start = envelopeSamples.length - segmentCount;
+          Int16List firstPartOfData = envelopeSamples.sublist(start);
+          Int16List secondPartOfData =
+              envelopeSamples.sublist(0, processedHead + 1);
+          if (secondPartOfData.length > 0) {
+            try {
+              cBuff.setAll(0, firstPartOfData);
+              cBuff.setAll(firstPartOfData.length, secondPartOfData);
+            } catch (err) {}
+          } else {
+            cBuff.setAll(
+                bufferLength - firstPartOfData.length - 1, firstPartOfData);
+          }
+
+          if (c == 0) {
+            int evtCounter = arrMarkers.length;
+
+            for (int ctr = 0; ctr < evtCounter; ctr++) {
+              int headPosition = (eventPositionInt[ctr] / skipCount * 2)
+                  .floor(); // headPosition in envelope realm
+
+              if (eventGlobalPositionInt[ctr] >= halfwayCap) {
+                if (headPosition < start && headPosition > to) {
+                  eventPositionResultInt[ctr] = 0;
+                } else {
+                  if (headPosition <= envelopeSamples.length &&
+                      headPosition >= start) {
+                    // upper
+                    int counter = bufferLength -
+                        (envelopeSamples.length -
+                            headPosition +
+                            secondPartOfData.length);
+                    eventPositionResultInt[ctr] =
+                        counter / bufferLength * surfaceWidth;
+                    // console.log("upper ", eventPositionResultInt[ctr].toString());
+                  } else //{ // headPosition < to // below
+                  if (headPosition <= to && headPosition >= 0) {
+                    // console.log("below");
+                    int counter = bufferLength - excess - (to - (headPosition));
+                    eventPositionResultInt[ctr] =
+                        counter / bufferLength * surfaceWidth;
+                  }
+                }
+              }
+            }
+          }
+        } else {
+          // print("start > 0");
+          // cBuff = List<double>.from(allEnvelopes[c][level].sublist(start, to));
+          cBuff = allEnvelopes[c][level].sublist(start, to);
+          if (c == 0) {
+            int bufferLength = prevSegment;
+            int evtCounter = arrMarkers.length;
+
+            for (int ctr = 0; ctr < evtCounter; ctr++) {
+              if (eventGlobalPositionInt[ctr] >= globalPositionCap) {
+                int headPosition = (eventPositionInt[ctr] / skipCount * 2)
+                    .floor(); // headPosition in envelope realm
+                if (headPosition < start) {
+                  eventPositionResultInt[ctr] = 0;
+                } else if (headPosition >= start && headPosition <= to) {
+                  // eventPositionResultInt[ctr] = prevSegment - excess - ( to - (headPosition) );
+                  eventPositionResultInt[ctr] =
+                      (bufferLength - excess - (to - (headPosition))) /
+                          bufferLength *
+                          surfaceWidth;
+                }
+              }
+            }
+          }
+        }
+      }
+      buffers.add(cBuff);
+    }
+    // if (isThresholding && thresholdingType != -1){
+    sendPort.send(
+        [buffers, arrHeads[0], eventPositionResultInt, arrIndicesMarkers]);
+    // [buffers, arrHeads[0], [], [] ]);
+    eventPositionResultInt.fillRange(0, max_markers, 0);
+    // arrIndicesMarkers.fillRange(0, max_markers,0);
+    // }
+  });
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
-      
 
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      // showPerformanceOverlay: true,
-      title: 'Spike Recorder for Web',
-      localizationsDelegates: const [
-        FormBuilderLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-      ],
-      supportedLocales: FormBuilderLocalizations.delegate.supportedLocales,
-
+      title: 'Flutter Demo',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const MyHomePage(title: 'Spike Recorder for Web'),
-
-      // home: const FPSWidget(
-      //   child: MyHomePage(title: 'Spike Recorder for Web')
+      home: const MyHomePage(title: 'Spike Recorder Flutter'),
+      // home: FPSWidget(
+      //   child: MyHomePage(title: 'FPS Widget Demo'),
       // ),
     );
   }
@@ -102,11 +2337,50 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   static FirebaseAnalytics analytics = FirebaseAnalytics.instance;
-  static FirebaseAnalyticsObserver observer = FirebaseAnalyticsObserver(analytics: analytics);
+  static FirebaseAnalyticsObserver observer =
+      FirebaseAnalyticsObserver(analytics: analytics);
+
+  bool isFeedback = false;
+  bool isSettingDialog = false;
+
+  double surfaceWidth = 0;
+
+  int CURRENT_START = 0;
+
+  List<double> markersData = [];
+
+  List<int> globalMarkers = [];
+  String currentKey = "";
+
+  double _lowPassFilter = 44100 / 2;
+  double _highPassFilter = 0;
+
+  bool isThreshold = false;
+  bool isMedianDragStart = false;
+
+  // List<double> thresholdMarkerTop = [-10000,-10000,-10000,-10000,-10000,-10000];
+  List<double> thresholdMarkerTop = [
+    -10000,
+    -10000,
+    -10000,
+    -10000,
+    -10000,
+    -10000
+  ];
+
+  List<double> snapshotAveragedSamples = [1];
+
+  List<int> thresholdValue = [10, 25, 25, 25, 25, 25];
+  TextStyle fontThresholdStyle = TextStyle(color: Colors.black, fontSize: 17);
+
+  bool isChangingThresholdType = false;
+
+  // bool isZoomingWhilePlaying = false;
+
   Future<void> _sendAnalyticsEvent(eventName, params) async {
     await analytics.logEvent(
       name: eventName,
-      parameters : params,
+      parameters: params,
       // parameters: <String, dynamic>{
       //   'string': 'string',
       //   'int': 42,
@@ -120,10 +2394,9 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-
   String versionNumber = '1.2.1';
   int isOpeningFile = 0;
-  int _counter = 0;
+  // int _counter = 0;
 
   int extraChannels = 0;
   int minChannels = 0;
@@ -133,8 +2406,9 @@ class _MyHomePageState extends State<MyHomePage> {
 
   double prevY = 0.0;
 
-  List<double> channelGains=[10000,10000,10000,10000,10000,10000];
-  
+  List<double> channelGains = [10000, 10000, 10000, 10000, 10000, 10000];
+  List<double> channelZoom = [10000, 10000, 10000, 10000, 10000, 10000];
+
   int minIndexSerial = 1;
   int maxIndexSerial = 25;
 
@@ -144,19 +2418,88 @@ class _MyHomePageState extends State<MyHomePage> {
   int minIndexAudio = 1;
   int maxIndexAudio = 20;
 
-  List<double> listIndexSerial=[5,5,5,5,5,5];
-  List<double> listIndexHid = [7,7,7,7,7,7];
-  List<double> listIndexAudio = [9,9];
+  List<double> listIndexSerial = [5, 5, 5, 5, 5, 5];
+  List<double> listIndexHid = [7, 7, 7, 7, 7, 7];
+  List<double> listIndexAudio = [9, 9];
+  int defaultListIndexAudio = 9;
+  int defaultListIndexSerial = 5;
+  List<double> listMedianDistance = [0, 0, 0, 0, 0, 0];
+  List<int> listDefaultIndex = [9, 9, 9, 9, 9, 9];
+  List<int> listGainIndex = [9, 9, 9, 9, 9, 9];
 
-  List<double> listChannelSerial = [500,600,700,800,900,1000,1100,1200,1300,1400,1500,1600,1700,1800,1900,2000,  4000,8000,12000,16000,20000,  25000,30000,40000,80000,200000 ];
-  List<double> listChannelHid = [0.5,0.75,1,5,20,70,250,500,550,600,650,700, 800,900,1000];
-  List<double> listChannelAudio = [100,300,700,1000,2000,6000,7000,8000,9000,10000,   11000, 14000,20000,22000,30000,33000,40000,47000,55000,70000];
-  
-  List<double> levelMedian=[-1,-1,-1,-1,-1,-1];
-  List<double> initialLevelMedian=[0,0,0 ,0,0,0];
+  List<double> listChannelSerial = [
+    500,
+    600,
+    700,
+    800,
+    900, //5
+    1000,
+    1100,
+    1200,
+    1300,
+    1400,
+    1500,
+    1600,
+    1700,
+    1800,
+    1900,
+    2000,
+    4000,
+    8000,
+    12000,
+    16000,
+    20000,
+    25000,
+    30000,
+    40000,
+    80000,
+    200000
+  ];
+  List<double> listChannelHid = [
+    0.5,
+    0.75,
+    1,
+    5,
+    20, //5
+    70,
+    250,
+    500,
+    550,
+    600, //10
+    650,
+    700,
+    800,
+    900,
+    1000
+  ];
+  List<double> listChannelAudio = [
+    100,
+    300,
+    700,
+    1000,
+    2000,
+    6000,
+    7000,
+    8000,
+    9000,
+    10000, //10
+    11000,
+    14000,
+    20000,
+    22000,
+    30000,
+    33000,
+    40000,
+    47000,
+    55000,
+    70000
+  ];
 
-  List<double> chartData=[];
-  List<List<double>> channelsData = [];
+  List<double> levelMedian = [-1, -1, -1, -1, -1, -1];
+  List<double> initialLevelMedian = [0, 0, 0, 0, 0, 0];
+
+  List<double> chartData = [];
+  List<List<double>> channelsData = [[], []];
 
   var horizontalDiff = 0;
 
@@ -164,9 +2507,9 @@ class _MyHomePageState extends State<MyHomePage> {
   num curTimeScaleBar = 1000; //10ms to 10 seconds
   num curSkipCounts = 256;
   num curFps = 30;
-  int sampleRate = 44100;
+  int sampleRate = 48000;
   List<double> arrDataMax = []; //10 seconds
-  List<double>arrData = [];// current
+  List<double> arrData = []; // current
 
   int capacity = 1;
   int capacityMin = 1;
@@ -183,21 +2526,40 @@ class _MyHomePageState extends State<MyHomePage> {
 
   double startPosition = 1.0;
   double zoomLevel = 1.0;
-
-  late WaveformData sampleData = WaveformData(version: 1, channels: 1, sampleRate: 44100, sampleSize: 1, bits: 1, length: 1034, data: [] );
-  late List<WaveformData> channels;
-
   bool isLocal = false;
 
-  List<_ChartData> chartLiveData=[];
+  // late WaveformData sampleData = WaveformData(
+  //     version: 1,
+  //     channels: 1,
+  //     sampleRate: 44100,
+  //     sampleSize: 1,
+  //     bits: 1,
+  //     length: 1034,
+  //     data: []);
+  // late List<WaveformData> channels;
 
-  ChartSeriesController? _chartSeriesController;
+  // List<_ChartData> chartLiveData = [];
 
-  double maxAxis=441;
+  // ChartSeriesController? _chartSeriesController;
+
+  double maxAxis = 441;
 
   double curLevel = 0;
-  List<int> lblTimescale = [10,40,80,160,320,625,1250,2500,5000,10000];
-  List<int> arrTimescale = [10000,5000,2500,1250,625,320,160,80,40,10];
+  List<int> lblTimescale = [10, 40, 80, 160, 320, 625, 1250, 2500, 5000, 10000];
+  List<int> arrTimescaleBar = [
+    10000,
+    5000,
+    2500,
+    1250,
+    625,
+    320,
+    160,
+    80,
+    40,
+    10
+  ];
+  List<double> arrTimeScale = [0.1, 1, 10, 50, 100, 500, 1000, 5000, 10000];
+  List<double> myArrTimescale = [];
 
   late TutorialCoachMark tutorialCoachMark;
   List<TargetFocus> targets = <TargetFocus>[];
@@ -216,99 +2578,100 @@ class _MyHomePageState extends State<MyHomePage> {
   final DeviceInfoPlugin deviceInfoPlugin = DeviceInfoPlugin();
   Map<String, dynamic> _deviceData = <String, dynamic>{};
 
-
-  //const arrTimeScale = [0.1,1, 10,50, 100,500, 1000,5000,10000];
-  //const arrTimeScaleBar = [0.00001,0.0001, 0.001,0.005,  0.01,0.05, 0.1,0.5,1];
-  // List<double> arrScaleBar = [ 
-  //   600000,
-  //   546000,492000,  438000,384000,  330000,276000,  222000,168000,  114000,60000, 
-    
-  //   54600,49200,  43800,38400,  33000,27600,  22200,16800, 11400,6000, 
-  //   5520,5040,  4560,4080,  3600,3120,  2640,2160,  1680,1200, 
-  //   1140,1080, 1020,960,  900,840,  780,720,  660,600, 
-    
-  //   552,504,  456,408,  360,312,  264,216, 168,120, 
-  //   114,108,  102,96,  90,84,  78,72,  66,60, 
-    
-  //   552,50.4,  45.6,40.8,  36,31.2,  26.4,21.6,  16.8,12, 
-  //   11.4,10.8,  10.2,9.6,  9.0,8.4,  7.8,7.2,  6.6,6
-
-  // ];
-
-  // [ 600000,
-  // 546000,492000,  438000,384000,  330000,276000,  222000,168000,  114000,60000, 
-  // 54600,49200,  43800,38400,  33000,27600,  22200,16800, 11400,6000, 
-  // 5520,5040,  4560,4080,  3600,3120,  2640,2160,  1680,1200, 
-  // 1140,1080, 1020,960,  900,840,  780,720,  660,600, 
-  // 552,504,  456,408,  360,312,  264,216, 168,120, 
-  // 114,108,  102,96,  90,84,  78,72,  66,60, 
-  // 552,50.4,  45.6,40.8,  36,31.2,  26.4,21.6,  16.8,12, 
-  // 11.4,10.8,  10.2,9.6,  9.0,8.4,  7.8,7.2,  6.6,6 ];
-
-  List<double> arrScaleBar = [ 
+  // THIS IS PER Circular buffer
+  List<double> arrScaleBar = [
     0.1,
-    0.1098901099,0.1219512195,0.1369863014,0.15625,0.1818181818,0.2173913043,0.2702702703,0.3571428571,0.5263157895,1,
-    1.098901099,1.219512195,1.369863014,1.5625,1.818181818,2.173913043,2.702702703,3.571428571,5.263157895,10,
-    10.86956522,11.9047619,13.15789474,14.70588235,16.66666667,19.23076923,22.72727273,27.77777778,35.71428571,50,
-    52.63157895,55.55555556,58.82352941,62.5,66.66666667,71.42857143,76.92307692,83.33333333,90.90909091,100,
-    108.6956522,119.047619,131.5789474,147.0588235,166.6666667,192.3076923,227.2727273,277.7777778,357.1428571,500,
-    526.3157895,555.5555556,588.2352941,625,666.6666667,714.2857143,769.2307692,833.3333333,909.0909091,1000,
-    1086.956522,1190.47619,1315.789474,1470.588235,1666.666667,1923.076923,2272.727273,2777.777778,3571.428571,5000,
-    5263.157895,5555.555556,5882.352941,6250,6666.666667,7142.857143,7692.307692,8333.333333,9090.909091,10000,    
-    // 6,6.6,  7.2,7.8,  8.4,9,  9.6,10.2,  10.8,11.4, 
-    // 12,16.8,  21.6,26.4,  31.2,36,  40.8,45.6,  50.4,552, 
-    // 60,66, 72,78, 84,90, 96,102, 108,114, 
-    // 120,168, 216,264, 312,360, 408,456, 504,552, 
-    // 600,660,  720,780,  840,900,  960,1020,  1080,1140, 
-    // 1200,1680, 2160,2640, 3120,3600, 4080,4560, 5040,5520, 
-    // 6000,11400, 16800,22200, 27600,33000, 38400,43800, 49200,54600, 
-    // 60000,114000, 168000,222000, 276000,330000, 384000,438000, 492000,546000, 
-    // 600000            
-
-    // 6,8.4,10.8,  13.2,15.6,18,  20.4,22.8,25.2,  27.6,
-    // 60,84,108,  132,156,180,  204,228,252,  276,
-    // 600,840,1080,  1320,1560,1800,  2040,2280,2520,  2760,
-    // 3000,3300,3600,  3900,4200,4500,  4800,5100,5400,  5700,
-    // 6000,8400,10800,  13200,15600,18000,  20400,22800,25200,  27600,
-    // 30000,33000,36000,  39000,42000,45000,  48000,51000,54000,  57000,
-    // 60000,84000,108000,  132000,156000,180000,  204000,228000,252000,  276000,
-    // 300000,330000,360000,  390000,420000,450000,  480000,510000,540000,  570000,
-    // 600000        
+    0.1098901099,
+    0.1219512195,
+    0.1369863014,
+    0.15625,
+    0.1818181818,
+    0.2173913043,
+    0.2702702703,
+    0.3571428571,
+    0.5263157895,
+    1,
+    1.098901099,
+    1.219512195,
+    1.369863014,
+    1.5625,
+    1.818181818,
+    2.173913043,
+    2.702702703,
+    3.571428571,
+    5.263157895,
+    10,
+    10.86956522,
+    11.9047619,
+    13.15789474,
+    14.70588235,
+    16.66666667,
+    19.23076923,
+    22.72727273,
+    27.77777778,
+    35.71428571,
+    50,
+    52.63157895,
+    55.55555556,
+    58.82352941,
+    62.5,
+    66.66666667,
+    71.42857143,
+    76.92307692,
+    83.33333333,
+    90.90909091,
+    100,
+    108.6956522,
+    119.047619,
+    131.5789474,
+    147.0588235,
+    166.6666667,
+    192.3076923,
+    227.2727273,
+    277.7777778,
+    357.1428571,
+    500,
+    526.3157895,
+    555.5555556,
+    588.2352941,
+    625,
+    666.6666667,
+    714.2857143,
+    769.2307692,
+    833.3333333,
+    909.0909091,
+    1000,
+    1086.956522,
+    1190.47619,
+    1315.789474,
+    1470.588235,
+    1666.666667,
+    1923.076923,
+    2272.727273,
+    2777.777778,
+    3571.428571,
+    5000,
+    5263.157895,
+    5555.555556,
+    5882.352941,
+    6250,
+    6666.666667,
+    7142.857143,
+    7692.307692,
+    8333.333333,
+    9090.909091,
+    10000,
   ];
 
-
-  // List<double> arrScaleBar
-  // = [  10,
-  // 8, 6.4, 5.12, 4.096, 3.2768,   2.62144,2.097,1.6776,1.34208,10,
-  // 8, 6.4, 5.12, 4.096, 3.2768,   2.62144,2.097,1.6776,1.34208,10,
-  // 8, 6.4, 5.12, 4.096, 3.2768,   2.62144,2.097,1.6776,1.34208,10,
-  // 8, 6.4, 5.12, 4.096, 3.2768,   2.62144,2.097,1.6776,1.34208,10,
-  // 8, 6.4, 5.12, 4.096, 3.2768,   2.62144,2.097,1.6776,1.34208,10,
-  // 8, 6.4, 5.12, 4.096, 3.2768,   2.62144,2.097,1.6776,1.34208,10,
-  // 8, 6.4, 5.12, 4.096, 3.2768,   2.62144,2.097,1.6776,1.34208,10,
-  // 8, 6.4, 5.12, 4.096, 3.2768,   2.62144,2.097,1.6776,1.34208,10 ];
-  // List<double> arrScaleBar = [  10,
-  //   1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-  //   1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-  //   1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-  //   1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-  //   1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-  //   1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-  //   1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-  //   1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-  // ];
-
-
-  
   final SIZE_LOGS2 = 10;
   final NUMBER_OF_SEGMENTS = 60;
   final SEGMENT_SIZE = 44100;
   int SIZE = 0;
 
-  List<int> arrCounts = [ 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384 ];
+  // List<int> arrCounts = [32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384];
   ScaleUpdateDetails scaleDetails = ScaleUpdateDetails();
   late DragDownDetails dragDownDetails;
-  late DragUpdateDetails dragDetails;
+  late var dragDetails;
   late DragUpdateDetails dragHorizontalDetails;
   int levelScale = 0;
   int maxCountPerLevel = 0;
@@ -320,70 +2683,92 @@ class _MyHomePageState extends State<MyHomePage> {
 
   int stepperValue = 1;
   var settingParams = {
-    "channelCount" : -1,
-    "maxAudioChannels" : 2,
-    "maxSerialChannels" : 6,
-    "initialMaxSerialChannels" : 6,
-    "muteSpeakers" : true,
-    "lowFilterValue" : "0",
-    "highFilterValue" : "1000",
-    "notchFilter50" : false,
-    "notchFilter60" : false,
-    "defaultMicrophoneLeftColor" : 0,
-    "defaultMicrophoneRightColor" : 1,
-    "defaultSerialColor1" : 0,
-    "defaultSerialColor2" : 1,
-    "defaultSerialColor3" : 2,
-    "defaultSerialColor4" : 3,
-    "defaultSerialColor5" : 4,
-    "defaultSerialColor6" : 5,
-
-    "flagDisplay1" : 1,
-    "flagDisplay2" : 0,
-    "flagDisplay3" : 0,
-    "flagDisplay4" : 0,
-    "flagDisplay5" : 0,
-    "flagDisplay6" : 0,
-
-    "strokeWidth" : 1.25,
-    "strokeOptions" : [1,1.25,1.5,1.75,2],
-    "enableDeviceLegacy": false
+    "channelCount": -1,
+    "maxAudioChannels": 2,
+    "maxSerialChannels": 6,
+    "initialMaxSerialChannels": 6,
+    "muteSpeakers": true,
+    "lowFilterValue": "0",
+    "highFilterValue": "5000",
+    "notchFilter50": false,
+    "notchFilter60": false,
+    "defaultMicrophoneLeftColor": 0,
+    "defaultMicrophoneRightColor": 1,
+    "defaultSerialColor1": 0,
+    "defaultSerialColor2": 1,
+    "defaultSerialColor3": 2,
+    "defaultSerialColor4": 3,
+    "defaultSerialColor5": 4,
+    "defaultSerialColor6": 5,
+    "flagDisplay1": 1,
+    "flagDisplay2": 0,
+    "flagDisplay3": 0,
+    "flagDisplay4": 0,
+    "flagDisplay5": 0,
+    "flagDisplay6": 0,
+    "strokeWidth": 1.25,
+    "strokeOptions": [1.00, 1.25, 1.5, 1.75, 2.00],
+    "enableDeviceLegacy": false,
+    "isNotch50": false,
+    "isNotch60": false,
   };
 
-  List<Color> audioChannelColors = [ Color(0xFF10ff00), Color(0xFFff0035), Color(0xFFe1ff4b), Color(0xFFff8755), Color(0xFF6bf063),Color(0xFF00c0c9),];
+  List<Color> audioChannelColors = [
+    Color(0xFF10ff00),
+    Color(0xFFff0035),
+    Color(0xFFe1ff4b),
+    Color(0xFFff8755),
+    Color(0xFF6bf063),
+    Color(0xFF00c0c9),
+  ];
   // List<Color> audioChannelColors = [Colors.black, Color(0xFF10ff00), Color(0xFFff0035), Color(0xFFe1ff4b), Color(0xFFff8755), Color(0xFF6bf063),Color(0xFF00c0c9),];
   // List<Color> serialChannelColors = [Colors.black, Color(0xFF1ed400), Color(0xFFffff00), Color(0xFF20b4aa), Color(0xFFdc0000), Color(0xFFdcdcdc),Color(0xFFff3800),];
   // List<Color> serialChannelColors = [Colors.black, Color(0xFF1ed400), Color(0xFFff0035),Color(0xFFffff00), Color(0xFF20b4aa), Color(0xFFdcdcdc),Color(0xFFff3800),];
-  List<Color> serialChannelColors = [ Color(0xFF1ed400), Color(0xFFff0035),Color(0xFFffff00), Color(0xFF20b4aa), Color(0xFFdcdcdc),Color(0xFFff3800),];
-  List<Color> channelsColor = [Colors.green, Color(0xFFff0035), Colors.green, Colors.green, Colors.green, Colors.green];
+  List<Color> serialChannelColors = [
+    Color(0xFF1ed400),
+    Color(0xFFff0035),
+    Color(0xFFffff00),
+    Color(0xFF20b4aa),
+    Color(0xFFdcdcdc),
+    Color(0xFFff3800),
+  ];
+  List<Color> channelsColor = [
+    Colors.green,
+    Color(0xFFff0035),
+    Colors.green,
+    Colors.green,
+    Colors.green,
+    Colors.green
+  ];
 
-  FocusNode keyboardFocusNode = FocusNode(debugLabel:"Keyboard Label");
+  FocusNode keyboardFocusNode = FocusNode(debugLabel: "Keyboard Label");
 
   String prevKey = "";
 
   int deviceTypeInt = 0;
 
-
   List<double> eventMarkersPosition = [];
   List<int> eventMarkersNumber = [];
-  
+
   double topRecordingBar = 0;
-  
+
   bool isZooming = false;
-  
+
   String globalChromeVersion = "";
-  
+
   double horizontalDragX = 0;
-  
+
   double horizontalDragXFix = 0;
-  
+
   String strMaxTime = '';
-  
+
   String strMinTime = '';
-  
+
   double maxTime = 0;
-  
+
   Debouncer debouncer = Debouncer(milliseconds: 3);
+  Debouncer debouncerTimeZoom = Debouncer(milliseconds: 70);
+  Debouncer debouncerScale = Debouncer(milliseconds: 30);
   Debouncer debouncerPlayback = Debouncer(milliseconds: 300);
 
   bool isLoadingFile = false;
@@ -391,382 +2776,83 @@ class _MyHomePageState extends State<MyHomePage> {
   bool isShowingResetButton = true;
 
   bool isShowingTimebar = true;
-  
+
   bool initFPS = true;
-  
-  Positioned feedbackButton = new Positioned(child:Container());
-  Positioned openFileButton = new Positioned(child:Container());
-  Positioned lastPositionButton = new Positioned(child:Container());
-  Positioned settingDialogButton = new Positioned(child:Container());
-  
-  
-  // Fps myFps = new Fps();
-  
 
+  Positioned feedbackButton = new Positioned(child: Container());
+  Positioned openFileButton = new Positioned(child: Container());
+  Positioned lastPositionButton = new Positioned(child: Container());
+  Positioned settingDialogButton = new Positioned(child: Container());
 
-  void singleWorker() async {
-    final w = SampleService();
+  // int _counter = 0;
+  ReceivePort _receivePort = ReceivePort();
+  ReceivePort _receiveAudioPort = ReceivePort();
+  ReceivePort iReceiveDeviceInfoPort = ReceivePort();
+  ReceivePort iReceiveExpansionDeviceInfoPort = ReceivePort();
+  late SendPort iSendPort;
+  late SendPort iSendAudioPort;
+  late var _isolate;
+  late StreamQueue _receiveQueue = StreamQueue(_receivePort);
+  late StreamQueue _receiveAudioQueue = StreamQueue(_receiveAudioPort);
+  // CircularBuffer cBuff = CircularBuffer(2);
 
-    const sampleTaskDuration = 500;
-    const taskCount = 10;
+  StreamController<List<double>> simulateDataController =
+      new StreamController<List<double>>();
+  late StreamSubscription subscriptionSimulateData;
 
-    print('running 2 x $taskCount tasks with a single worker...');
+  // Platform.isWindows
+  late SerialPort serialPort;
+  late SerialPortReader serialReader;
 
-    final workerFutures = <Future>[];
-    final workerSw = Stopwatch()..start();
-    for (var i = 1; i <= taskCount; i++) {
-      workerFutures.add(Future(() => w.cpu(milliseconds: sampleTaskDuration)));
-      workerFutures.add(w.io(milliseconds: sampleTaskDuration));
-    }
-    var data = await Future.wait(workerFutures);
-    print("data");
-    print(data);
-    workerSw.stop();
+  // Platform.isAndroid
+  late UsbPort port;
 
-    print('running 2 x $taskCount tasks with a single worker... completed in ${workerSw.elapsed}',);    
-  }
+  StreamSubscription<List<int>>? audioListener;
 
-  void workerPool() async {
-//  final pool = SampleWorkerPool(
-//       entryPoints['sample'],
-//       ConcurrencySettings(
-//         minWorkers: 1,
-//         maxWorkers: 3,
-//         maxParallel: 5,
-//       ));
-//   await pool.start();
+  StreamSubscription<dynamic>? winAudioSubscription;
 
-//   expect(pool.stats.where((s) => !s.isStopped).length == 1,
-//       'the pool should have one worker alive');
+  StreamSubscription<dynamic>? audioQueueSubscription;
 
-//   logger.log('running 2 x $taskCount tasks with a worker pool...');
+  static Int16List dataToSamples(Uint8List data) {
+    final buffer = data.buffer.asByteData(data.offsetInBytes);
 
-//   final poolFutures = <Future>[];
-//   final poolSw = Stopwatch()..start();
-//   for (var i = 1; i <= taskCount; i++) {
-//     poolFutures.add(pool.cpu(milliseconds: sampleTaskDuration));
-//     poolFutures.add(pool.io(milliseconds: sampleTaskDuration));
-//   }
-//   await Future.wait(poolFutures);
-//   poolSw.stop();
-
-//   logger.log(
-//       'running 2 x $taskCount tasks with a worker pool... completed in ${poolSw.elapsed}',
-//       replaceLastLine: true);
-
-//   expect(poolSw.elapsedMicroseconds < workerSw.elapsedMicroseconds,
-//       'pool should complete faster than worker');
-
-//   pool.stop();
-//   expect(pool.stats.where((s) => !s.isStopped).isEmpty,
-//       'the pool should have no worker alive');   
-  }  
-
-  changeMaxAxis(){
-    if (timeScale == 10){
-      maxAxis = (sampleRate * timeScale / 1000);
-    }else
-    if (timeScale == 2008){
-      maxAxis = (sampleRate * 0.02);
-    }else
-    if (timeScale == 6004){
-      maxAxis = (sampleRate * 0.04);
-    }else
-    if (timeScale == 8002){
-      maxAxis = (sampleRate * 0.06);
-    }else{
-      maxAxis = (sampleRate * 0.08);
-    }
-    maxAxis=maxAxis/2;
-
-  }
-  List<double> parameter = [];
-
-  // callbackSetEventKeyPress( params ){
-  //   // arrTransfer.push( sabDrawingState[DRAW_STATE.EVENT_COUNTER] );
-  //   // arrTransfer.push( sabDrawingState[DRAW_STATE.EVENT_NUMBER] );
-  //   // arrTransfer.push( sabDrawingState[DRAW_STATE.EVENT_POSITION] );
-  //   // arrTransfer.push( sabDrawingState[DRAW_STATE.DIVIDER] );
-  //   // arrTransfer.push( sabDrawingState[DRAW_STATE.SKIP_COUNTS] );
-  //   // arrTransfer.push( sabDrawingState[DRAW_STATE.TIME_SCALE] );      
-  //   // arrTransfer.push( sabDrawingState[DRAW_STATE.SAMPLE_RATE] );
-
-  // }
-  drawEventMarkers(params){
-    eventMarkersNumber = params[0];
-    eventMarkersPosition = params[1];
-  }
-  
-  changeTimeBarStatus(params){
-    isShowingTimebar = params[0];
-  }
-
-  double calculateTimeToBar(double curTimeBar, double horizontalDragXFix, double maxTime) {
-    return  curTimeBar*horizontalDragXFix / maxTime;
-  }
-
-  drawElapsedTime(params){
-    isShowingTimebar = false;
-    double curTimeBar = params[0];
-    if (curTimeBar >= maxTime){
-      curTimeBar = maxTime;
-    }
-    
-    horizontalDragX = calculateTimeToBar(curTimeBar, horizontalDragXFix, maxTime);
-    strMinTime = getStrMinTime(horizontalDragX, horizontalDragXFix, maxTime);
-    setState((){});
-  }
-
-  resetToAudio(){
-    deviceType = 0;
-    deviceTypeInt = 0;
-    setState(() { });
-  }
-  
-  changePlaybackButton(params){
-    if (params[0] == 0){ // isOpening File?
-    }else{
-      isPlaying = params[1]; // 1 - play, 2 - stop 
-    }
-  }
-
-  callAlert(text){
-    showFlash(
-        context: context,
-        persistent: false,
-        duration: Duration(seconds: 3),
-        builder: (_, controller) {
-          return Flash(
-            controller: controller,
-            // margin: margin,
-            behavior: FlashBehavior.fixed,
-            position: FlashPosition.bottom,
-            borderRadius: BorderRadius.circular(8.0),
-            borderColor: Colors.blue,
-            boxShadows: kElevationToShadow[8],
-            backgroundGradient: RadialGradient(
-              colors: [Colors.amber, Colors.black87],
-              center: Alignment.topLeft,
-              radius: 2,
-            ),
-            onTap: () => controller.dismiss(),
-            forwardAnimationCurve: Curves.easeInCirc,
-            reverseAnimationCurve: Curves.bounceIn,
-            child: DefaultTextStyle(
-              style: TextStyle(color: Colors.white),
-              child: FlashBar(
-                title: Text(text[0]),
-                content: Text(text[1]),
-                indicatorColor: Colors.red,
-                icon: Icon(Icons.info_outline),
-                primaryAction: TextButton(
-                  onPressed: () => controller.dismiss(),
-                  child: Text('Okay'),
-                ),
-              ),
-            ),
-          );
-        },
-      ).then((_) {
-      });    
-  }
-
-  Map<String, dynamic> _readWebBrowserInfo(WebBrowserInfo data) {
-    return <String, dynamic>{
-      'browserName': describeEnum(data.browserName),
-      'appCodeName': data.appCodeName,
-      'appName': data.appName,
-      'appVersion': data.appVersion,
-      'deviceMemory': data.deviceMemory,
-      'language': data.language,
-      'languages': data.languages,
-      'platform': data.platform,
-      'product': data.product,
-      'productSub': data.productSub,
-      'userAgent': data.userAgent,
-      'vendor': data.vendor,
-      'vendorSub': data.vendorSub,
-      'hardwareConcurrency': data.hardwareConcurrency,
-      'maxTouchPoints': data.maxTouchPoints,
-    };
-  }
-
-  callbackHorizontalDiff(params){
-    horizontalDiff = params[0];
-    if (horizontalDiff == 0){
-      isZooming = false;
-    }
-    setState((){});
-  }
-
-  callbackGetChromeVersion(params){
-    print("callbackGetChromeVersion");
-    print(params[0]);
-    print(params[1]);
-    print(params[2]);
-    print(params[3]);
-    globalChromeVersion = params[0].toString()+"."+params[1].toString()+"."+params[2].toString()+"."+params[3].toString();
-    print(globalChromeVersion);
-  }
-
-  callbackSetRecording( params ){
-    isRecording = params[0];
-    if (isRecording == 0){
-      topRecordingBar = 0;//0;
-
-    }else{
-      startRecordingTime = DateTime.now();
-      topRecordingBar = 50;
+    final samples = Int16List(data.length >> 1);
+    var offset = 0;
+    var idx = 0;
+    while (offset < buffer.lengthInBytes) {
+      samples[idx++] = buffer.getInt16(offset, Endian.little);
+      offset += 2;
     }
 
-    setState(() { });
-  }
-  changeResetPlayback( params ){
-    isShowingResetButton = params[0];
-    horizontalDragX = MediaQuery.of(context).size.width - 100 - 20;
-    horizontalDragXFix = MediaQuery.of(context).size.width - 100 - 20;
-
-    setState((){});
+    return samples;
   }
 
-  callbackOpeningFile( params ){
-    isLoadingFile = params[0];
-    setState((){});
+  void _standardDisplay() async {
+    Stream<List<int>>? stream =
+        await MicStream.microphone(sampleRate: sampleRate);
+    StreamSubscription<List<int>>? listener =
+        stream?.listen((samples) => print(dataToSamples(samples as Uint8List)));
   }
 
-  callbackIsOpeningWavFile( params ){
-    isOpeningFile = params[0];
-    setState((){});
-  }
-
-  callbackOpenWavFile( wav ){
-    horizontalDiff = 0;
-    strMinTime = "00:00 000";
-    isLocal = false;
-    isLoadingFile = false;
-    isShowingResetButton = true;
-
-    isOpeningFile = 1;
-    timeScaleBar = 80;
-    horizontalDragX = MediaQuery.of(context).size.width - 100 - 20;
-    horizontalDragXFix = MediaQuery.of(context).size.width - 100 - 20;
-
-      // wav.fmt.numChannels,
-      // wav.fmt.sampleRate,
-      // wav.fmt.bitsPerSample,    
-    channels = [];
-    final numChannels = wav[0];
-    sampleRate = wav[1];
-    final bitsPerSample = wav[2];
-    final audioLength = wav[3];
-    // final samples = wav[4];
-    localChannel = numChannels;
-    final strColors = wav[4];
-    final strNames = wav[5];
-    
-    maxTime = wav[10].length/sampleRate;
-    if (maxTime > 3600){
-      final lastDecimals = (maxTime - maxTime.floor()).toStringAsFixed(3).replaceFirst("0.","");
-      strMaxTime = ( (maxTime / 3600).floor() % (3600 * 24) ).toString().padLeft(2,"0") + ":" + ( (maxTime / 60).floor() % 3600 ).toString().padLeft(2,"0") + ":" + (maxTime.floor() % 60).toString().padLeft(2,"0") + " " + lastDecimals;
-
-    }else{
-      final lastDecimals = (maxTime - maxTime.floor()).toStringAsFixed(3).replaceFirst("0.","");
-      strMaxTime = ( (maxTime / 60).floor() % 3600 ).toString().padLeft(2,"0") + ":" + (maxTime.floor() % 60).toString().padLeft(2,"0") + " " + lastDecimals;
+  List<double> getRandomList(count, maxRandom) {
+    List<double> temp = [];
+    Random rng = new Random();
+    for (var i = 0; i < count; i++) {
+      temp.add(rng.nextInt(maxRandom).toDouble() * (rng.nextBool() ? -1 : 1));
     }
-    strMinTime = strMaxTime;
-
-    if (strNames.indexOf("AUDIO") > -1){
-      deviceType = 0;
-      channelGains = [10000,10000,10000,10000,10000,10000];
-      listIndexSerial=[5,5,5,5,5,5];
-      listIndexHid = [7,7,7,7,7,7];
-      listIndexAudio = [9,9];
-
-      minChannels = 1;
-      maxChannels = 2;
-      for (int i=1; i <= 6 ; i++){
-        settingParams["flagDisplay"+i.toString()] = 0;
-      }
-      for (int i=1; i <= numChannels ; i++){
-        settingParams["flagDisplay"+i.toString()] = 1;
-      }
-
-      var arrColors = strColors.split(";");
-      var leftChannel = int.parse(arrColors[0]);
-      channelsColor[0] = audioChannelColors[leftChannel];
-      settingParams['defaultMicrophoneLeftColor'] = leftChannel;
-      if (numChannels > 1){
-        var rightChannel = int.parse(arrColors[1]);
-        channelsColor[1] = audioChannelColors[rightChannel];
-        settingParams['defaultMicrophoneRightColor'] = rightChannel;
-      }
-      setState((){});
-    }else{
-      channelGains = [10000,10000,10000,10000,10000,10000];
-      listIndexSerial=[5,5,5,5,5,5];
-      listIndexHid = [7,7,7,7,7,7];
-      listIndexAudio = [9,9];
-
-      final minChannels = wav[7];
-      final maxChannels = wav[8];
-      if ( strNames.toUpperCase().indexOf("HID") > -1 ){
-        deviceType = 2;
-      }else{
-        deviceType = 1;
-      }
-      
-      for (int i=1; i <= 6 ; i++){
-        settingParams["flagDisplay"+i.toString()] = 0;
-      }
-      for (int i=1; i <= numChannels ; i++){
-        settingParams["flagDisplay"+i.toString()] = 1;
-      }
-
-      var arrColors = strColors.split(";");
-      for (int i = 0; i < arrColors.length - 1 ; i++){
-        int channelColor = int.parse(arrColors[i]);
-        channelsColor[i] = serialChannelColors[channelColor];
-      }
-      // var leftChannel = int.parse(arrColors[0]);
-      // channelsColor[0] = audioChannelColors[leftChannel];
-      // settingParams['defaultMicrophoneLeftColor'] = leftChannel;
-      // if (numChannels > 1){
-      //   var rightChannel = int.parse(arrColors[1]);
-      //   channelsColor[1] = audioChannelColors[rightChannel];
-      //   settingParams['defaultMicrophoneRightColor'] = rightChannel;
-      // }
-      setState((){});
-
-    }
-
-    print("READ wav");
-    print(numChannels);
-    print(sampleRate);
-    print(bitsPerSample);
-    print(audioLength);
-    print(strNames);
-    print(settingParams);
-    // print(samples);
-
-    // final audioLength = (samples.length / sampleRate / numChannels);
-    for (var i = 0 ; i < numChannels ; i++){
-      // print(i*audioLength);
-      // print( (i+1)*audioLength );
-      // channels.add( WaveformData(version: 1, channels: numChannels, sampleRate: sampleRate, sampleSize: 16, bits: bitsPerSample, length: audioLength, data: samples.sublist(i*audioLength,(i+1)*audioLength) ) );
-      var samples = wav[10+i].cast<double>();
-
-      channels.add( WaveformData(version: 1, channels: numChannels, sampleRate: sampleRate, sampleSize: 16, bits: bitsPerSample, length: samples.length, data: samples ) );
-    }
-    setState(() {
-      
-    });
-    _sendAnalyticsEvent("opened_file", {
-      "isFileOpened" : 1
-    });
-
+    return temp;
   }
 
-  callbackGetDeviceInfo( params ){
+  js2Dart(params) {
+    cBuffDouble = (params[0]).toList().cast<double>();
+    setState(() {});
+  }
+
+  callbackErrorLog(params) {
+    // _sendAnalyticsEvent( params[0], { "parameters" : params[1] } );
+  }
+
+  callbackGetDeviceInfo(params) {
     // extra_channels,max min, channels
     print("callback params");
     print(params);
@@ -774,234 +2860,2133 @@ class _MyHomePageState extends State<MyHomePage> {
     minChannels = params[1];
     maxChannels = params[2];
     settingParams["channelCount"] = minChannels;
-
-    if (extraChannels != 0){
-      for (int i=1; i <= maxChannels ; i++){
-        settingParams["flagDisplay"+i.toString()] = 1;
-        channelsColor[i-1] = serialChannelColors[i-1];
+    if (extraChannels != 0) {
+      for (int i = 1; i <= maxChannels; i++) {
+        settingParams["flagDisplay" + i.toString()] = 1;
+        channelsColor[i - 1] = serialChannelColors[i - 1];
       }
-
-    }else{
-      for (int i=1; i <= minChannels ; i++){
-        settingParams["flagDisplay"+i.toString()] = 1;
-        channelsColor[i-1] = serialChannelColors[i-1];
+    } else {
+      for (int i = 1; i <= minChannels; i++) {
+        settingParams["flagDisplay" + i.toString()] = 1;
+        channelsColor[i - 1] = serialChannelColors[i - 1];
       }
-      
     }
-    js.context.callMethod('setFlagChannelDisplay', [settingParams["flagDisplay1"],settingParams["flagDisplay2"],settingParams["flagDisplay3"],settingParams["flagDisplay4"],settingParams["flagDisplay5"],settingParams["flagDisplay6"] ]);
-    setState((){});
+    if (kIsWeb) {
+      // js.context.callMethod('setFlagChannelDisplay', [
+      //   settingParams["flagDisplay1"],
+      //   settingParams["flagDisplay2"],
+      //   settingParams["flagDisplay3"],
+      //   settingParams["flagDisplay4"],
+      //   settingParams["flagDisplay5"],
+      //   settingParams["flagDisplay6"]
+      // ]);
+    } else {}
+    setState(() {});
   }
 
-  callbackAudioInit( params ) {
+  setZoomLevel(data) async {
+    int realTimeLevel;
+    double innerWidth = MediaQuery.of(context).size.width;
+    int skipCount = skipCounts[level];
+    int curLevel;
+    int transformedScale;
+    var row = data;
+
+    if ((!isThreshold && isPlaying != 2 && isOpeningFile == 0) ||
+        (!isThreshold && isPlayingWav && isPlaying == 2)) {
+      // isZoomingWhilePlaying = true;
+      // print("running");
+
+      // when zoomed and play again, and zoom, it needs to show the current data
+      // CURRENT_START = 0;
+      curLevel = calculateLevel(
+          row["timeScaleBar"], sampleRate, innerWidth, skipCounts);
+      // timeScaleBar = timeScaleBar;
+      level = curLevel;
+      realTimeLevel = curLevel;
+      transformedScale = (row["levelScale"]).floor();
+      levelScale = (row["levelScale"]).floor();
+      skipCount = skipCounts[curLevel];
+      divider = myArrTimescale[transformedScale] / 10;
+      // level = curLevel;
+
+      /*
+      if (curLevel == -1){
+        sabDrawingState[DRAW_STATE.SKIP_COUNTS] = 1;
+        sabDrawingState[DRAW_STATE.LEVEL] = -1;
+      }else{
+        sabDrawingState[DRAW_STATE.SKIP_COUNTS] = arrCounts[curLevel];
+        sabDrawingState[DRAW_STATE.LEVEL] = curLevel;
+      }
+    
+      sabDrawingState[DRAW_STATE.DIVIDER] = arrTimescale[ transformedScale ]; // 0 - 40  
+      sabDrawingState[DRAW_STATE.SURFACE_WIDTH] = window.innerWidth;
+      skipCounts = sabDrawingState[DRAW_STATE.SKIP_COUNTS];
+      level = sabDrawingState[DRAW_STATE.LEVEL];    
+
+      sbwNode.redraw();
+      */
+
+      // print("zoomLevel return");
+      setState(() {});
+      return;
+    }
+
+    // print("isZoomingWhilePlaying");
+    // print(isZoomingWhilePlaying);
+    // if (isZoomingWhilePlaying) {
+    //   int _transformedScale = (row['levelScale']).floor();
+    //   int _divider = (myArrTimescale[_transformedScale] / 10).floor();
+    //   if (_divider == 6) {
+    //     isZoomingWhilePlaying = false;
+    //   }
+    //   return;
+    // }
+    // print("pausing");
+
+    int NUMBER_OF_SEGMENTS = 60;
+    int SEGMENT_SIZE = sampleRate;
+    double SIZE = (NUMBER_OF_SEGMENTS * SEGMENT_SIZE).toDouble();
+    final SIZE_LOGS2 = 10;
+
+    double size = SIZE;
+    // size/=2;
+    var envelopeSizes = [];
+    int i = 0;
+    for (; i < SIZE_LOGS2; i++) {
+      // final sz = (size).floor();
+      envelopeSizes.add(size);
+      size /= 2;
+    }
+
+    int headIdx = cBuffIdx;
+    // if (isThreshold){
+    //   headIdx = thresholdHeads[0];
+    // }
+    int initialPosition = screenPositionToElementPosition(
+        row["posX"],
+        "first : ",
+        level,
+        skipCount,
+        envelopeSizes[level],
+        headIdx,
+        divider,
+        innerWidth,
+        isThreshold,
+        envelopeSizes[0]);
+    // double initialLength = envelopeSizes[level];
+    // console.log("INITIAL ", row["timeScaleBar"]);
+
+    curLevel =
+        calculateLevel(row["timeScaleBar"], sampleRate, innerWidth, skipCounts);
+    // curLevel = level;
+    // timeScaleBar = row["timeScaleBar"].floor();
+    realTimeLevel = curLevel;
+
+    transformedScale = (row['levelScale']).floor();
+    levelScale = (row['levelScale']).floor();
+    skipCount = skipCounts[curLevel];
+
+    divider = myArrTimescale[transformedScale] / 10; // 0 - 40
+    surfaceWidth = innerWidth;
+    {
+      // level = curLevel;
+      int _divider = (divider).floor();
+      // console.log("divider : ",divider);
+      if (_divider == 6) {
+        // sabDrawingState[DRAW_STATE.CURRENT_START] = 0;
+        // isZoomingWhilePlaying = false;
+        CURRENT_START = 0;
+        isZooming = false;
+      }
+      // const subArrMaxSize = Math.floor ( SIZE / divider );
+
+      int endingPosition;
+      print('envelopeSizes');
+      print(envelopeSizes);
+      endingPosition = screenPositionToElementPosition(
+          row["posX"],
+          "second : ",
+          curLevel,
+          skipCount,
+          envelopeSizes[curLevel],
+          headIdx,
+          divider,
+          innerWidth,
+          isThreshold,
+          envelopeSizes[0]);
+      print("CURRENT_POSITION_START");
+      print(endingPosition.toString() + " @: " + initialPosition.toString());
+
+      // if (level == -1){
+      //   endingPosition = screenPositionToElementPosition(row["posX"], "second : ", level, skipCounts,SIZE);
+      // }else{
+      //   endingPosition = screenPositionToElementPosition(row["posX"], "second : ", level, skipCounts,envelopeSizes[level]);
+      // }
+
+      // const endingLength = envelopeSizes[level];
+
+      int diffPosition;
+      double platformMultiplier = MediaQuery.of(context).devicePixelRatio;
+      // if (isThreshold){
+      //   platformMultiplier = 1;
+      // }
+      print("platformMultiplier");
+      print(platformMultiplier);
+      if (Platform.isWindows) {
+        platformMultiplier = 2;
+      }
+      // if (Platform.isMacOS || Platform.isIOS) {
+      //   platformMultiplier = 2;
+      // }
+
+      if (deviceType == 0) {
+        if (curLevel == 0) {
+          diffPosition =
+              ((endingPosition - initialPosition) * platformMultiplier).floor();
+        } else {
+          diffPosition =
+              ((endingPosition - initialPosition) * platformMultiplier).floor();
+        }
+      } else {
+        if (deviceType == 1) {
+          if (curLevel == 0) {
+            diffPosition =
+                ((endingPosition - initialPosition) * platformMultiplier)
+                    .floor();
+          } else {
+            diffPosition =
+                ((endingPosition - initialPosition) * platformMultiplier)
+                    .floor();
+          }
+        } else {
+          if (isOpeningFile == 1) {
+            if (curLevel == 0) {
+              diffPosition = ((endingPosition - initialPosition) / 1).floor();
+            } else {
+              diffPosition = ((endingPosition - initialPosition) / 1).floor();
+            }
+          } else {
+            if (curLevel == 0) {
+              diffPosition = ((endingPosition - initialPosition) / 2).floor();
+            } else {
+              diffPosition = ((endingPosition - initialPosition) / 2).floor();
+            }
+          }
+        }
+      }
+      // if (row["direction"] == 1){ // UP
+
+      // }else{ //DOWN
+
+      // }
+
+      // int head = sabDrawingState[DRAW_STATE.CURRENT_HEAD];
+      // int head = cBuffIdx;
+      // const distanceX = (window.innerWidth - posX) * skipCounts;
+      // int curStart = head + (diffPosition/2).floor();
+      // sabDrawingState[DRAW_STATE.CURRENT_START] += ( diffPosition).floor();
+      if (isThreshold) {
+        CURRENT_START += (diffPosition).floor();
+      } else {
+        CURRENT_START += (diffPosition).floor();
+      }
+      print('CURRENT_START');
+      print(CURRENT_START);
+      level = curLevel;
+
+      /*
+      int curPageSamples =
+          (envelopeSizes[level] / 2 / divider * skipCount).floor();
+      int rawLeftHeadPosition = screenPositionToElementPosition(
+          0,
+          "left head : ",
+          level,
+          skipCount,
+          envelopeSizes[level],
+          cBuffIdx,
+          divider,
+          innerWidth);
+
+      int rangeStart =
+          ((rawLeftHeadPosition / curPageSamples).floor() * curPageSamples)
+              .floor();
+      int rangeEnd = (((rawLeftHeadPosition / curPageSamples).floor() + 1) *
+              curPageSamples)
+          .floor();
+
+      int rawCurPageSamples = rangeEnd - rangeStart;
+
+      int leftHeadPosition = (rawLeftHeadPosition).floor();
+      print("CUR PAGE SAMPLES = " + (curPageSamples).toString());
+      print("RANGE START = " + (rangeStart).toString());
+      print(divider.toString() + " Cbuff Idx = " + (cBuffIdx).toString());
+      print("RANGE END = " + (rangeEnd).toString());
+      print((leftHeadPosition).toString());
+
+      print((cBuffIdx).toString() + " < " + rawCurPageSamples.toString());
+      if (cBuffIdx - leftHeadPosition < rawCurPageSamples) {
+        // get screen buffers
+        //int screenBuffersTotal = getScreenBuffers(cBuffIdx,); // signal thread
+        // tempGap = curPageSamples - screenBuffersTotal;
+        diffPosition = -(rawCurPageSamples - (cBuffIdx - leftHeadPosition));
+        CURRENT_START += (diffPosition).floor();
+        print(level.toString() +
+            " xyzCURRENT_START DIF POSTION " +
+            diffPosition.toString());
+        print(CURRENT_START);
+      } else {
+        CURRENT_START += (diffPosition).floor();
+        // print(level.toString() +
+        //     " CURRENT_START DIF POSTION " +
+        //     deviceType.toString());
+        print(CURRENT_START);
+      }
+      // console.log("curStart : ",curStart, head, initialPosition, endingPosition,  diffPosition, sabDrawingState[DRAW_STATE.CURRENT_START]);
+*/
+    }
+
+    try {
+      // if (isPlaying == 2)
+      //   sbwNode.redraw();
+      // window.callbackHorizontalDiff( [ sabDrawingState[DRAW_STATE.CURRENT_START] ] );
+    } catch (err) {
+      // console.log("err");
+      // console.log(err);
+    }
+
+    return;
+  }
+
+  callbackAudioInit(params) {
     deviceType = params[0];
     isPlaying = params[1];
     // startRecordingTime = (DateTime.now());
-    channelGains = [10000,10000,10000,10000,10000,10000];
-    listIndexSerial=[5,5,5,5,5,5];
-    listIndexHid = [7,7,7,7,7,7];
-    listIndexAudio = [9,9];
-    
+    channelGains = [10000, 10000, 10000, 10000, 10000, 10000];
+    listIndexSerial = [5, 5, 5, 5, 5, 5];
+    listIndexHid = [7, 7, 7, 7, 7, 7];
+    listIndexAudio = [9, 9];
+
     settingParams["flagDisplay1"] = 1;
     settingParams["flagDisplay2"] = 0;
     settingParams["defaultMicrophoneLeftColor"] = 0;
     settingParams["defaultMicrophoneRightColor"] = 1;
-    channelsColor[0]=audioChannelColors[0];
-    channelsColor[1]=audioChannelColors[1];
+    channelsColor[0] = audioChannelColors[0];
+    channelsColor[1] = audioChannelColors[1];
     // print("channelsColor[0] : "+channelsColor[0].toString());
     // print("channelsColor[1] : "+channelsColor[1].toString());
-    
-    js.context.callMethod('setFlagChannelDisplay', [settingParams["flagDisplay1"],settingParams["flagDisplay2"],settingParams["flagDisplay3"],settingParams["flagDisplay4"],settingParams["flagDisplay5"],settingParams["flagDisplay6"] ]);    
-    // if (initFPS){
-    //   initFPS = false;
-    //   Fps.instance.start();
-    //   Fps.instance.addFpsCallback((FpsInfo fpsInfo) async {
-    //     // print("fpsInfo.fps");
-    //     // print(fpsInfo.fps);
-    //     if (curFps == fpsInfo.fps){
-    //       return;
-    //     }
-    //     curFps = fpsInfo.fps;
-    //     int incSkip = 0;
-    //     if (curFps < 30){
 
-    //     }else
-    //     if (curFps <15){
-    //       incSkip++;
-    //     }
+    if (kIsWeb) {
+      // js.context.callMethod('setFlagChannelDisplay', [
+      //   settingParams["flagDisplay1"],
+      //   settingParams["flagDisplay2"],
+      //   settingParams["flagDisplay3"],
+      //   settingParams["flagDisplay4"],
+      //   settingParams["flagDisplay5"],
+      //   settingParams["flagDisplay6"]
+      // ]);
+    } else {}
 
-    //     // if (curFps <15){
-    //     //   incSkip++;
-    //     // }
-    //     if (!isFeedback)
-    //       ( await js.context.callMethod('setFps', [ curFps, incSkip ]) );
-    //   });
+    setState(() {});
+  }
 
+  callbackOpenWavFile(params) {}
+  callbackOpeningFile(params) {}
+  callbackIsOpeningWavFile(params) {}
+  changeResetPlayback(params) {}
+  resetToAudio(params) {}
+
+  void closeIsolate() {
+    // if (_isolate != null) {
     // }
-
-    setState((){});
-  }
-
-  //https://firebase.google.com/docs/reference/cpp/group/parameter-names
-  callbackErrorLog( params ){
-    _sendAnalyticsEvent( params[0], { "parameters" : params[1] } );
-  }
-  
-  callbackSerialInit( params ) async {
-    deviceType = params[0];
-    isPlaying = params[1];
-    // startRecordingTime = (DateTime.now());
-    listIndexSerial=[5,5,5,5,5,5];
-    listIndexHid = [7,7,7,7,7,7];
-    listIndexAudio = [9,9];
-
-    if (deviceType == 2){
-      channelGains = [500,500,500,500,500,500];
-      _sendAnalyticsEvent("button_hid_connected", {
-        "device" : "HID",
-        "deviceType" : deviceType,
-        "isStartingHid" : 1,
-        "isStartingAudio" : 0
-      });
-
-    }else
-    if (deviceType == 1){
-      channelGains = [1000,1000,1000,1000,1000,1000];
-      _sendAnalyticsEvent("button_serial_connected", {
-        "device" : "Serial",
-        "deviceType" : deviceType,
-        "isStartingSerial" : 1,
-        "isStartingAudio" : 0
-      });
-    }else{
-
+    // if (audioListener != null) {
+    // }
+    _isolate?.kill(priority: Isolate.immediate);
+    audioListener?.cancel();
+    try {
+      winAudioSubscription?.cancel();
+      audioQueueSubscription?.cancel();
+    } catch (err) {
+      print("Audio Subscription Error : ");
+      print(err);
     }
-    // await js.context.callMethod('setFlagChannelDisplay', [settingParams["flagDisplay1"],settingParams["flagDisplay2"],settingParams["flagDisplay3"],settingParams["flagDisplay4"],settingParams["flagDisplay5"],settingParams["flagDisplay6"] ]);
-    setState((){});
   }
 
-  js2Dart( params ) {
-    //Hashmap can't be processed
-    // 2 variable cant be processed
-    // 2 arrayed variable can't
-    // print("JS2Dart");
-    // print(params);
-    // var params = content.value;
-    // chartData = js.JsArray.from(params[0]).toList().cast<double>();
-    // if (isPlaying == 2){
+  void getMicrophoneData() async {
+    this.deviceType = 0;
+    DISPLAY_CHANNEL_FIX = 2;
+    callbackAudioInit([0, 0]);
+    isPlaying = 1;
+    // closeIsolate();
+    // if (kIsWeb) {
+    //   js.context['jsToDart'] = js2Dart;
+    //   js.context['callbackErrorLog'] = callbackErrorLog;
+    //   js.context['callbackGetDeviceInfo'] = callbackGetDeviceInfo;
+    //   js.context['callbackAudioInit'] = callbackAudioInit;
+    //   js.context['callbackOpenWavFile'] = callbackOpenWavFile;
+    //   js.context['callbackOpeningFile'] = callbackOpeningFile;
+    //   js.context['callbackIsOpeningWavFile'] = callbackIsOpeningWavFile;
+    //   js.context['changeResetPlayback'] = changeResetPlayback;
+    //   js.context['resetToAudio'] = resetToAudio;
+    //   js.context['changeSampleRate'] = (params) {
+    //     // sampleRate = params[0];
+    //     // curSkipCounts = params[1];
+    //     // curLevel = params[2];
+    //   };
+
+    //   js.context
+    //       .callMethod('recordAudio', ['Flutter is calling upon JavaScript!']);
     //   return;
     // }
-    if (isFeedback){ return; }
-    
-    int len = params.length-1;
-    if (channelsData.length != len){
-      channelsData= [];
-      for (int i=0;i<len;i++){
-        chartData = (params[i]).toList().cast<double>();
-        channelsData.add(chartData);
+
+    // if (Platform.isMacOS) {
+    // https://github.com/BackyardBrains/Spike-Recorder/blob/327cd6ff142238c657a7cb68ff536f65fcbb2b98/src/engine/RecordingManager.cpp#L879
+    // (Winaudio()).getPlatformVersion();
+    // return;
+    // await (Winaudio()).initBassAudio(48000);
+    // await (Winaudio()).startRecording();
+    // }
+    // if android : audioRecord.getRoutedDevice()   https://developer.android.com/reference/android/media/AudioDeviceInfo#getChannelCounts()
+    maxOsChannel = 1;
+    if (Platform.isWindows || Platform.isMacOS) {
+      maxOsChannel = 2;
+
+      print("isWINDOWS or MAC");
+      try {
+        if (await Permission.microphone.request().isGranted) {
+          // Either the permission was already granted before or the user just granted it.
+        }
+      } catch (err) {}
+      sampleRate = 48000;
+      double _sampleRate = sampleRate.toDouble();
+      if (Platform.isMacOS) {
+        Stream<List<int>>? stream = await MicStream.microphone(
+            audioSource: AudioSource.DEFAULT,
+            sampleRate: 48000,
+            channelConfig: ChannelConfig.CHANNEL_IN_MONO,
+            audioFormat: AudioFormat.ENCODING_PCM_16BIT);
+
+        _sampleRate = await MicStream.sampleRate!;
+        MicStream.stopListening();
       }
-    }else{
-      for (int i=0;i<len;i++){
-        chartData = (params[i]).toList().cast<double>();
-        channelsData[i]=(chartData);
+      sampleRate = _sampleRate.floor();
+
+      _lowPassFilter = _sampleRate / 2;
+      _highPassFilter = 0;
+      settingParams['lowFilterValue'] = _highPassFilter.floor().toString();
+      settingParams['highFilterValue'] = _lowPassFilter.floor().toString();
+
+      if (_lowPassFilter == sampleRate / 2) {
+        isLowPass = false;
+      } else {
+        isLowPass = true;
       }
+      if (_highPassFilter == 0) {
+        isHighPass = false;
+      } else {
+        isHighPass = true;
+      }
+
+      if (isLowPass)
+        nativec.createLowPassFilter(
+            maxOsChannel, _sampleRate, _lowPassFilter, 0.5);
+      // print("lowPass Alpha");
+      // print(low);
+      if (isHighPass)
+        nativec.createHighPassFilter(maxOsChannel, _sampleRate,
+            _highPassFilter == 0 ? 1.0 : _highPassFilter, 0.5);
+
+      nativec.createNotchPassFilter(1, maxOsChannel, _sampleRate, 50.0, 1.0);
+      nativec.createNotchPassFilter(0, maxOsChannel, _sampleRate, 60.0, 1.0);
+
+      List<int> envelopeSizes = [];
+      int SEGMENT_SIZE = _sampleRate.toInt();
+      int SIZE = NUMBER_OF_SEGMENTS * SEGMENT_SIZE;
+      double size = SIZE.toDouble() * 2;
+      allEnvelopes = [];
+      //get audio Channel
+      unitInitializeEnvelope(
+          maxOsChannel, allEnvelopes, envelopeSizes, size, SIZE, SIZE_LOGS2);
+      int cBufferSize = ((_sampleRate * 60).floor()).floor();
+      print("start Isolate ");
+      _receivePort = ReceivePort();
+      _receiveAudioPort = ReceivePort();
+
+      _receiveQueue = StreamQueue(_receivePort);
+      _receiveAudioQueue = StreamQueue(_receiveAudioPort);
+
+      _isolate = await Isolate.spawn<List<dynamic>>(sampleBufferingEntryPoint, [
+        _receiveAudioPort.sendPort,
+        allEnvelopes,
+        cBufferSize,
+        _sampleRate.toDouble(),
+        myArrTimescale,
+        MediaQuery.of(context).devicePixelRatio,
+        [197]
+      ]);
+      iSendAudioPort = await _receiveAudioQueue.next;
+
+      double innerWidth = MediaQuery.of(context).size.width;
+      level =
+          calculateLevel(10000, _sampleRate.toInt(), innerWidth, skipCounts);
+      print("calculate level");
+
+      int skipCount = skipCounts[level];
+
+      Int16List envelopeSamples = allEnvelopes[0][level];
+      int prevSegment = (envelopeSamples.length / divider).floor();
+
+      cBuffDouble = List<double>.generate(prevSegment, (i) => 0);
+      cBuff = List<double>.generate(prevSegment, (i) => 0);
+      globalIdx = 0;
+      int channelIdx = 0;
+
+      // START RECORDING
+      if (Platform.isMacOS) {
+        // await (Winaudio()).initBassAudio(48000);
+        // await (Winaudio()).startRecording();
+        // Future.delayed(Duration(seconds: 1), () {
+        //   (Winaudio()).startRecording();
+        // });
+      }
+      try {
+        await (Winaudio()).initBassAudio(sampleRate);
+        Future.delayed(Duration(milliseconds: 300), () {
+          (Winaudio()).startRecording();
+        });
+      } catch (err) {
+        print('init bass audio');
+      }
+
+      print("start Recording - end");
+
+      _receiveAudioQueue.rest.listen((curSamples) {
+        // print('curSamples[0].runTimeType');
+        // print(curSamples[0][0].runTimeType);
+        // if (isThreshold){
+        // Int16List convSamples = curSamples[0][0] as Int16List;
+        // // cBuffDouble = List<double>.from(curSamples);
+        // // channelsData = List<List<double>>.from(curSamples[0]);
+        // // channelsData = List<List<double>>.from(convSamples.map((e) => (e.toDouble())));
+        // List<double> list = convSamples.map( (e) => e.toDouble() ).toList(growable: false);
+        // channelsData=[list];
+        // }else{
+        //   channelsData = [];
+        //   List<Int16List> convSamples = curSamples[0];
+        //   for (int i = 0; i<convSamples.length ; i++){
+        //     channelsData.add(convSamples[i].map( (e) => e.toDouble() ).toList(growable: false));
+        //   }
+        // }
+        channelsData.clear();
+        List<Int16List> convSamples = curSamples[0];
+        // print("convSamples.length");
+        // print(convSamples.length);
+
+        for (int i = 0; i < convSamples.length; i++) {
+          channelsData.add(
+              convSamples[i].map((e) => e.toDouble()).toList(growable: false));
+        }
+
+        // Int16List dupSamples = new Int16List.fromList(convSamples[0]);
+        // dupSamples.sort();
+        // print("int------");
+        // print(dupSamples[dupSamples.length-1]);
+
+        // List<double> dupSamples2 = new List<double>.from(channelsData[0]);
+        // dupSamples2.sort();
+        // print(dupSamples2[dupSamples2.length-1]);
+
+        cBuffIdx = curSamples[1];
+        markersData = List<double>.from(curSamples[2]);
+        if (curSamples.length > 3) {
+          if (isThreshold) {
+            // print('isThreshold');
+            globalMarkers = List<int>.from(curSamples[3]);
+            // print(globalMarkers);
+          } else {
+            globalMarkers = List<int>.from(curSamples[3]);
+            // if (curSamples[3] == 1){
+            //   print('curSamples[4].floor()');
+            //   print(curSamples[4].floor());
+            //   CURRENT_START = curSamples[4].floor();
+            // }
+          }
+        }
+        // if (markersData.length> 0){
+        //   print("markersData");
+        //   print(markersData);
+        // }
+
+        // print("cBuffDouble");
+        // print(cBuffDouble);
+        setState(() {});
+      });
+
+      winAudioSubscription?.cancel();
+      winAudioSubscription = Winaudio.audioData().listen((samples) {
+        // print("samples audio data : !!! ");
+        // print(samples);
+        // List<List<double>> arrVisibleSamples = [];
+        final divider = myArrTimescale[timeScaleBar] / 10;
+        // CURRENT_START = 100;
+
+        if (isPaused) {
+          // print("CURRENT_START paused");
+          // print(currentStart);
+          iSendAudioPort.send([
+            [],
+            level,
+            divider,
+            maxOsChannel,
+            CURRENT_START, //5
+            isPaused,
+            currentKey,
+            MediaQuery.of(context).size.width,
+            _lowPassFilter,
+            _highPassFilter, //10
+            isLowPass,
+            isHighPass,
+            isNotch50,
+            isNotch60,
+            isThreshold, //15
+            snapshotAveragedSamples,
+            thresholdValue,
+            timeScaleBar,
+            thresholdType,
+            forceThreshold,
+            selectedThresholdIdx,
+            // DISPLAY_CHANNEL_FIX,
+          ]);
+          currentKey = "";
+          return;
+        }
+
+        // getAllChannelsSample(samples,maxOsChannel);
+        // print("arrVisibleSamples[0]");
+        // print(arrVisibleSamples[0]);
+        iSendAudioPort.send([
+          samples,
+          level,
+          divider,
+          maxOsChannel,
+          CURRENT_START,
+          isPaused,
+          currentKey,
+          MediaQuery.of(context).size.width,
+          _lowPassFilter,
+          _highPassFilter,
+          isLowPass,
+          isHighPass,
+          isNotch50,
+          isNotch60,
+          isThreshold,
+          snapshotAveragedSamples,
+          thresholdValue,
+          timeScaleBar,
+          thresholdType,
+          forceThreshold,
+          selectedThresholdIdx,
+
+          // DISPLAY_CHANNEL_FIX,
+        ]);
+        currentKey = "";
+
+        // cBuffIdx = (cBuffIdx + arrVisibleSamples[0].length);
+        // if (cBuffIdx >= cBufferSize) {
+        //   globalIdx++;
+        //   cBuffIdx %= cBufferSize;
+        // }
+      });
+
+      // Winaudio wa = new Winaudio();
+      // String? version = await wa.getPlatformVersion();
+      // print("version");
+      // print(version);
+      return;
     }
-    eventMarkersNumber = params[len][0];
-    eventMarkersPosition = params[len][1];
+    settingParams["maxAudioChannels"] = maxOsChannel;
+    cBuffIdx = 0;
 
+    double? tempSampleRate = (await MicStream.sampleRate);
+    int? bitDepth = await MicStream.bitDepth;
+    int? bufferSize = await MicStream.bufferSize;
 
-    // double width = MediaQuery.of(context).size.width;
+    // sampleRate = tempSampleRate!.floor();
+    // int SIZE = sampleRate!.toInt() * 60 * 2;
+    // int SIZE = 48000 * 60 * 2;
+    // cBuff = CircularBuffer<int>(SIZE);
+    // Init a new Stream
+    Stream<List<int>>? stream = await MicStream.microphone(
+        audioSource: AudioSource.DEFAULT,
+        sampleRate: 48000,
+        channelConfig: ChannelConfig.CHANNEL_IN_MONO,
+        audioFormat: AudioFormat.ENCODING_PCM_16BIT);
 
-    // sampleData = WaveformData(version: 1, channels: 1, sampleRate: 44100, sampleSize: 1, bits: 1, length: 1034, data: [-23254,16644,-30935,20205,-16593,16930,-11736,13287,-18606,13789,-10566,13918,-13824,14620,-11527,8676,-12231,15098,-11159,9512,-12696,14081,-10952,11740,-12275,11320,-10848,9477,-14906,17874,-11615,12593,-13266,11521,-16097,12726,-11027,11909,-13936,12957,-12427,13551,-13273,12631,-12068,12180,-16960,10204,-11003,15350,-9547,7862,-11642,9156,-12916,11414,-12254,12014,-10904,10699,-19290,17371,-18661,14840,-10483,7772,-12001,14139,-11743,12346,-8817,7486,-13723,12268,-12806,11932,-10766,9278,-14363,10833,-10968,10201,-7769,11178,-9181,10532,-11108,10264,-9397,9859,-10956,8993,-10164,9633,-9415,11935,-9315,7894,-11991,8480,-10056,9279,-11766,10108,-8676,9179,-6572,6416,-10415,8478,-9494,10295,-10625,10694,-12682,10206,-7907,7254,-8939,6862,-7444,7746,-9598,10933,-8451,7638,-9671,10051,-11103,8560,-8351,8265,-7618,10012,-9122,6387,-8906,6005,-7509,6537,-10554,8008,-9442,7675,-7059,5806,-8574,5545,-6884,6272,-8838,7777,-7123,6712,-6712,7930,-7544,7704,-7624,7634,-7423,9566,-10375,7497,-7437,6828,-8448,7644,-7928,7369,-5000,6147,-5130,6864,-8465,7033,-6381,5755,-6005,4566,-4916,5251,-5549,4577,-8633,8432,-5557,5441,-7610,6335,-6404,8627,-6402,5347,-6471,5600,-5128,5529,-6062,5212,-7089,4902,-4649,4729,-5128,4554,-5152,4176,-5765,3603,-5866,4989,-3389,4127,-5480,4420,-6319,5139,-4871,4421,-3887,5301,-5045,3809,-5203,3625,-4372,4901,-5183,4618,-5778,4335,-3816,3887,-4553,5277,-4152,3205,-3674,3579,-3696,3572,-3956,5101,-4741,5534,-5473,3850,-4049,3141,-4748,3341,-3427,4422,-4851,3985,-4356,4846,-3412,4368,-3631,4046,-3406,2807,-3376,4007,-3634,3886,-3689,3219,-2725,2106,-3044,3071,-3348,3085,-3919,3154,-4708,3611,-3795,3468,-2688,4142,-3358,2785,-3194,3590,-2778,2962,-2843,3011,-3312,3016,-3596,2896,-2266,2318,-2694,2653,-2403,2834,-2194,1972,-2739,2152,-2862,1949,-2803,3438,-2871,2196,-1829,2132,-2549,2528,-2377,1562,-2152,2535,-2630,2717,-2292,1672,-2840,2415,-2307,2046,-1984,1766,-2259,2241,-1898,1693,-1497,1362,-1639,1986,-1748,2077,-1815,1743,-1906,1791,-1610,1541,-1629,1726,-1522,1478,-1665,1841,-1872,1383,-2102,1654,-2218,1754,-1710,1342,-1383,1168,-1351,1371,-1122,1323,-1633,1467,-1011,1221,-1144,1533,-1512,2114,-1038,687,-1687,1691,-1081,1380,-1671,1373,-1489,957,-1635,1308,-1142,975,-1216,1315,-1038,1183,-1632,1497,-1265,1182,-896,1011,-1273,965,-946,1027,-913,983,-1194,1121,-1206,1065,-1218,1070,-745,883,-997,1082,-1454,1274,-1188,1147,-1228,1031,-720,767,-1287,1075,-663,727,-607,903,-961,1347,-779,761,-1336,1049,-892,861,-1114,1363,-942,1068,-1154,1125,-784,924,-774,822,-905,860,-825,854,-551,509,-566,597,-932,739,-776,868,-665,638,-466,647,-541,667,-887,873,-891,812,-570,803,-762,716,-542,788,-618,941,-577,681,-648,883,-778,705,-820,880,-749,699,-738,903,-875,1091,-745,747,-576,528,-611,641,-548,630,-501,454,-625,517,-436,377,-573,589,-486,487,-462,458,-310,323,-376,477,-498,675,-342,454,-653,618,-550,454,-549,409,-492,659,-621,678,-499,447,-414,508,-419,354,-446,379,-609,568,-740,599,-542,456,-491,398,-374,365,-425,472,-446,421,-460,460,-586,529,-387,404,-599,548,-464,411,-410,369,-300,253,-454,444,-369,369,-441,374,-244,314,-467,428,-410,400,-310,450,-508,382,-373,414,-300,368,-364,374,-439,356,-440,472,-351,332,-429,348,-291,308,-336,318,-386,338,-350,364,-276,329,-326,314,-311,308,-263,286,-279,357,-283,349,-260,284,-317,300,-252,224,-230,204,-293,288,-300,399,-221,297,-404,372,-297,161,-178,270,-257,317,-270,253,-325,305,-257,225,-388,326,-220,211,-240,239,-277,307,-267,301,-331,327,-171,297,-270,316,-226,217,-338,319,-273,326,-224,232,-282,230,-239,216,-279,244,-235,229,-392,327,-333,275,-246,217,-253,215,-258,247,-169,213,-239,252,-212,217,-304,303,-204,199,-160,202,-284,244,-264,355,-254,207,-209,181,-147,204,-245,222,-200,195,-199,239,-294,238,-200,210,-152,167,-182,183,-261,152,-175,167,-276,284,-225,173,-208,187,-210,206,-213,212,-176,169,-202,183,-131,143,-187,170,-217,231,-202,209,-215,194,-214,227,-270,232,-283,332,-124,181,-193,202,-291,294,-170,176,-203,267,-204,174,-202,183,-160,205,-155,159,-270,259,-132,144,-159,195,-221,201,-169,189,-212,216,-146,143,-158,171,-193,179,-154,178,-211,158,-148,149,-148,176,-194,175,-143,150,-177,193,-170,146,-142,136,-153,157,-166,153,-203,181,-154,185,-164,152,-161,149,-122,145,-169,113,-187,140,-210,188,-149,163,-134,118,-157,220,-78,90,-124,157,-142,94,-188,143,-100,88,-130,108,-180,171,-130,100,-128,169,-168,141,-136,152,-144,116,-90,98,-144,151,-109,106,-145,155,-62,118,-137,165,-173,156,-160,144,-87,86,-136,161,-119,178,-113,106,-85,99,-99,98,-84,71,-148,105,-135,115,-92,105,-100,78,-87,87,-84,84,-95,118,-79,84,-101,113,-93,98,-124,86,-105,99,-111,104,-99,119,-101,100,-98,106,-127,101,-96,86,-86,107,-104,99,-67,72,-92,99,-99,98,-101,135,-122,89,-111,124,-85,75,-113,122,-84,99,-82,83,-134,116,-55,71,-104,63,-90,89,-95,86,-80,74,-80,119,-100,78,-97,94,-82,76,-118,104,-139,157,-123,132,-99,96,-100,76,-80,92,-91,96,-80,72,-83,92,-93,79,-72,70,-55,49,-69,60,-72,65,-89,72,-98,62,-84,78,-60,70,-90,83,-83,80,-98,78,-82,62,-88,72,-73,87,-57,66,-96,87,-71,63,-75,64,-47,56,-92,50,-74,80,-48,64,-116,84,-63,70,-69,59,-73,71,-91,91,-62,58,-74,62,-65,62,-49,60,-50,51,-92,71,-103,80,-91,92,-56,58,-56,51,-75,75,-68,83,-69,74,-66,84,-80,71,-75,72,-60,46,-73,68,-46,50,-71,60,-39,48,-68,56,-69,77,-60,50,-71,66,-69,77,-64,74,-71,62,-69,51,-43,40,-44,52,-63,70,-53,50,-58,62,-76,79,-71,83,-65,65,-47,46,-82,86,-45,40,-27,35,-55,41,-37,33,-48,58,-50,50,-48,35,-34,35,-56,51,-49,48,-53,55,-73,55,-50,46,-35,37,-42,60,-37,27,-49,64,-65,39,-41,49,-54,56,-49,54,-41,37,-47,60,-33,50,-47,32,-44,39,-53,53,-46,35,-44,47,-34,39,-37,31,-53,50,-41,53,-42,48,-42,42,-33,30,-41,50,-61,43,-35,29,-54,48,-38,44,-35,27,-50,41,-50,30,-54,48,-41,45,-29,25,-34,27,-43,39,-44,41,-24,25,-29,35,-36,28,-35,38,-34,34,-41,26,-29,22,-37,34,-55,54,-35,35,-27,28,-45,34,-38,29,-39,48,-34,33,-47,40,-25,27,-35,25,-32,34,-32,41,-44,44,-34,21,-33,33,-39,40,-27,29,-38,49,-33,37,-28,29,-28,27,-26,27,-30,31,-28,23,-20,23,-32,34,-20,25,-21,20,-29,26,-31,26,-35,28,-28,31,-29,24,-21,14,-32,32,-25,23,-35,34,-27,25,-27,24,-19,19,-27,31,-36,22,-21,14,-31,36,-30,29,-32,29,-26,31,-31,27,-27,23,-17,12,-37,26,-27,15,-23,24,-21,22,-14,19,-26,19,-15,18,-29,27,-25,23,-18,18,-18,23,-21,21,-18,17,-29,24,-19,19,-24,15,-21,18,-19,16,-25,26,-17,17,-16,20,-15,17,-16,15,-22,15,-18,18,-19,21,-21,18,-21,15,-22,17,-22,17,-19,25,-25,22,-22,17,-18,19,-14,13,-17,17,-15,14,-22,22,-16,15,-25,19,-28,32,-15,18,-15,21,-19,21,-16,14,-16,17,-21,18,-16,15,-14,12,-14,15,-16,22,-22,27,-19,16,-25,19,-20,20,-22,19,-16,11,-12,11,-18,15,-22,18,-11,12,-18,15,-14,12,-18,13,-15,13,-16,12,-14,11,-13,11,-18,15,-14,12,-18,16,-12,12,-14,15,-23,17,-13,14,-13,12,-13,12,-13,11,-16,14,-11,10,-13,14,-16,16,-19,17,-15,17,-15,9,-10,12,-11,7,-15,11,-12,9,-13,14,-13,12,-15,12,-17,16,-12,11,-12,14,-13,14,-10,10,-13,11,-12,11,-14,11,-13,14,-13,11,-13,10,-17,14,-15,11,-8,8,-15,16,-16,11,-12,10,-11,10,-12,14,-9,8,-11,11,-18,15,-12,8,-8,10,-12,11,-9,7,-10,9,-12,11,-11,11,-9,7,-10,10,-9,9,-11,9,-9,9,-12,8,-9,9,-9,6,-11,10,-11,8,-9,8,-9,9,-12,13,-11,9,-14,14,-12,12,-12,9,-10,10,-11,12,-15,10,-11,7,-11,10,-11,11,-12,8,-11,10,-10,12,-12,10,-10,7,-8,7,-5,4,-7,5,-12,11,-10,9,-9,7,-9,7,-8,7,-10,10,-12,10,-10,9,-8,8,-8,6,-14,9,-8,6,-11,9,-7,6,-6,7,-12,11,-12,10,-10,8,-8,6,-9,8,-7,6,-8,5,-10,6,-8,7,-11,8,-6,5,-6,7,-7,4,-7,9,-5,4,-5,3,-7,4,-8,9,-8,6,-6,5,-5,5,-7,6,-7,6,-5,5,-8,7,-8,8,-4,5,-10,6,-5,3,-5,4,-5,4,-5,5,-8,4,-6,4,-6,6,-5,3,-8,6,-7,6,-7,5,-5,5,-7,6,-8,7,-5,3,-8,7,-5,5,-7,6,-8,5,-8,6,-5,4,-6,7,-6,5,-6,5,-5,4,-4,4,-5,5,-7,5,-6,6,-5,4,-4,3,-7,5,-5,3,-6,6,-6,6,-6,6,-5,4,-7,6,-8,6,-7,5,-6,6,-5,3,-4,4,-5,5,-4,4,-6,4,-5,6,-7,5,-3,3,-5,4,-5,4,-5,3,-5,3,-4,3,-4,4,-5,4,-5,4,-4,3,-3,3,-4,3,-5,5,-7,5,-5,5,-5,5,-4,3,-5,3,-4,3,-3,3,-3,2,-3,2,-5,5,-4,3,-5,4,-4,3,-4,3,-3,2,-3,3,-4,2,-5,4,-5,2,-4,2,-5,3,-4,3,-4,3,-2,1,-3,2,-3,2,-5,4,-4,2,-4,3,-5,3,-3,3,-4,2,-3,3,-3,2,-5,3,-2,2,-6,4,-5,4,-3,2,-5,4,-3,2,-3,2,-4,3,-4,4,-4,2,-4,2,-2,2,-3,2,-4,2,-4,4,-3,2,-3,2,-2,1,-2,2,-3,2,-3,3,-3,2,-2,2,-3,2,-3,2,-3,2,-3,3,-3,2,-3,2,-3,2,-2,1,-2,3,-3,1,-2,2,-4,3,-3,2,-3,3,-3,2,-3,2,-2,1,-2,1,-3,2,-2,2,-2,1,-3,1,-2,1,-3,2,-2,1,-2,1,-2,1,-3,2,-3,2,-4,3,-3,2,-3,2,-3,2,-2,1,-3,1,-2,2,-2,2,-2,1,-3,1,-3,2,-2,1,-3,1,-3,1,-3,1,-2,1,-2,1,-3,1,-3,2,-2,1,-2,1,-2,0,-2,1] );
-    
-    // waveData.push(sampleData);
-    currentRecordingTime = DateTime.now();
-    duration = currentRecordingTime.difference(startRecordingTime);
-    // labelDuration = ( (duration.inHours) ).toString()+":"+( (duration.inMinutes) ).toString()+":"+(duration.inSeconds % 60).toString();
-    labelDuration = ( (duration.inHours) ).toString().padLeft(2,'0')+":"+( (duration.inMinutes % 60) ).toString().padLeft(2,'0')+":"+(duration.inSeconds % 60).toString().padLeft(2,'0')+"."+(duration.inMilliseconds % 1000).toString().padLeft(3,'0');
+    double _sampleRate = await MicStream.sampleRate!;
+
+    _lowPassFilter = _sampleRate / 2;
+    _highPassFilter = 0;
+    settingParams['lowFilterValue'] = _highPassFilter.floor().toString();
+    settingParams['highFilterValue'] = _lowPassFilter.floor().toString();
+
+    if (_lowPassFilter == _sampleRate / 2) {
+      isLowPass = false;
+    } else {
+      isLowPass = true;
+    }
+    if (_highPassFilter == 0) {
+      isHighPass = false;
+    } else {
+      isHighPass = true;
+    }
+
+    if (isLowPass)
+      nativec.createLowPassFilter(
+          maxOsChannel, _sampleRate, _lowPassFilter, 0.5);
+    if (isHighPass)
+      nativec.createHighPassFilter(maxOsChannel, _sampleRate,
+          _highPassFilter == 0 ? 1.0 : _highPassFilter, 0.5);
+
+    sampleRate = _sampleRate.floor();
+    List<int> envelopeSizes = [];
+    int SEGMENT_SIZE = _sampleRate.toInt();
+    int SIZE = NUMBER_OF_SEGMENTS * SEGMENT_SIZE;
+    double size = SIZE.toDouble() * 2;
+    allEnvelopes = [];
+    unitInitializeEnvelope(DISPLAY_CHANNEL_FIX, allEnvelopes, envelopeSizes,
+        size, SIZE, SIZE_LOGS2);
+    // print(" unitInitializeEnvelope :");
+    // print(allEnvelopes);
+    int cBufferSize = ((_sampleRate * 60).floor()).floor();
+    // cBuff = CircularBuffer<int>(surfaceSize);
+    _receivePort = ReceivePort();
+    _receiveAudioPort = ReceivePort();
+
+    _receiveQueue = StreamQueue(_receivePort);
+    _receiveAudioQueue = StreamQueue(_receiveAudioPort);
+
+    _isolate = await Isolate.spawn<List<dynamic>>(sampleBufferingEntryPoint, [
+      _receiveAudioPort.sendPort,
+      allEnvelopes,
+      cBufferSize,
+      _sampleRate.toDouble(),
+      myArrTimescale,
+      MediaQuery.of(context).devicePixelRatio,
+      [197]
+    ]);
+    iSendAudioPort = await _receiveAudioQueue.next;
+
+    double innerWidth = MediaQuery.of(context).size.width;
+    level = calculateLevel(10000, _sampleRate.toInt(), innerWidth, skipCounts);
+    // print("getMicrophone Data : " +
+    //     level.toString() +
+    //     " _ " +
+    //     sampleRate.toString() +
+    //     " _ " +
+    //     innerWidth.toString());
+    // print("skipCounts");
+    // print(skipCounts);
+
+    int skipCount = skipCounts[level];
+
+    Int16List envelopeSamples = allEnvelopes[0][level];
+    int prevSegment = (envelopeSamples.length / divider).floor();
+
+    cBuffDouble = List<double>.generate(prevSegment, (i) => 0);
+    cBuff = List<double>.generate(prevSegment, (i) => 0);
+    globalIdx = 0;
+    int channelIdx = 0;
+
+    // Start listening to the stream
+    audioListener?.cancel();
+    audioListener = stream?.listen((samples) async {
+      final divider = myArrTimescale[timeScaleBar] / 10;
+      if (isPaused) {
+        iSendAudioPort.send([
+          [],
+          level,
+          divider,
+          maxOsChannel,
+          CURRENT_START,
+          isPaused,
+          currentKey,
+          MediaQuery.of(context).size.width,
+          _lowPassFilter,
+          _highPassFilter,
+          isLowPass,
+          isHighPass,
+          isNotch50,
+          isNotch60,
+          isThreshold,
+          snapshotAveragedSamples,
+          thresholdValue,
+          timeScaleBar,
+          thresholdType,
+          forceThreshold,
+          selectedThresholdIdx,
+          // DISPLAY_CHANNEL_FIX,
+        ]);
+      } else {
+        iSendAudioPort.send([
+          samples,
+          level,
+          divider,
+          maxOsChannel,
+          CURRENT_START,
+          isPaused,
+          currentKey,
+          MediaQuery.of(context).size.width,
+          _lowPassFilter,
+          _highPassFilter,
+          isLowPass,
+          isHighPass,
+          isNotch50,
+          isNotch60,
+          isThreshold,
+          snapshotAveragedSamples,
+          thresholdValue,
+          timeScaleBar,
+          thresholdType,
+          forceThreshold,
+          selectedThresholdIdx,
+          // DISPLAY_CHANNEL_FIX,
+        ]);
+        currentKey = "";
+      }
+
+      /* PERFORMANCE TWEAK
+      bool first = true;
+      List<double> visibleSamples = [];
+
+      int tmp = 0;
+      Uint8List byteArray = Uint8List(2);
+      tempBuffIdx = cBuffIdx;
+      for (int sample in samples) {
+        // if (sample > 128) sample -= 255;
+        if (first) {
+          byteArray[0] = sample;
+        } else {
+          byteArray[1] = sample;
+
+          ByteData byteData = ByteData.view(byteArray.buffer);
+          tmp = (byteData.getInt16(0, Endian.little));
+          visibleSamples.add(tmp.toDouble());
+          // int interleavedSignalIdx = cBuffIdx * 2;
+
+          tmp = 0;
+        }
+        first = !first;
+      }
+      */
+
+      // // print("sending to isolate");
+      // iSendPort.send(visibleSamples);
+
+      // cBuffIdx = (cBuffIdx + visibleSamples.length);
+      // if (cBuffIdx >= cBufferSize) {
+      //   globalIdx++;
+      //   cBuffIdx %= cBufferSize;
+      // }
+      // iSendPort.send({
+      //   "cBuffIdx": cBuffIdx,
+      //   "samples": visibleSamples,
+      //   "envelopes": allEnvelopes,
+      //   "surfaceSize": surfaceSize,
+      // });
+      // iSendPort.send(visibleSamples);
+      // // print(visibleSamples);
+      // // return await _receiveQueue.next;
+      // cBuffDouble = List<double>.from(visibleSamples);
+      // setState(() {});
+    });
+    audioQueueSubscription?.cancel();
+    audioQueueSubscription = _receiveAudioQueue.rest.listen((curSamples) {
+      // final curSamples = dataToSamples(samples as Uint8List);
+
+      // cBuff.addAll(curSamples);
+      // for (int i = 0; i < curSamples.length; i++) {
+      //   cBuff[cBuffIdx] = curSamples[i].toDouble();
+      //   cBuffIdx++;
+      //   if (cBuffIdx >= surfaceSize) {
+      //     cBuffIdx = 0;
+      //   }
+      // }
+      // print("curSamples");
+      // print(curSamples);
+      // cBuffDouble = curSamples.map((i) => i.toDouble()).toList().cast<double>();
+      // cBuffDouble = cBuff.map((i) => i.toDouble()).toList().cast<double>();
+      // cBuffDouble = cBuff.toList().cast<double>();
+      // print("curSamples");
+      // print(curSamples);
+      // channelsData = List<List<double>>.from(curSamples[0]);
+      // cBuffIdx = curSamples[1];
+      // markersData = curSamples[2];
+      channelsData = [];
+      List<Int16List> convSamples = curSamples[0];
+
+      for (int i = 0; i < convSamples.length; i++) {
+        channelsData.add(
+            convSamples[i].map((e) => e.toDouble()).toList(growable: false));
+      }
+
+      cBuffIdx = curSamples[1];
+      markersData = curSamples[2];
+
+      // cBuffDouble = List<double>.from(curSamples);
+      // channelsData[0] = cBuffDouble;
+      // channelsData[1] = cBuffDouble;
+      // print("cBuffDouble");
+      // print(cBuffDouble);
+      setState(() {});
+      // print(curSamples.length);
+    });
+
+    // _receivePort.asBroadcastStream().listen((Object? samples){
+    //   print(dataToSamples(samples as Uint8List));
+    // });
 
     setState(() {
-      
+      // _counter++;
     });
-  
-
   }
 
-  showTutorial(){
-    initTargets();
+  zoomGesture(dragDetails) {
+    // const arrTimeScale = [0.1, 1, 10, 50, 100, 500, 1000, 5000, 10000];
+    int direction = 0;
+    // print("previousLevel : ");
+    // print(level);
 
-    tutorialCoachMark = TutorialCoachMark(
-      context,
-      targets: targets,
-      colorShadow: Colors.lightBlue,
-      textSkip: "SKIP",
-      paddingFocus: 10,
-      opacityShadow: 0.7,
-      onFinish: () {
-        if (tutorialStep < 6) return;
-        print("finish");
-        isPlaying = 1;
-        js.context.callMethod('recordAudio', ['Flutter is calling upon JavaScript!']);
+    int tempTimeScaleBar = timeScaleBar;
+    if (dragDetails.delta.dx == 0.0 && dragDetails.delta.dy == 0.0) {
+      return;
+    } else if (dragDetails.delta.dy > 0.0) {
+      // y0 is more bigger than y1 direction DOWN, scale both side
+      direction = -1;
+      if (timeScaleBar - 1 < 0) {
+      } else {
+        timeScaleBar--;
+      }
+    } else if (dragDetails.delta.dy < 0) {
+      // direction UP
+      direction = 1;
+      // if (timeScaleBar + 1 >= 80) {
+      if (timeScaleBar + 1 > 80) {
+        // timeScaleBar = 80;
+        // isZooming = false;
+        // CURRENT_START = 0;
+        // print('current start 0');
+        // int transformScale = (timeScaleBar / 10).floor();
 
-        storage.setItem('isTutored', '1');
-        isTutored = '1';
-        
-        setState(() {        
-        });
+        // scaleBarWidth = MediaQuery.of(context).size.width /
+        //     (arrScaleBar[timeScaleBar]) *
+        //     arrTimeScale[transformScale] /
+        //     10;
+        // curTimeScaleBar = (arrTimeScale[transformScale] / 10);
 
+        // divider = 6;
+        // level = calculateLevel(curTimeScaleBar, sampleRate, MediaQuery.of(context).size.width, skipCounts);
+        // print(level);
+        // setState((){});
 
-      },
-      onClickTarget: (target) {
-        // print('onClickTarget: $target');
-        tutorialStep++;
-        setState(() { });
-      },
-      onClickOverlay: (target) {
-        // print('onClickOverlay: $target');
-      },
-      onSkip: () {
-        // print("skip");
-        // isPlaying = 1;
-        // js.context.callMethod('recordAudio', ['Flutter is calling upon JavaScript!']);
-        // setState(() {        
-        // });
-        tutorialStep = 7;
-        print("SKIPPED");
-        isPlaying = 1;
-        js.context.callMethod('recordAudio', ['Flutter is calling upon JavaScript!']);
+        // return;
+      } else {
+        timeScaleBar++;
+      }
+    }
 
-        storage.setItem('isTutored', '1');
-        isTutored = '1';
-        
-        setState(() {        
-        });
+    if (!kIsWeb) {
+      double tempDivider = myArrTimescale[timeScaleBar] / 10;
+      int tempLevel = calculateLevel(myArrTimescale[timeScaleBar], sampleRate,
+          MediaQuery.of(context).size.width, skipCounts);
+      int prevSegment =
+          (allEnvelopes[0][tempLevel].length / tempDivider).floor();
+      // print(prevSegment);
+      if (prevSegment <= 1) {
+        timeScaleBar = tempTimeScaleBar;
+        return;
+      }
+    }
 
-      },
-    )..show();     
+    int transformScale = (timeScaleBar / 10).floor();
+
+    scaleBarWidth = MediaQuery.of(context).size.width /
+        (arrScaleBar[timeScaleBar]) *
+        arrTimeScale[transformScale] /
+        10;
+    curTimeScaleBar = (arrTimeScale[transformScale] / 10);
+    var localPosition;
+    try {
+      if (dragDetails is DragUpdateDetails) {
+        localPosition = dragDetails.localPosition;
+      } else {
+        localPosition = dragDetails.localPos;
+      }
+    } catch (err) {}
+    var data = {
+      "timeScaleBar": arrTimeScale[transformScale], // label in UI
+      "levelScale": timeScaleBar, //scrollIdx
+      // "posX": localPosition.dx,
+      "posX": localPosition.dx,
+      "direction": direction
+    };
+    if (isThreshold) {
+      data['posX'] = (MediaQuery.of(context).size.width / 2).floor();
+    }
+    // print("data");
+    // print(data);
+
+    if (timeScaleBar == -1) {
+      isZooming = false;
+      timeScale = 1;
+    } else {
+      isZooming = true;
+      timeScale = arrTimeScale[transformScale];
+    }
+
+    // level = calculateLevel(
+    //     timeScale, sampleRate, MediaQuery.of(context).size.width, skipCounts);
+    if (deviceType == 0) {
+    } else {}
+    if (kIsWeb) {
+      //   // js.context.callMethod('setZoomLevel', [json.encode(data)]);
+      //   level = calculateLevel(
+      //       timeScale, sampleRate, MediaQuery.of(context).size.width, skipCounts);
+    } else {
+      // if (isPaused){
+      setZoomLevel(data);
+      // }
+    }
+
+    // print('-----------------');
+    // double C_START =0;
+
+    // for (int i = 80; i>timeScaleBar && timeScaleBar > 0; i--){
+    //   int transformScaleIdx = (i / 10).floor();
+    //   double tempDivider = myArrTimescale[i] / 10;
+    //   int simLevel = calculateLevel(myArrTimescale[transformScaleIdx], sampleRate,
+    //       MediaQuery.of(context).size.width, skipCounts);
+
+    //   transformScaleIdx = ((i - 1) / 10).floor();
+    //   var row = {
+    //     "timeScaleBar": arrTimeScale[transformScaleIdx], // label in UI
+    //     "levelScale": i-1, //scrollIdx
+    //     "posX": localPosition.dx,
+    //     "direction": 1
+    //   };
+
+    //   C_START = simulateCurrentStartPosition(sampleRate.floor(), cBuffIdx, row,
+    //     simLevel, skipCounts[simLevel], tempDivider, surfaceWidth, false, 0, C_START, MediaQuery.of(context).devicePixelRatio, myArrTimescale, 0);
+    // }
+
+    // print("Compare : "+CURRENT_START.toString() + " _ "+C_START.toString() + " : " + timeScaleBar.toString()+" | ");
+
+    // print("after Level : ");
+    // print(level);
+    // print(timeScale);
+    // print(sampleRate);
+
+    setState(() {});
   }
 
-  getCachedWidget(){
+  @override
+  Widget build(BuildContext context) {
+    // print('MediaQuery.of(context).size.height');
+    // print(MediaQuery.maybeOf(context)?.size.height);
+
+    if (isFeedback || isSettingDialog) {
+    } else {
+      FocusScope.of(context).requestFocus(keyboardFocusNode);
+    }
+
+    if (Platform.isAndroid || Platform.isIOS) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: XGestureDetector(
+          behavior: HitTestBehavior.translucent,
+          // onScaleUpdate: (ScaleUpdateDetails details) {
+          onScaleUpdate: (details) {
+            //ScaleUpdateDetails(focalPoint: Offset(104.9, 124.4), localFocalPoint: Offset(104.9, 124.4), scale: 1.0382496909924845, horizontalScale: 1.0382496909924845, verticalScale: 1.0382496909924845, rotation: 0.0, pointerCount: 1, focalPointDelta: Offset(0.0, 0.0))
+            // print(details);
+            int channelIdx = -1;
+            double centerX = MediaQuery.of(context).size.width / 2;
+            for (int c = 0; c < channelsData.length; c++) {
+              double median =
+                  levelMedian[c] == -1 ? initialLevelMedian[c] : levelMedian[c];
+              Rect rectPoints = Rect.fromCenter(
+                  center: Offset(centerX, median),
+                  width: MediaQuery.of(context).size.width,
+                  height:
+                      MediaQuery.of(context).size.height / channelsData.length);
+              if (rectPoints.contains(details.focalPoint)) {
+                channelIdx = c;
+                break;
+              }
+            }
+
+            // print("channelIdx");
+            // print(channelIdx);
+            int c = channelIdx;
+            if (channelIdx == -1) return;
+            if (details.scale > 1) {
+              // scale Up
+              if (((details.scale * 10).round()) % 2 == 0) {
+                debouncerScale.run(() {
+                  // increaseGain(channelIdx);
+                  List<double> res = increaseGain(c);
+                  if (isThreshold) {
+                    forceThreshold = 0;
+                    if (res[0] != res[1]) {
+                      setThresholdMarker(c, thresholdMarkerTop, thresholdValue,
+                          res[0], res[1]);
+                    }
+                  }
+                });
+              }
+            } else {
+              if (((details.scale * 10).round()) % 2 == 0) {
+                debouncerScale.run(() {
+                  // decreaseGain(channelIdx);
+                  List<double> res = decreaseGain(c);
+                  if (isThreshold) {
+                    forceThreshold = 0;
+
+                    if (res[0] != res[1]) {
+                      setThresholdMarker(c, thresholdMarkerTop, thresholdValue,
+                          res[0], res[1]);
+                    }
+                  }
+                });
+              }
+              // scale Down
+            }
+          },
+          // onVerticalDragUpdate: (DragUpdateDetails details) {
+          onMoveUpdate: (details) {
+            if (Platform.isMacOS || Platform.isWindows) {
+              // debouncerTimeZoom.run(() {
+              dragDetails = details;
+              if (!kIsWeb) {
+                zoomGesture(dragDetails);
+              }
+              // });
+            } else {
+              // debouncerTimeZoom.run(() {
+              if (details.position.dx < 70) {
+                return;
+              }
+              print('details.position.dy');
+              print(details.position.dy);
+              if (details.position.dx > MediaQuery.of(context).size.width - 45
+                  // &&
+                  // (details.position.dy > thresholdValue[0] - 35 &&
+                  //     details.position.dy < thresholdValue[0] + 70)
+                  ) {
+                return;
+              }
+              dragDetails = details;
+              if (!kIsWeb) {
+                zoomGesture(dragDetails);
+              }
+              // });
+            }
+          },
+          // onVerticalDragEnd: (DragEndDetails dragEndDetails) {
+          onMoveEnd: (dragEndDetails) {
+            if (dragEndDetails.position.dx < 70) {
+              return;
+            }
+            print('details.position.dy 2');
+            print(dragEndDetails.position.dy);
+            if (dragEndDetails.position.dx >
+                    MediaQuery.of(context).size.width - 45
+                //     &&
+                // (dragEndDetails.position.dy > thresholdValue[0] - 45 &&
+                //     dragEndDetails.position.dy < thresholdValue[0] + 70)
+                ) {
+              return;
+            }
+            // debouncerTimeZoom.run(() {
+            if (kIsWeb) zoomGesture(dragDetails);
+            // });
+          },
+
+          child: Focus(
+            onKey: (FocusNode node, RawKeyEvent event) =>
+                KeyEventResult.handled,
+            child: RawKeyboardListener(
+              onKey: (key) {
+                if (isFeedback) return;
+
+                if (key.character == null) {
+                  prevKey = "~";
+                  currentKey = "";
+                } else {
+                  if (key.character.toString().codeUnitAt(0) >= 48 &&
+                      key.character.toString().codeUnitAt(0) <= 57) {
+                    if (prevKey != key.character.toString()) {
+                      prevKey = key.character.toString();
+                      if (kIsWeb) {
+                        // js.context.callMethod('setEventKeypress', [prevKey]);
+                      } else {
+                        if (globalMarkers.length + 1 >= max_markers) {
+                          globalMarkers.clear();
+                        }
+                        globalMarkers.add((prevKey.codeUnitAt(0) - 48));
+                        currentKey = prevKey;
+                      }
+                    }
+                  }
+                }
+                return;
+              },
+              focusNode: keyboardFocusNode,
+              child: isLoadingFile
+                  ? getLoadingWidget(context)
+                  : (isFeedback ? getFeedbackWidget() : getMainWidget()),
+            ),
+          ),
+        ),
+      );
+    } else {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onScaleUpdate: (ScaleUpdateDetails details) {
+            return;
+            // onScaleUpdate: (details) {
+            //ScaleUpdateDetails(focalPoint: Offset(104.9, 124.4), localFocalPoint: Offset(104.9, 124.4), scale: 1.0382496909924845, horizontalScale: 1.0382496909924845, verticalScale: 1.0382496909924845, rotation: 0.0, pointerCount: 1, focalPointDelta: Offset(0.0, 0.0))
+            // print(details);
+            int channelIdx = -1;
+            double centerX = MediaQuery.of(context).size.width / 2;
+            for (int c = 0; c < channelsData.length; c++) {
+              double median =
+                  levelMedian[c] == -1 ? initialLevelMedian[c] : levelMedian[c];
+              Rect rectPoints = Rect.fromCenter(
+                  center: Offset(centerX, median),
+                  width: MediaQuery.of(context).size.width,
+                  height:
+                      MediaQuery.of(context).size.height / channelsData.length);
+              if (rectPoints.contains(details.focalPoint)) {
+                channelIdx = c;
+                break;
+              }
+            }
+
+            // print("channelIdx");
+            // print(channelIdx);
+            if (channelIdx == -1) return;
+            if (details.scale > 1) {
+              // scale Up
+              if (((details.scale * 10).round()) % 2 == 0) {
+                debouncerScale.run(() {
+                  // increaseGain(channelIdx);
+                  List<double> res = increaseGain(channelIdx);
+                  if (isThreshold) {
+                    forceThreshold = 0;
+
+                    if (res[0] != res[1]) {
+                      setThresholdMarker(channelIdx, thresholdMarkerTop,
+                          thresholdValue, res[0], res[1]);
+                    }
+                  }
+                });
+              }
+            } else {
+              if (((details.scale * 10).round()) % 2 == 0) {
+                debouncerScale.run(() {
+                  // decreaseGain(channelIdx);
+                  List<double> res = decreaseGain(channelIdx);
+                  if (isThreshold) {
+                    forceThreshold = 0;
+
+                    if (res[0] != res[1]) {
+                      setThresholdMarker(channelIdx, thresholdMarkerTop,
+                          thresholdValue, res[0], res[1]);
+                    }
+                  }
+                });
+              }
+              // scale Down
+            }
+          },
+          onVerticalDragUpdate: (DragUpdateDetails details) {
+            // onMoveUpdate: (details) {
+            dragDetails = details;
+            if (!kIsWeb) {
+              zoomGesture(dragDetails);
+            }
+          },
+          onVerticalDragEnd: (DragEndDetails dragEndDetails) {
+            // onMoveEnd: (dragEndDetails) {
+            if (kIsWeb) zoomGesture(dragDetails);
+          },
+          // behavior: HitTestBehavior.translucent,
+          // onHorizontalDragUpdate: (DragUpdateDetails details) {
+          //   dragHorizontalDetails = details;
+          // },
+          // onHorizontalDragDown: (DragDownDetails details) {
+          //   dragDownDetails = details;
+          // },
+          // onHorizontalDragEnd: (DragEndDetails dragEndDetails) {
+          //   if (isOpeningFile == 1 && isPlaying == 2) {
+          //     if (dragHorizontalDetails.delta.dx == 0.0 &&
+          //         dragHorizontalDetails.delta.dy == 0.0) {
+          //       return;
+          //     } else {
+          //       if (dragHorizontalDetails.delta.dx > 0.0) {
+          //         // x0 is more bigger than x1 ; Hand Swipe direction LEFT,
+          //         print("SLIDE RIGHT");
+          //         print(dragDownDetails.localPosition.dx);
+          //         if (kIsWeb) {
+          //           // js.context.callMethod('setScrollDrag', [
+          //           //   1,
+          //           //   dragHorizontalDetails.delta.dx,
+          //           //   dragDownDetails.localPosition.dx,
+          //           //   horizontalDragX,
+          //           //   horizontalDragXFix
+          //           // ]);
+          //         } else {}
+          //       } else if (dragHorizontalDetails.delta.dx < 0.0) {
+          //         // x1 is more bigger than x0 ; Hand Swipe direction RIGHT,
+          //         print("SLIDE LEFT");
+          //         print(dragDownDetails.localPosition.dx);
+          //         if (kIsWeb) {
+          //           // js.context.callMethod('setScrollDrag', [
+          //           //   -1,
+          //           //   dragHorizontalDetails.delta.dx,
+          //           //   dragDownDetails.localPosition.dx,
+          //           //   horizontalDragX,
+          //           //   horizontalDragXFix
+          //           // ]);
+
+          //         } else {}
+          //       }
+          //     }
+          //   }
+          // },
+
+          // child: Focus(
+          //   onKey: (FocusNode node, RawKeyEvent event) =>
+          //       KeyEventResult.handled,
+          child: RawKeyboardListener(
+            onKey: (key) {
+              if (isFeedback) return;
+              if (key.character == null) {
+                prevKey = "~";
+                currentKey = "";
+              } else {
+                if (key.character.toString().codeUnitAt(0) >= 48 &&
+                    key.character.toString().codeUnitAt(0) <= 57) {
+                  if (prevKey != key.character.toString()) {
+                    prevKey = key.character.toString();
+                    if (kIsWeb) {
+                      // js.context.callMethod('setEventKeypress', [prevKey]);
+                    } else {
+                      if (globalMarkers.length + 1 >= max_markers) {
+                        globalMarkers.clear();
+                      }
+                      globalMarkers.add((prevKey.codeUnitAt(0) - 48));
+                      currentKey = prevKey;
+                    }
+                  }
+                }
+              }
+              return;
+            },
+            focusNode: keyboardFocusNode,
+            child: isLoadingFile
+                ? getLoadingWidget(context)
+                : (isFeedback ? getFeedbackWidget() : getMainWidget()),
+          ),
+          // ),
+        ),
+      );
+    }
+  }
+
+  void initPorts() {
+    // Platform.isWindows
+    if (Platform.isWindows || Platform.isMacOS)
+      availablePorts = SerialPort.availablePorts;
+
+    // for (final address in availablePorts) {
+
+    // getRawSerial();
+    // print('Transport' + port.transport.toTransport());
+    // print('Manufacturer' + port.manufacturer!);
+    // print('Product Name' + port.productName!);
+    // print('Serial Number' + port.serialNumber!);
+    // print('MAC Address' + port.macAddress!);
+    // }
+  }
+
+  var availablePorts = [];
+  static deviceEntryPoint(List<dynamic> data) async {
+    // var response = await https.get('https://www.thecocktaildb.com/api/json/v1/1/search.php?s=margarita');
+    print('localConfig');
+    SendPort sendPort = data[0];
+    // SharedPreferences prefs = data[1];
+    // String? localConfig = prefs.getString('localConfig');
+    // final localPath = await getTemporaryDirectory();
+    final localPath = data[1].path;
+    final localFile = File('$localPath/localConfig.txt');
+    String? localConfig;
+    bool isExist = false;
+    if (localFile.existsSync()) {
+      localConfig = (localFile).readAsStringSync();
+      isExist = true;
+    }
+    if (localConfig == null) {
+      print(localConfig);
+      localConfig = bundledBoardConfig;
+    }
+    // localConfig = bundledBoardConfig;
+    final temp = await getDeviceCatalog(localConfig);
+    // to ensure it get the latest one
+    DEVICE_CATALOG = temp[0];
+    // String internetConfig = json.encode(DEVICE_CATALOG);
+    String internetConfig = temp[1];
+    var internetConfigHash =
+        md5.convert(utf8.encode(internetConfig)).toString();
+    var localConfigHash = md5.convert(utf8.encode(localConfig)).toString();
+    print(localConfigHash + ' @ ' + internetConfigHash);
+    print(localConfigHash != internetConfigHash);
+    bool isDifferent = false;
+    if (localConfigHash != internetConfigHash) {
+      isDifferent = true;
+      print('exist?');
+      print(localConfig.substring(0, 100));
+      print(internetConfig.substring(0, 100));
+      if (!isExist) {
+        // localFile.createSync();
+        // print('isExist');
+        // print(localFile.existsSync());
+      } //53165b35e95bd1a4cdf4b82d8b6218e0 @ a640abecf8cbcfc79239780491aeae54
+      localFile.writeAsStringSync(internetConfig, flush: true);
+    }
+    // localFile.deleteSync();
+    sendPort.send(DEVICE_CATALOG); //sending data back to main thread's function
+  }
+
+  static void callGetDeviceEndPoint() async {
+    var recievePort = new ReceivePort(); //creating new port to listen data
+    // final prefs = await SharedPreferences.getInstance();
+    final prefs = await getTemporaryDirectory();
+    await Isolate.spawn<List<dynamic>>(deviceEntryPoint, [
+      recievePort.sendPort,
+      prefs
+    ]); //spawing/creating new thread as isolates.
+    recievePort.listen((message) {
+      //listening data from isolate
+      // print("DEVICE_CATALOG");
+      // print(message);
+      // bool isDifferent = message[0];
+      // DEVICE_CATALOG = message[1];
+      DEVICE_CATALOG = message;
+      // if (isDifferent){
+      //   // prefs.setString('localConfig',json.encode(DEVICE_CATALOG));
+      // }
+      // print(DEVICE_CATALOG);
+    });
+  }
+
+  List<ItemModel> menuItems = [
+    ItemModel(-1, 'Signal'),
+    ItemModel(1, 'Event 1'),
+    ItemModel(2, 'Event 2'),
+    ItemModel(3, 'Event 3'),
+    ItemModel(4, 'Event 4'),
+    ItemModel(5, 'Event 5'),
+    ItemModel(6, 'Event 6'),
+    ItemModel(7, 'Event 7'),
+    ItemModel(8, 'Event 8'),
+    ItemModel(9, 'Event 9'),
+    ItemModel(0, 'Events'),
+  ];
+  Widget _buildPopupMenu() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(5),
+      child: Container(
+          width: 120,
+          color: const Color(0xFF4C4C4C),
+          child: ListView(
+            padding: EdgeInsets.symmetric(horizontal: 5, vertical: 10),
+            // crossAxisCount: 5,
+            // crossAxisSpacing: 0,
+            // mainAxisSpacing: 10,
+            shrinkWrap: true,
+            physics: NeverScrollableScrollPhysics(),
+            children: menuItems
+                .map((item) => Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        GestureDetector(
+                          onTap: () {
+                            // print("onpress");
+                            // print(item.idx);
+                            thresholdType = item.idx;
+                            nativec.setTriggerTypeProcess(0, thresholdType);
+
+                            globalMarkers.clear();
+                            markersData.clear();
+                            // isChangingThresholdType = true;
+                            // Future.delayed(Duration(milliseconds: 2000), () {
+                            //   isChangingThresholdType = false;
+                            // });
+
+                            setState(() {});
+                          },
+                          child: Container(
+                            margin: EdgeInsets.only(top: 5, bottom: 5),
+                            child: Text(
+                              item.title,
+                              style:
+                                  TextStyle(color: Colors.white, fontSize: 15),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ))
+                .toList(),
+          )),
+    );
+  }
+
+  void initState() {
+    super.initState();
+    getCachedWidget();
+    calculateArrScaleBar();
+    // getDeviceCatalog();
+    // Future.delayed(new Duration(seconds: 5), () {
+    callGetDeviceEndPoint();
+    // });
+
+    initPorts();
+    Future.delayed(new Duration(milliseconds: 10), () {
+      int transformScale = (timeScaleBar / 10).floor();
+      print("(arrScaleBar[timeScaleBar]) * arrTimeScale[transformScale] / 10");
+      print(arrScaleBar[timeScaleBar]);
+      print(arrTimescaleBar[transformScale]);
+
+      scaleBarWidth = MediaQuery.of(context).size.width /
+          (arrScaleBar[timeScaleBar]) *
+          arrTimeScale[transformScale] /
+          10;
+    });
+    getMicrophoneData();
+  }
+
+  //Platform.isWindows
+  void closeRawSerial() async {
+    try {
+      port.close();
+    } catch (err) {}
+
+    try {
+      serialPort.close();
+      serialPort.dispose();
+      serialReader.close();
+      closeIsolate();
+    } catch (err) {}
+  }
+
+  void closeAudio() {
+    try {
+      winAudioSubscription?.cancel();
+      audioListener?.cancel();
+      audioQueueSubscription?.cancel();
+      _isolate.close();
+    } catch (err) {}
+  }
+
+  void getSerialParsing() async {
+    if (DEVICE_CATALOG.keys.length == 0) {
+      return;
+    }
+    closeAudio();
+    DISPLAY_CHANNEL = 1;
+    String deviceType = 'serial';
+    int numberOfChannels = DISPLAY_CHANNEL;
+    double _sampleRate = 10000;
+    sampleRate = _sampleRate.floor();
+    List<int> envelopeSizes = [];
+    int SEGMENT_SIZE = _sampleRate.toInt();
+    int SIZE = NUMBER_OF_SEGMENTS * SEGMENT_SIZE;
+    double size = SIZE.toDouble() * 2;
+
+    _sendAnalyticsEvent("button_serial_connected", {
+      "device": "Serial",
+      "deviceType": 'serial',
+      "isStartingSerial": 1,
+      "isStartingAudio": 0
+    });
+    this.deviceType = 1;
+    closeIsolate();
+    allEnvelopes = [];
+    unitInitializeEnvelope(
+        6, allEnvelopes, envelopeSizes, size, SIZE, SIZE_LOGS2);
+    int surfaceSize = ((_sampleRate * NUMBER_OF_SEGMENTS).floor());
+
+    // Uint8List circularBuffer = Uint8List(RAW_SIZE_OF_INPUT_HARDWARE_CIRC_BUFFER);
+    Uint8List circularBuffer = Uint8List(0);
+    iReceiveDeviceInfoPort = ReceivePort();
+    iReceiveExpansionDeviceInfoPort = ReceivePort();
+
+    _isolate = await Isolate.spawn<List<dynamic>>(serialBufferingEntryPoint, [
+      _receivePort.sendPort,
+      allEnvelopes,
+      surfaceSize,
+      circularBuffer,
+      deviceType,
+      DEVICE_CATALOG,
+      iReceiveDeviceInfoPort.sendPort,
+      iReceiveExpansionDeviceInfoPort.sendPort,
+      _sampleRate,
+      [217]
+    ]);
+    iSendPort = await _receiveQueue.next;
+
+    double innerWidth = MediaQuery.of(context).size.width;
+    level = calculateLevel(10000, _sampleRate.toInt(), innerWidth, skipCounts);
+    print("Serial Level : " + level.toString());
+    int skipCount = skipCounts[level];
+
+    iReceiveExpansionDeviceInfoPort.listen((message) {
+      EXPANSION_BOARD = message;
+      //change sample rate, channels
+      sampleRate = EXPANSION_BOARD['maxSampleRate'];
+      DISPLAY_CHANNEL = CURRENT_DEVICE['maxNumberOfChannels'] +
+          EXPANSION_BOARD['maxNumberOfChannels'];
+      DISPLAY_CHANNEL_FIX = CURRENT_DEVICE['maxNumberOfChannels'];
+      numberOfChannels = DISPLAY_CHANNEL;
+    });
+    iReceiveDeviceInfoPort.listen((message) {
+      print("DEVICE_CATALOG MESSAGE");
+      print(message);
+
+      CURRENT_DEVICE = DEVICE_CATALOG[message];
+      print(CURRENT_DEVICE);
+      minChannels = 1;
+      int maxExpansionChannels = 0;
+      List<int> sampleRates = [];
+      if (CURRENT_DEVICE["expansionBoards"].length > 0) {
+        minChannels = int.parse(CURRENT_DEVICE['maxNumberOfChannels']);
+        // sampleRates.add(int.parse(CURRENT_DEVICE["maxSampleRate"])/minChannels);
+        CURRENT_DEVICE['expansionBoards'].forEach((board) {
+          maxExpansionChannels = max(
+              maxExpansionChannels, int.parse(board['maxNumberOfChannels']));
+        });
+        maxChannels = minChannels + maxExpansionChannels;
+      } else if (maxExpansionChannels == 0) {
+        maxChannels = int.parse(CURRENT_DEVICE['maxNumberOfChannels']);
+        if (CURRENT_DEVICE["channels"].length > 5) {
+          minChannels = 1;
+        } else {
+          minChannels = int.parse(CURRENT_DEVICE['maxNumberOfChannels']);
+        }
+      }
+
+      sampleRate =
+          (int.parse(CURRENT_DEVICE['maxSampleRate']) / minChannels).floor();
+      // print(sampleRate);
+      DISPLAY_CHANNEL_FIX = minChannels;
+      if (maxChannels > 5) {
+        DISPLAY_CHANNEL = 1;
+      } else {
+        // DISPLAY_CHANNEL = maxChannels;
+        DISPLAY_CHANNEL = minChannels;
+      }
+      numberOfChannels = DISPLAY_CHANNEL;
+
+      // List<int> channels = [];
+
+      // for (int i = minChannels; i <= maxChannels; i++) {
+      //   channels.add(i);
+      // }
+      // var params = {
+      //   "maxSamplingRate": 1000,
+      //   "minChannels": minChannels,
+      //   "maxChannels": maxChannels,
+      //   "channels": channels,
+      //   "sampleRates": [10000, 5000, 3333, 2500, 2000, 1666],
+      //   "baudRate": 222222,
+      // };
+      // '67_1240' : { //Muscle SpikerShield
+      //     "deviceIdx" : 4,
+      //     "maxSamplingRate" : 10000,
+      //     "minChannels" : 1,
+      //     "maxChannels" : 6,
+      //     "channels" : [1,2,3,4,5,6],
+      //     "sampleRates" : [10000,5000,3333,2500,2000,1666],
+      //     "baudRate" : 222222,
+      // },
+      // extraChannels = params[0];
+      // minChannels = params[1];
+      // maxChannels = params[2];
+      // settingParams["channelCount"] = minChannels;
+      for (int c = 0; c < maxChannels; c++) {
+        double idx = listIndexSerial[c];
+        channelGains[c] = listChannelSerial[idx.toInt()];
+
+        double heightFactor = (channelGains[c] / signalMultiplier);
+        thresholdValue[c] = ((thresholdMarkerTop[c] +
+                        12 -
+                        (levelMedian[c] == -1
+                            ? initialLevelMedian[c]
+                            : levelMedian[c]))
+                    .floor() *
+                heightFactor)
+            .floor();
+      }
+
+      callbackGetDeviceInfo([maxExpansionChannels, minChannels, maxChannels]);
+    });
+
+    Int16List envelopeSamples = allEnvelopes[0][level];
+    int divider = 60;
+    int prevSegment = (envelopeSamples.length / divider).floor();
+
+    cBuffDouble = List<double>.generate(prevSegment, (i) => 0);
+    cBuff = List<double>.generate(prevSegment, (i) => 0);
+    globalIdx = 0;
+    int channelIdx = 0;
+    if (Platform.isAndroid) {
+      List<UsbDevice> devices = await UsbSerial.listDevices();
+      print(devices);
+
+      // alert(context,title: Text('Alert5'),content: Text(devices.toString()),textOK: Text('Yes'),);
+      if (devices.length == 0) {
+        return;
+      }
+      port = (await devices[0].create())!;
+
+      bool openResult = await port.open();
+      if (!openResult) {
+        print("Failed to open");
+        // alert(context,title: Text('Failed'),content: Text("Failed to open"),textOK: Text('Yes'),);
+        return;
+      }
+
+      await port.setDTR(false);
+      await port.setRTS(true);
+
+      port.setPortParameters(
+          222222, UsbPort.DATABITS_8, UsbPort.STOPBITS_1, UsbPort.PARITY_NONE);
+
+      // print first result and close port.
+      bool isReceiving = false;
+      Future.delayed(Duration(milliseconds: 2000), () {
+        isReceiving = true;
+      });
+      port.inputStream?.listen((Uint8List samples) {
+        // if (!isReceiving) return;
+        // List<int> visibleSamples = [];
+        // for (int sample in samples) {
+        //   visibleSamples.add(sample);
+        // }
+        final divider = myArrTimescale[timeScaleBar] / 10;
+        int maxSampleRate = 10000;
+        if (CURRENT_DEVICE.keys.length > 0) {
+          maxSampleRate = int.parse(CURRENT_DEVICE['maxSampleRate']);
+        }
+
+        // var timeScale = arrTimeScale[transformScale];
+        //10000;//
+        level = calculateLevel(timeScale, sampleRate, innerWidth, skipCounts);
+        iSendPort.send([
+          // isPaused ? List<int>.generate(0, (index) => 0) : visibleSamples,
+          isPaused ? List<int>.generate(0, (index) => 0) : samples,
+          level,
+          divider,
+          DISPLAY_CHANNEL,
+          sampleRate,
+          maxSampleRate,
+          CURRENT_START,
+          isPaused,
+          currentKey,
+          MediaQuery.of(context).size.width, //10
+          _lowPassFilter,
+          _highPassFilter,
+          isLowPass,
+          isHighPass,
+          isNotch50, //15
+          isNotch60,
+          isThreshold,
+          snapshotAveragedSamples,
+          thresholdValue,
+          thresholdType,
+          forceThreshold,
+          selectedThresholdIdx,
+        ]);
+        currentKey = "";
+      });
+
+      _receiveQueue.rest.listen((curSamples) {
+        if (!isReceiving) return;
+        if (isChangingThresholdType) {
+          print("isChangingThresholdType");
+          globalMarkers.clear();
+          markersData.clear();
+
+          return;
+        }
+        // cBuffDouble
+        // channelsData = List<Int16List>.from(curSamples[0]);
+        channelsData = [];
+        List<Int16List> convSamples = curSamples[0];
+        for (int i = 0; i < convSamples.length; i++) {
+          channelsData.add(
+              convSamples[i].map((e) => e.toDouble()).toList(growable: false));
+        }
+
+        cBuffIdx = curSamples[1];
+        markersData = List<double>.from(curSamples[2]);
+        globalMarkers = List<int>.from(curSamples[3]);
+        print(globalMarkers);
+
+        setState(() {});
+      });
+
+      Future.delayed(new Duration(seconds: 2), () {
+        print('getDeviceInfo');
+        getDeviceInfo();
+      });
+
+      return;
+    } else if (Platform.isIOS) {
+      // Mfi.initMfi();
+      Mfi.initMfi();
+      Mfi.getDeviceStatusStream().listen((event) {
+        print("Device Status Stream");
+        print(event);
+        alert(
+          context,
+          title: Text('Alert5'),
+          content: Text(event.toString()),
+          textOK: Text('Yes'),
+        );
+      });
+
+      Mfi.getSpikeStatusStream().listen((samples) {
+        List<int> visibleSamples = [];
+        for (int sample in samples) {
+          visibleSamples.add(sample);
+        }
+
+        final divider = myArrTimescale[timeScaleBar] / 10;
+        final maxSampleRate = int.parse(CURRENT_DEVICE['maxSampleRate']);
+        level = calculateLevel(timeScale, sampleRate, innerWidth, skipCounts);
+
+        iSendPort.send([
+          isPaused ? List<int>.generate(0, (index) => 0) : visibleSamples,
+          level,
+          divider,
+          DISPLAY_CHANNEL,
+          sampleRate,
+          maxSampleRate,
+          CURRENT_START,
+          isPaused,
+          currentKey,
+          MediaQuery.of(context).size.width, //10
+          _lowPassFilter,
+          _highPassFilter,
+          isLowPass,
+          isHighPass,
+          isNotch50, //15
+          isNotch60,
+          isThreshold,
+          snapshotAveragedSamples,
+          thresholdValue,
+          thresholdType,
+          forceThreshold,
+          selectedThresholdIdx,
+        ]);
+        currentKey = "";
+      });
+
+      _receiveQueue.rest.listen((curSamples) {
+        // cBuffDouble = List<double>.from(curSamples);
+/*        
+        channelsData = List<List<double>>.from(curSamples[0]);
+        cBuffIdx = curSamples[1];
+        markersData = List<double>.from(curSamples[2]);
+        globalMarkers = List<int>.from(curSamples[3]);
+
+        setState(() {});
+*/
+        if (isChangingThresholdType) {
+          print("isChangingThresholdType");
+          globalMarkers.clear();
+          markersData.clear();
+
+          return;
+        }
+        // cBuffDouble
+        // channelsData = List<Int16List>.from(curSamples[0]);
+        channelsData = [];
+        List<Int16List> convSamples = curSamples[0];
+        for (int i = 0; i < convSamples.length; i++) {
+          channelsData.add(
+              convSamples[i].map((e) => e.toDouble()).toList(growable: false));
+        }
+
+        cBuffIdx = curSamples[1];
+        markersData = List<double>.from(curSamples[2]);
+        globalMarkers = List<int>.from(curSamples[3]);
+        print(globalMarkers);
+
+        setState(() {});
+      });
+
+      return;
+    }
+
+    //ELSE IF NOT ANDROID
+    var address = availablePorts.last;
+    serialPort = SerialPort(address);
+    // var data = asciiToUint8Array("c:"+channelParam.channelCount+";\n");
+    if (!serialPort.openReadWrite()) {
+      print("SerialPort.lastError");
+      print(SerialPort.lastError);
+    }
+
+    SerialPortConfig config = SerialPortConfig();
+    config.baudRate = 222222;
+    config.stopBits = 1;
+    config.dtr = 1;
+    config.rts = 1;
+    config.parity = 0;
+    config.bits = 8;
+    config.setFlowControl(SerialPortFlowControl.none);
+    serialPort.config = config;
+
+    print(serialPort.config.baudRate.toString());
+    Future.delayed(new Duration(seconds: 2), () {
+      getDeviceInfo();
+      // DISPLAY_CHANNEL = 4;
+      // numberOfChannels = DISPLAY_CHANNEL;
+      // var data = asciiToUint8Array("c:" + DISPLAY_CHANNEL.toString() + ";\n");
+      // serialPort.write(data);
+    });
+
+    serialReader = SerialPortReader(serialPort);
+    serialReader.stream.listen((samples) {
+      bool first = true;
+      List<int> visibleSamples = [];
+      // change to rawBytes not visible Samples
+      for (int sample in samples) {
+        visibleSamples.add(sample);
+      }
+
+      final divider = myArrTimescale[timeScaleBar] / 10;
+      int maxSampleRate = 1;
+      if (CURRENT_DEVICE['maxSampleRate'] != null) {
+        maxSampleRate = int.parse(CURRENT_DEVICE['maxSampleRate']);
+      } else {
+        maxSampleRate = sampleRate;
+      }
+      level = calculateLevel(timeScale, sampleRate, innerWidth, skipCounts);
+
+      iSendPort.send([
+        isPaused ? List<int>.generate(0, (index) => 0) : visibleSamples,
+        level,
+        divider,
+        DISPLAY_CHANNEL,
+        sampleRate,
+        maxSampleRate,
+        CURRENT_START,
+        isPaused,
+        currentKey,
+        MediaQuery.of(context).size.width, //10
+        _lowPassFilter,
+        _highPassFilter,
+        isLowPass,
+        isHighPass,
+        isNotch50, //15
+        isNotch60,
+        isThreshold,
+        snapshotAveragedSamples,
+        thresholdValue,
+        thresholdType,
+        forceThreshold,
+        selectedThresholdIdx,
+      ]);
+      currentKey = "";
+    });
+
+    bool isReceiving = false;
+    Future.delayed(const Duration(milliseconds: 2000), () {
+      isReceiving = true;
+    });
+    _receiveQueue.rest.listen((curSamples) {
+      if (!isReceiving) return;
+      if (isChangingThresholdType) {
+        print("isChangingThresholdType " + thresholdType.toString());
+        globalMarkers.clear();
+        markersData.clear();
+
+        return;
+      }
+
+      // channelsData = [];
+      // int viewChannel = min(DISPLAY_CHANNEL, curSamples.length);
+      // for (int i = 0; i < viewChannel; i++) {
+      //   var tempBuffDouble = List<double>.from(curSamples[0][i]);
+      //   channelsData.add(tempBuffDouble);
+      // }
+      // channelsData = List<Int16List>.from(curSamples[0]);
+      channelsData = [];
+      List<Int16List> convSamples = curSamples[0];
+      for (int i = 0; i < convSamples.length; i++) {
+        channelsData.add(
+            convSamples[i].map((e) => e.toDouble()).toList(growable: false));
+        // if (i == 3){
+        //   print('convSamples 1');
+        //   print(convSamples[i].sublist(0,10));
+        // }
+      }
+
+      cBuffIdx = curSamples[1];
+      markersData = List<double>.from(curSamples[2]);
+      // print('curSamples');
+      // print(curSamples);
+      // markersData = (curSamples[2] as List<int>).map((e) => e.toDouble()).toList(growable:false);
+      globalMarkers = List<int>.from(curSamples[3]);
+      if (isThreshold && thresholdType == -1) {
+        globalMarkers.clear();
+        markersData.clear();
+      }
+
+      // var cBuffDouble2 = List<double>.generate(
+      //     cBuffDouble.length, (index) => index.toDouble());
+      // channelsData[1] = cBuffDouble;
+
+      setState(() {});
+    });
+  }
+
+  void getMfiTest() async {
+    double _sampleRate = 10000;
+    List<int> envelopeSizes = [];
+    int SEGMENT_SIZE = _sampleRate.toInt();
+    int SIZE = NUMBER_OF_SEGMENTS * SEGMENT_SIZE;
+    double size = SIZE.toDouble() * 2;
+    allEnvelopes = [];
+    unitInitializeEnvelope(
+        1, allEnvelopes, envelopeSizes, size, SIZE, SIZE_LOGS2);
+    int surfaceSize = ((_sampleRate * 60).floor()).floor();
+
+    _isolate = await Isolate.spawn<List<dynamic>>(sampleBufferingEntryPoint, [
+      _receivePort.sendPort,
+      allEnvelopes,
+      surfaceSize,
+      _sampleRate.toDouble(),
+      [197]
+    ]);
+    iSendPort = await _receiveQueue.next;
+
+    double innerWidth = MediaQuery.of(context).size.width;
+    level = calculateLevel(10000, _sampleRate.toInt(), innerWidth, skipCounts);
+    int skipCount = skipCounts[level];
+
+    Int16List envelopeSamples = allEnvelopes[0][level];
+    int divider = 60;
+    int prevSegment = (envelopeSamples.length / divider).floor();
+
+    cBuffDouble = List<double>.generate(prevSegment, (i) => 0);
+    cBuff = List<double>.generate(prevSegment, (i) => 0);
+    globalIdx = 0;
+    int channelIdx = 0;
+
+    Mfi.initMfi();
+    Mfi.getDeviceStatusStream().listen((event) {
+      print("Device Status Stream");
+      print(event);
+      alert(
+        context,
+        title: Text('Alert5'),
+        content: Text(event.toString()),
+        textOK: Text('Yes'),
+      );
+    });
+
+    Mfi.getSpikeStatusStream().listen((samples) {
+      print("Spike Status Stream");
+      print(samples);
+      bool first = true;
+      List<double> visibleSamples = [];
+
+      int tmp = 0;
+      Uint8List byteArray = Uint8List(2);
+      tempBuffIdx = cBuffIdx;
+      for (int sample in samples) {
+        // if (sample > 128) sample -= 255;
+        if (first) {
+          byteArray[0] = sample;
+        } else {
+          byteArray[1] = sample;
+
+          ByteData byteData = ByteData.view(byteArray.buffer);
+          tmp = (byteData.getInt16(0, Endian.little));
+          visibleSamples.add(tmp.toDouble());
+          // int interleavedSignalIdx = cBuffIdx * 2;
+
+          tmp = 0;
+        }
+        first = !first;
+        // visibleSamples.add(-50 * sample.toDouble());
+      }
+      final divider = myArrTimescale[timeScaleBar] / 10;
+      iSendPort.send([visibleSamples, level, divider, DISPLAY_CHANNEL]);
+      cBuffIdx = (cBuffIdx + visibleSamples.length);
+      if (cBuffIdx >= surfaceSize) {
+        globalIdx++;
+        cBuffIdx %= surfaceSize;
+      }
+    });
+
+    _receiveQueue.rest.listen((curSamples) {
+      cBuffDouble = List<double>.from(curSamples);
+      setState(() {});
+    });
+
+    // Mfi.setDeviceStatus("connected");
+  }
+
+  void getWebSerial() {
+    // js.context
+    //     .callMethod('recordSerial', ['Flutter is calling upon JavaScript!']);
+  }
+
+  // UI
+
+  getCachedWidget() {
     // if (feedbackButton != null){
     {
       feedbackButton = Positioned(
-        key : keyTutorialEnd,
-        top:10,
-        right:80,
+        key: keyTutorialEnd,
+        top: 10,
+        right: 80,
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(
             fixedSize: const Size(50, 50),
-            shape : const CircleBorder(),
+            shape: const CircleBorder(),
             shadowColor: Colors.blue,
             primary: Colors.white,
             onPrimary: Colors.green,
             onSurface: Colors.red,
           ),
-          child: const Icon(Icons.question_answer_rounded, color: Color(0xFF800000),),
-          onPressed: (){
+          child: const Icon(
+            Icons.question_answer_rounded,
+            color: Color(0xFF800000),
+          ),
+          onPressed: () {
             isFeedback = true;
             _sendAnalyticsEvent("button_feedback", {
-              "deviceType" : deviceType,
-              "isStarting" : 1,
-              "isStartingAudio" : 0
+              "deviceType": deviceType,
+              "isStarting": 1,
+              "isStartingAudio": 0
             });
 
             setState(() {});
@@ -1012,2021 +4997,1782 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       );
     }
-    // if (openFileButton != null) {
-    {
-      openFileButton =         
+    openFileButton =
         // // HIDE FOR NOW!
         // // OPEN FILE
         Positioned(
-          top:10,
-          right:10,
-          child:ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              fixedSize: const Size(50, 50),
-              shape : const CircleBorder(),
-              shadowColor: Colors.blue,
-              primary: Colors.white,
-              onPrimary: Colors.green,
-              onSurface: Colors.red,
-            ),
-            
-            onPressed: () async {
-              js.context.callMethod('openReadWavFile', ["openReadWavFile"]);
-              _sendAnalyticsEvent("button_open_file", {
-                "isOpeningFile" : 1
-              });
-              // FilePickerResult? result = await FilePicker.platform.pickFiles(type:FileType.custom,allowedExtensions: ["wav"]);
-
-              // if (result != null) {
-              //   isLocal = true;
-              //   Uint8List fileBytes = result.files.first.bytes!;
-              //   String fileName = result.files.first.name;
-              //   WavReader wavReader = WavReader();
-              //   (wavReader).open(pbytes: fileBytes);
-              //   // WavReader wav = wavReader;
-                
-              //   // chartData = fileBytes.toList().cast<double>();
-              //   // chartData = wavReader.readSamples().cast<double>();
-              //   // sampleData = WaveformData(version: 1, channels: wavReader.numChannels, sampleRate: wavReader.sampleRate, sampleSize: 64, bits: wavReader.bitsPerSample, length: wavReader.audioLength.toInt(), data: wavReader.readSamples().cast<double>() );
-              //   channels = [];
-              //   try{
-              //     // print("wavReader.channels.length");
-              //     // print(wavReader.channels.length);
-              //     for (int i =0;i<wavReader.channels.length;i++){
-              //       // print("wavReader.channels[i]");
-              //       // print(wavReader.channels[i]);
-              //       // print(wavReader.channels[i]!.cast<double>());
-              //       var samples = wavReader.channels[i]!.cast<double>();
-              //       // print("samples");
-              //       // print(samples);
-              //       channels.add( WaveformData(version: 1, channels: wavReader.numChannels, sampleRate: wavReader.sampleRate, sampleSize: 16, bits: wavReader.bitsPerSample, length: wavReader.audioLength.toInt(), data: samples ) );
-              //       // print(channels[i]);
-              //     }
-
-              //   }catch(err){
-              //     print("err");
-              //     print(err);
-              //   }
-
-
-              //   // print("chartData.length");
-              //   // print(chartData.length);
-              //   // sampleData = WaveformData(version: 1, channels: 1, sampleRate: this.sampleRate, sampleSize: 128, bits: 16, length: fileBytes.length, data: List.from(fileBytes) );
-              //   // print(fileBytes.toList());
-              //   // sampleData = WaveformData.fromJson('{"version":2,"channels":1,"sample_rate":44100,"samples_per_pixel":64,"bits":16,"length":1034,"data":[-23254,16644,-30935,20205,-16593,16930,-11736,13287,-18606,13789,-10566,13918,-13824,14620,-11527,8676,-12231,15098,-11159,9512,-12696,14081,-10952,11740,-12275,11320,-10848,9477,-14906,17874,-11615,12593,-13266,11521,-16097,12726,-11027,11909,-13936,12957,-12427,13551,-13273,12631,-12068,12180,-16960,10204,-11003,15350,-9547,7862,-11642,9156,-12916,11414,-12254,12014,-10904,10699,-19290,17371,-18661,14840,-10483,7772,-12001,14139,-11743,12346,-8817,7486,-13723,12268,-12806,11932,-10766,9278,-14363,10833,-10968,10201,-7769,11178,-9181,10532,-11108,10264,-9397,9859,-10956,8993,-10164,9633,-9415,11935,-9315,7894,-11991,8480,-10056,9279,-11766,10108,-8676,9179,-6572,6416,-10415,8478,-9494,10295,-10625,10694,-12682,10206,-7907,7254,-8939,6862,-7444,7746,-9598,10933,-8451,7638,-9671,10051,-11103,8560,-8351,8265,-7618,10012,-9122,6387,-8906,6005,-7509,6537,-10554,8008,-9442,7675,-7059,5806,-8574,5545,-6884,6272,-8838,7777,-7123,6712,-6712,7930,-7544,7704,-7624,7634,-7423,9566,-10375,7497,-7437,6828,-8448,7644,-7928,7369,-5000,6147,-5130,6864,-8465,7033,-6381,5755,-6005,4566,-4916,5251,-5549,4577,-8633,8432,-5557,5441,-7610,6335,-6404,8627,-6402,5347,-6471,5600,-5128,5529,-6062,5212,-7089,4902,-4649,4729,-5128,4554,-5152,4176,-5765,3603,-5866,4989,-3389,4127,-5480,4420,-6319,5139,-4871,4421,-3887,5301,-5045,3809,-5203,3625,-4372,4901,-5183,4618,-5778,4335,-3816,3887,-4553,5277,-4152,3205,-3674,3579,-3696,3572,-3956,5101,-4741,5534,-5473,3850,-4049,3141,-4748,3341,-3427,4422,-4851,3985,-4356,4846,-3412,4368,-3631,4046,-3406,2807,-3376,4007,-3634,3886,-3689,3219,-2725,2106,-3044,3071,-3348,3085,-3919,3154,-4708,3611,-3795,3468,-2688,4142,-3358,2785,-3194,3590,-2778,2962,-2843,3011,-3312,3016,-3596,2896,-2266,2318,-2694,2653,-2403,2834,-2194,1972,-2739,2152,-2862,1949,-2803,3438,-2871,2196,-1829,2132,-2549,2528,-2377,1562,-2152,2535,-2630,2717,-2292,1672,-2840,2415,-2307,2046,-1984,1766,-2259,2241,-1898,1693,-1497,1362,-1639,1986,-1748,2077,-1815,1743,-1906,1791,-1610,1541,-1629,1726,-1522,1478,-1665,1841,-1872,1383,-2102,1654,-2218,1754,-1710,1342,-1383,1168,-1351,1371,-1122,1323,-1633,1467,-1011,1221,-1144,1533,-1512,2114,-1038,687,-1687,1691,-1081,1380,-1671,1373,-1489,957,-1635,1308,-1142,975,-1216,1315,-1038,1183,-1632,1497,-1265,1182,-896,1011,-1273,965,-946,1027,-913,983,-1194,1121,-1206,1065,-1218,1070,-745,883,-997,1082,-1454,1274,-1188,1147,-1228,1031,-720,767,-1287,1075,-663,727,-607,903,-961,1347,-779,761,-1336,1049,-892,861,-1114,1363,-942,1068,-1154,1125,-784,924,-774,822,-905,860,-825,854,-551,509,-566,597,-932,739,-776,868,-665,638,-466,647,-541,667,-887,873,-891,812,-570,803,-762,716,-542,788,-618,941,-577,681,-648,883,-778,705,-820,880,-749,699,-738,903,-875,1091,-745,747,-576,528,-611,641,-548,630,-501,454,-625,517,-436,377,-573,589,-486,487,-462,458,-310,323,-376,477,-498,675,-342,454,-653,618,-550,454,-549,409,-492,659,-621,678,-499,447,-414,508,-419,354,-446,379,-609,568,-740,599,-542,456,-491,398,-374,365,-425,472,-446,421,-460,460,-586,529,-387,404,-599,548,-464,411,-410,369,-300,253,-454,444,-369,369,-441,374,-244,314,-467,428,-410,400,-310,450,-508,382,-373,414,-300,368,-364,374,-439,356,-440,472,-351,332,-429,348,-291,308,-336,318,-386,338,-350,364,-276,329,-326,314,-311,308,-263,286,-279,357,-283,349,-260,284,-317,300,-252,224,-230,204,-293,288,-300,399,-221,297,-404,372,-297,161,-178,270,-257,317,-270,253,-325,305,-257,225,-388,326,-220,211,-240,239,-277,307,-267,301,-331,327,-171,297,-270,316,-226,217,-338,319,-273,326,-224,232,-282,230,-239,216,-279,244,-235,229,-392,327,-333,275,-246,217,-253,215,-258,247,-169,213,-239,252,-212,217,-304,303,-204,199,-160,202,-284,244,-264,355,-254,207,-209,181,-147,204,-245,222,-200,195,-199,239,-294,238,-200,210,-152,167,-182,183,-261,152,-175,167,-276,284,-225,173,-208,187,-210,206,-213,212,-176,169,-202,183,-131,143,-187,170,-217,231,-202,209,-215,194,-214,227,-270,232,-283,332,-124,181,-193,202,-291,294,-170,176,-203,267,-204,174,-202,183,-160,205,-155,159,-270,259,-132,144,-159,195,-221,201,-169,189,-212,216,-146,143,-158,171,-193,179,-154,178,-211,158,-148,149,-148,176,-194,175,-143,150,-177,193,-170,146,-142,136,-153,157,-166,153,-203,181,-154,185,-164,152,-161,149,-122,145,-169,113,-187,140,-210,188,-149,163,-134,118,-157,220,-78,90,-124,157,-142,94,-188,143,-100,88,-130,108,-180,171,-130,100,-128,169,-168,141,-136,152,-144,116,-90,98,-144,151,-109,106,-145,155,-62,118,-137,165,-173,156,-160,144,-87,86,-136,161,-119,178,-113,106,-85,99,-99,98,-84,71,-148,105,-135,115,-92,105,-100,78,-87,87,-84,84,-95,118,-79,84,-101,113,-93,98,-124,86,-105,99,-111,104,-99,119,-101,100,-98,106,-127,101,-96,86,-86,107,-104,99,-67,72,-92,99,-99,98,-101,135,-122,89,-111,124,-85,75,-113,122,-84,99,-82,83,-134,116,-55,71,-104,63,-90,89,-95,86,-80,74,-80,119,-100,78,-97,94,-82,76,-118,104,-139,157,-123,132,-99,96,-100,76,-80,92,-91,96,-80,72,-83,92,-93,79,-72,70,-55,49,-69,60,-72,65,-89,72,-98,62,-84,78,-60,70,-90,83,-83,80,-98,78,-82,62,-88,72,-73,87,-57,66,-96,87,-71,63,-75,64,-47,56,-92,50,-74,80,-48,64,-116,84,-63,70,-69,59,-73,71,-91,91,-62,58,-74,62,-65,62,-49,60,-50,51,-92,71,-103,80,-91,92,-56,58,-56,51,-75,75,-68,83,-69,74,-66,84,-80,71,-75,72,-60,46,-73,68,-46,50,-71,60,-39,48,-68,56,-69,77,-60,50,-71,66,-69,77,-64,74,-71,62,-69,51,-43,40,-44,52,-63,70,-53,50,-58,62,-76,79,-71,83,-65,65,-47,46,-82,86,-45,40,-27,35,-55,41,-37,33,-48,58,-50,50,-48,35,-34,35,-56,51,-49,48,-53,55,-73,55,-50,46,-35,37,-42,60,-37,27,-49,64,-65,39,-41,49,-54,56,-49,54,-41,37,-47,60,-33,50,-47,32,-44,39,-53,53,-46,35,-44,47,-34,39,-37,31,-53,50,-41,53,-42,48,-42,42,-33,30,-41,50,-61,43,-35,29,-54,48,-38,44,-35,27,-50,41,-50,30,-54,48,-41,45,-29,25,-34,27,-43,39,-44,41,-24,25,-29,35,-36,28,-35,38,-34,34,-41,26,-29,22,-37,34,-55,54,-35,35,-27,28,-45,34,-38,29,-39,48,-34,33,-47,40,-25,27,-35,25,-32,34,-32,41,-44,44,-34,21,-33,33,-39,40,-27,29,-38,49,-33,37,-28,29,-28,27,-26,27,-30,31,-28,23,-20,23,-32,34,-20,25,-21,20,-29,26,-31,26,-35,28,-28,31,-29,24,-21,14,-32,32,-25,23,-35,34,-27,25,-27,24,-19,19,-27,31,-36,22,-21,14,-31,36,-30,29,-32,29,-26,31,-31,27,-27,23,-17,12,-37,26,-27,15,-23,24,-21,22,-14,19,-26,19,-15,18,-29,27,-25,23,-18,18,-18,23,-21,21,-18,17,-29,24,-19,19,-24,15,-21,18,-19,16,-25,26,-17,17,-16,20,-15,17,-16,15,-22,15,-18,18,-19,21,-21,18,-21,15,-22,17,-22,17,-19,25,-25,22,-22,17,-18,19,-14,13,-17,17,-15,14,-22,22,-16,15,-25,19,-28,32,-15,18,-15,21,-19,21,-16,14,-16,17,-21,18,-16,15,-14,12,-14,15,-16,22,-22,27,-19,16,-25,19,-20,20,-22,19,-16,11,-12,11,-18,15,-22,18,-11,12,-18,15,-14,12,-18,13,-15,13,-16,12,-14,11,-13,11,-18,15,-14,12,-18,16,-12,12,-14,15,-23,17,-13,14,-13,12,-13,12,-13,11,-16,14,-11,10,-13,14,-16,16,-19,17,-15,17,-15,9,-10,12,-11,7,-15,11,-12,9,-13,14,-13,12,-15,12,-17,16,-12,11,-12,14,-13,14,-10,10,-13,11,-12,11,-14,11,-13,14,-13,11,-13,10,-17,14,-15,11,-8,8,-15,16,-16,11,-12,10,-11,10,-12,14,-9,8,-11,11,-18,15,-12,8,-8,10,-12,11,-9,7,-10,9,-12,11,-11,11,-9,7,-10,10,-9,9,-11,9,-9,9,-12,8,-9,9,-9,6,-11,10,-11,8,-9,8,-9,9,-12,13,-11,9,-14,14,-12,12,-12,9,-10,10,-11,12,-15,10,-11,7,-11,10,-11,11,-12,8,-11,10,-10,12,-12,10,-10,7,-8,7,-5,4,-7,5,-12,11,-10,9,-9,7,-9,7,-8,7,-10,10,-12,10,-10,9,-8,8,-8,6,-14,9,-8,6,-11,9,-7,6,-6,7,-12,11,-12,10,-10,8,-8,6,-9,8,-7,6,-8,5,-10,6,-8,7,-11,8,-6,5,-6,7,-7,4,-7,9,-5,4,-5,3,-7,4,-8,9,-8,6,-6,5,-5,5,-7,6,-7,6,-5,5,-8,7,-8,8,-4,5,-10,6,-5,3,-5,4,-5,4,-5,5,-8,4,-6,4,-6,6,-5,3,-8,6,-7,6,-7,5,-5,5,-7,6,-8,7,-5,3,-8,7,-5,5,-7,6,-8,5,-8,6,-5,4,-6,7,-6,5,-6,5,-5,4,-4,4,-5,5,-7,5,-6,6,-5,4,-4,3,-7,5,-5,3,-6,6,-6,6,-6,6,-5,4,-7,6,-8,6,-7,5,-6,6,-5,3,-4,4,-5,5,-4,4,-6,4,-5,6,-7,5,-3,3,-5,4,-5,4,-5,3,-5,3,-4,3,-4,4,-5,4,-5,4,-4,3,-3,3,-4,3,-5,5,-7,5,-5,5,-5,5,-4,3,-5,3,-4,3,-3,3,-3,2,-3,2,-5,5,-4,3,-5,4,-4,3,-4,3,-3,2,-3,3,-4,2,-5,4,-5,2,-4,2,-5,3,-4,3,-4,3,-2,1,-3,2,-3,2,-5,4,-4,2,-4,3,-5,3,-3,3,-4,2,-3,3,-3,2,-5,3,-2,2,-6,4,-5,4,-3,2,-5,4,-3,2,-3,2,-4,3,-4,4,-4,2,-4,2,-2,2,-3,2,-4,2,-4,4,-3,2,-3,2,-2,1,-2,2,-3,2,-3,3,-3,2,-2,2,-3,2,-3,2,-3,2,-3,3,-3,2,-3,2,-3,2,-2,1,-2,3,-3,1,-2,2,-4,3,-3,2,-3,3,-3,2,-3,2,-2,1,-2,1,-3,2,-2,2,-2,1,-3,1,-2,1,-3,2,-2,1,-2,1,-2,1,-3,2,-3,2,-4,3,-3,2,-3,2,-3,2,-2,1,-3,1,-2,2,-2,2,-2,1,-3,1,-3,2,-2,1,-3,1,-3,1,-3,1,-2,1,-2,1,-3,1,-3,2,-2,1,-2,1,-2,0,-2,1]}');
-                
-              //   currentRecordingTime = DateTime.now();
-              //   duration = currentRecordingTime.difference(startRecordingTime);
-              //   labelDuration = ( (duration.inHours) ).toString()+":"+( (duration.inMinutes) ).toString()+":"+(duration.inSeconds % 60).toString();
-
-              //   setState(() {
-                  
-              //   });
-                
-              // }          
-
-            },
-            child: const Icon(Icons.menu, color: Color(0xFF800000),),
-          ),
-        );
-    }
-
-    // if (lastPositionButton != null){
-    // if ()
-    // {
-    // }
-
-    // if (settingDialogButton != null){
-    {
-      settingDialogButton = Positioned(
-        top:10,
-        left:10,
-        child:Container(
-          key: keyTutorialSetting,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              fixedSize: const Size(50, 50),
-              shape : const CircleBorder(),
-              shadowColor: Colors.blue,
-
-              primary: Colors.white,
-              onPrimary: Colors.green,
-              onSurface: Colors.red,
-            ),
-            child: Icon(Icons.settings, color: Color(0xFF800000),),
-            onPressed: () {  
-
-              if (deviceType == 0){
-                _sendAnalyticsEvent("button_setting", {
-                  "device":"Audio",
-                  "deviceType":deviceType,
-                });
-                bool enableDeviceLegacy = settingParams["enableDeviceLegacy"] as bool;
-                showCustomAudioDialog(context, settingParams).then((params){
-                  try{
-                    print("params");
-                    print(params);
-                    if (params == null) return;
-
-                    settingParams = params;
-
-                    if (params["enableDeviceLegacy"] != enableDeviceLegacy){
-                      _sendAnalyticsEvent("enable_legacy_device", {"isEnableDeviceLegacy" : params["enableDeviceLegacy"]});
-                    }
-                    
-
-                    channelsColor[0] = audioChannelColors[settingParams["defaultMicrophoneLeftColor"] as int];
-                    channelsColor[1] = audioChannelColors[settingParams["defaultMicrophoneRightColor"] as int];
-                    print("channelsColor[1] : "+channelsColor[1].toString());
-                    // need to check again
-                    if (channelsColor[1] != Color(0xff000000)){
-                      var data = {
-                        "channelCount":2,
-                      };
-
-                      js.context.callMethod('changeChannel', [json.encode(data)]);
-                    }
-                    
-
-                    setState(() { });
-                  }catch(err){
-                    print("err 123");
-                    print(err);
-                  }
-                });
-              }else{
-                if (deviceType == 1){
-                  _sendAnalyticsEvent("button_setting", {
-                    "device":"Serial",
-                    "deviceType":deviceType,
-                  });
-                }else{
-                  _sendAnalyticsEvent("button_setting", {
-                    "device":"HID",
-                    "deviceType":deviceType,
-                  });
-                }
-
-                int prevChannelCount = settingParams["channelCount"] as int;
-                if (prevChannelCount == -1){
-                  settingParams['channelCount'] = 1;
-                }else{
-                  settingParams['channelCount'] = prevChannelCount;
-                }
-                
-                if (extraChannels == 0){
-                  settingParams["minSerialChannels"] = minChannels;
-                  settingParams["maxSerialChannels"] = maxChannels;
-                }else{
-                  settingParams["minSerialChannels"] = minChannels;
-                  settingParams["maxSerialChannels"] = extraChannels;
-                }
-                print("settingParams");
-                print(minChannels);
-                print(maxChannels);
-                print(settingParams);
-                if (deviceTypeInt == 2){
-                  settingParams['deviceType'] = 'hid';
-                  if (extraChannels == 0){
-                    settingParams['channelCount'] = minChannels;
-                  }else{
-                    settingParams['channelCount'] = maxChannels;
-                  }
-
-                }else{
-                  settingParams.remove('deviceType');
-                }
-
-                if (settingParams['maxSerialChannels'] as int > 5){
-                  settingParams['displayChannelCount'] = true;
-                }
-
-                bool enableDeviceLegacy = settingParams["enableDeviceLegacy"] as bool;
-                showCustomSerialDialog(context, settingParams).then((params){
-                  // check with previous data
-                  try{
-                    settingParams.remove('displayChannelCount');
-
-                    int val = params["channelCount"];
-                    if (val != prevChannelCount){
-                      var data = {
-                        "channelCount":val,
-                      };
-
-                      js.context.callMethod('changeSerialChannel', [json.encode(data)]);
-                    }
-
-                    print(val.toString()+" @@ "+settingParams["channelCount"].toString());
-                    if (params["enableDeviceLegacy"] != enableDeviceLegacy){
-                      _sendAnalyticsEvent("enable_legacy_device", {"isEnableDeviceLegacy" : params["enableDeviceLegacy"]});
-                    }
-
-                    if (params['commandType'] == 'update'){
-                      params.remove('commandType');
-                      js.context.callMethod('updateFirmware', ['hid']);
-                      setState(() {
-                        
-                      });
-                      return;
-                    }
-                    if (params['deviceType'] == 'hid'){
-                      deviceType = 2;
-                      deviceTypeInt = 2;
-                    }else{
-                      deviceType = 1;
-                      deviceTypeInt = 1;
-                    }
-
-                    // if (params['deviceType'] == 'hid'){
-                    //   params.remove('deviceType');
-                    //   deviceType = 1;
-                    //   isPlaying = 1;
-                    //   startRecordingTime = (DateTime.now());
-                    //   channelGains = [1000,1000,1000,1000,1000,1000];
-                    //   js.context.callMethod('recordHid', ['Flutter is calling upon JavaScript!']);
-
-                    //   if (params['commandType'] == 'update'){
-                    //     params.remove('commandType');
-                    //     js.context.callMethod('updateFirmware', ['hid']);
-                    //   }
-
-
-                    //   setState(() {
-                        
-                    //   });
-                    //   return;
-
-                    // }
-
-                    settingParams = params;
-
-                    channelsColor[0] = serialChannelColors[settingParams["defaultSerialColor1"] as int];
-                    if (settingParams["channelCount"] as int >= 2) channelsColor[1] = serialChannelColors[settingParams["defaultSerialColor2"] as int];
-                    if (settingParams["channelCount"] as int >= 3) channelsColor[2] = serialChannelColors[settingParams["defaultSerialColor3"] as int];
-                    if (settingParams["channelCount"] as int >= 4) channelsColor[3] = serialChannelColors[settingParams["defaultSerialColor4"] as int];
-                    if (settingParams["channelCount"] as int >= 5) channelsColor[4] = serialChannelColors[settingParams["defaultSerialColor5"] as int];
-                    if (settingParams["channelCount"] as int >= 6) channelsColor[5] = serialChannelColors[settingParams["defaultSerialColor6"] as int];
-
-                    js.context.callMethod('setFlagChannelDisplay', [settingParams["flagDisplay1"],settingParams["flagDisplay2"],settingParams["flagDisplay3"],settingParams["flagDisplay4"],settingParams["flagDisplay5"],settingParams["flagDisplay6"] ]);
-                    setState(() { });
-
-                  }catch(err){
-                    print("err 12356");
-                    print(err);
-                  }
-                });                  
-              }
-
-
-            },
-
-          ),
+      top: 10,
+      right: 10,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          fixedSize: const Size(50, 50),
+          shape: const CircleBorder(),
+          shadowColor: Colors.blue,
+          primary: Colors.white,
+          onPrimary: Colors.green,
+          onSurface: Colors.red,
         ),
-      );
-      
-    }
-  }
-
-  @override
-  void initState(){
-    super.initState();
-    getCachedWidget();
-    
-    // js.context.callMethod('getChromeVersion', ["getChromeVersion"]);
-
-    Future.delayed(const Duration(seconds: 0), () async {
-      _deviceData = <String, dynamic>{};
-
-      horizontalDragX = MediaQuery.of(context).size.width - 100 -20;
-      
-      if (kIsWeb) {
-        _deviceData = _readWebBrowserInfo(await deviceInfoPlugin.webBrowserInfo);
-        // print("_deviceData");
-        // print(_deviceData);
-      //         'deviceMemory': data.deviceMemory,
-      // 'hardwareConcurrency': data.hardwareConcurrency,
-      // 'maxTouchPoints': data.maxTouchPoints,
-
-        String details = "_UserAgent : " + _deviceData['userAgent'].toString()+"_Memory : " + _deviceData['deviceMemory'].toString() + "_Concurrency:" + _deviceData['hardwareConcurrency'].toString()+ "_TouchPoints : " + _deviceData['maxTouchPoints'].toString() ;
-        print("details");
-        print(details);
-        ( await js.context.callMethod('setDeviceInfo', [ _deviceData['platform'].toString(), versionNumber.toString() , _deviceData['appVersion'].toString(), details ]) );
-      }
-      await analytics.logAppOpen();
-
-      // ( await js.context.callMethod('getChromeVersion', ["getChromeVersion"]) );
-      // print (str);
-      // globalChromeVersion = str;
-
-    });
-
-   
-    // arrScaleBar = List.from(arrScaleBar.reversed);
-    // print(arrScaleBar);
-    // [6, 6.6, 7.2, 7.8, 8.4, 9, 9.6, 10.2, 10.8, 11.4, 12, 16.8, 21.6, 26.4, 31.2, 36, 40.8, 45.6, 50.4, 552, 60, 66, 72, 78, 84, 90, 96, 102, 108, 114, 120, 168, 216, 264, 312, 360, 408, 456, 504, 552, 600, 660, 720, 780, 840, 900, 960, 1020, 1080, 1140, 1200, 1680, 2160, 2640, 3120, 3600, 4080, 4560, 5040, 5520, 6000, 11400, 16800, 22200, 27600, 33000, 38400, 43800, 49200, 54600, 60000, 114000, 168000, 222000, 276000, 330000, 384000, 438000, 492000, 546000, 600000]
-    const arrTimeScale = [0.1,1, 10,50, 100,500, 1000,5000,10000];
-    int transformScale = (timeScaleBar / 10).floor();
-    // scaleBarWidth = MediaQuery.of(context).size.width / arrTimeScale[transformScale] * arrScaleBar[timeScaleBar]/600 ;
-    scaleBarWidth = MediaQuery.of(context).size.width / (arrScaleBar[timeScaleBar]) * arrTimeScale[transformScale]/10;
-    // print("arrScaleBar[timeScaleBar]");
-    // print(arrScaleBar[timeScaleBar]);
-    // print("arrTimeScale[transformScale]/10");
-    // print(arrTimeScale[transformScale]/10);
-    
-    SIZE = NUMBER_OF_SEGMENTS * SEGMENT_SIZE;
-    // Uint8List list = new Uint8List(256);
-    js.context['changeSampleRate'] = ( params ){
-      sampleRate = params[0];
-      curSkipCounts = params[1];
-      curLevel = params[2];
-      // frequency 1000 milisecond 44100 hz
-      //frequency 10 ms = 441 hz
-      // capacityMin = (sampleRate/timeScale).floor();
-      // capacityMax = sampleRate*10;
-      // capacity = capacityMin;
-
-      // changeMaxAxis();
-
-    };
-    int idx= 0;
-    int len= 0;
-    
-    
-    capacityMin = (sampleRate/timeScale).floor();
-    capacity = capacityMin;
-    
-    // sampleData = WaveformData(version: 1, channels: 1, sampleRate: 128, sampleSize: 128, bits: 1, length: 0, data: []);
-    sampleData = WaveformData(version: 1, channels: 1, sampleRate: 44100, sampleSize: 1, bits: 16, length: 0, data: [-23254,16644,-30935,20205,-16593,16930,-11736,13287,-18606,13789,-10566,13918,-13824,14620,-11527,8676,-12231,15098,-11159,9512,-12696,14081,-10952,11740,-12275,11320,-10848,9477,-14906,17874,-11615,12593,-13266,11521,-16097,12726,-11027,11909,-13936,12957,-12427,13551,-13273,12631,-12068,12180,-16960,10204,-11003,15350,-9547,7862,-11642,9156,-12916,11414,-12254,12014,-10904,10699,-19290,17371,-18661,14840,-10483,7772,-12001,14139,-11743,12346,-8817,7486,-13723,12268,-12806,11932,-10766,9278,-14363,10833,-10968,10201,-7769,11178,-9181,10532,-11108,10264,-9397,9859,-10956,8993,-10164,9633,-9415,11935,-9315,7894,-11991,8480,-10056,9279,-11766,10108,-8676,9179,-6572,6416,-10415,8478,-9494,10295,-10625,10694,-12682,10206,-7907,7254,-8939,6862,-7444,7746,-9598,10933,-8451,7638,-9671,10051,-11103,8560,-8351,8265,-7618,10012,-9122,6387,-8906,6005,-7509,6537,-10554,8008,-9442,7675,-7059,5806,-8574,5545,-6884,6272,-8838,7777,-7123,6712,-6712,7930,-7544,7704,-7624,7634,-7423,9566,-10375,7497,-7437,6828,-8448,7644,-7928,7369,-5000,6147,-5130,6864,-8465,7033,-6381,5755,-6005,4566,-4916,5251,-5549,4577,-8633,8432,-5557,5441,-7610,6335,-6404,8627,-6402,5347,-6471,5600,-5128,5529,-6062,5212,-7089,4902,-4649,4729,-5128,4554,-5152,4176,-5765,3603,-5866,4989,-3389,4127,-5480,4420,-6319,5139,-4871,4421,-3887,5301,-5045,3809,-5203,3625,-4372,4901,-5183,4618,-5778,4335,-3816,3887,-4553,5277,-4152,3205,-3674,3579,-3696,3572,-3956,5101,-4741,5534,-5473,3850,-4049,3141,-4748,3341,-3427,4422,-4851,3985,-4356,4846,-3412,4368,-3631,4046,-3406,2807,-3376,4007,-3634,3886,-3689,3219,-2725,2106,-3044,3071,-3348,3085,-3919,3154,-4708,3611,-3795,3468,-2688,4142,-3358,2785,-3194,3590,-2778,2962,-2843,3011,-3312,3016,-3596,2896,-2266,2318,-2694,2653,-2403,2834,-2194,1972,-2739,2152,-2862,1949,-2803,3438,-2871,2196,-1829,2132,-2549,2528,-2377,1562,-2152,2535,-2630,2717,-2292,1672,-2840,2415,-2307,2046,-1984,1766,-2259,2241,-1898,1693,-1497,1362,-1639,1986,-1748,2077,-1815,1743,-1906,1791,-1610,1541,-1629,1726,-1522,1478,-1665,1841,-1872,1383,-2102,1654,-2218,1754,-1710,1342,-1383,1168,-1351,1371,-1122,1323,-1633,1467,-1011,1221,-1144,1533,-1512,2114,-1038,687,-1687,1691,-1081,1380,-1671,1373,-1489,957,-1635,1308,-1142,975,-1216,1315,-1038,1183,-1632,1497,-1265,1182,-896,1011,-1273,965,-946,1027,-913,983,-1194,1121,-1206,1065,-1218,1070,-745,883,-997,1082,-1454,1274,-1188,1147,-1228,1031,-720,767,-1287,1075,-663,727,-607,903,-961,1347,-779,761,-1336,1049,-892,861,-1114,1363,-942,1068,-1154,1125,-784,924,-774,822,-905,860,-825,854,-551,509,-566,597,-932,739,-776,868,-665,638,-466,647,-541,667,-887,873,-891,812,-570,803,-762,716,-542,788,-618,941,-577,681,-648,883,-778,705,-820,880,-749,699,-738,903,-875,1091,-745,747,-576,528,-611,641,-548,630,-501,454,-625,517,-436,377,-573,589,-486,487,-462,458,-310,323,-376,477,-498,675,-342,454,-653,618,-550,454,-549,409,-492,659,-621,678,-499,447,-414,508,-419,354,-446,379,-609,568,-740,599,-542,456,-491,398,-374,365,-425,472,-446,421,-460,460,-586,529,-387,404,-599,548,-464,411,-410,369,-300,253,-454,444,-369,369,-441,374,-244,314,-467,428,-410,400,-310,450,-508,382,-373,414,-300,368,-364,374,-439,356,-440,472,-351,332,-429,348,-291,308,-336,318,-386,338,-350,364,-276,329,-326,314,-311,308,-263,286,-279,357,-283,349,-260,284,-317,300,-252,224,-230,204,-293,288,-300,399,-221,297,-404,372,-297,161,-178,270,-257,317,-270,253,-325,305,-257,225,-388,326,-220,211,-240,239,-277,307,-267,301,-331,327,-171,297,-270,316,-226,217,-338,319,-273,326,-224,232,-282,230,-239,216,-279,244,-235,229,-392,327,-333,275,-246,217,-253,215,-258,247,-169,213,-239,252,-212,217,-304,303,-204,199,-160,202,-284,244,-264,355,-254,207,-209,181,-147,204,-245,222,-200,195,-199,239,-294,238,-200,210,-152,167,-182,183,-261,152,-175,167,-276,284,-225,173,-208,187,-210,206,-213,212,-176,169,-202,183,-131,143,-187,170,-217,231,-202,209,-215,194,-214,227,-270,232,-283,332,-124,181,-193,202,-291,294,-170,176,-203,267,-204,174,-202,183,-160,205,-155,159,-270,259,-132,144,-159,195,-221,201,-169,189,-212,216,-146,143,-158,171,-193,179,-154,178,-211,158,-148,149,-148,176,-194,175,-143,150,-177,193,-170,146,-142,136,-153,157,-166,153,-203,181,-154,185,-164,152,-161,149,-122,145,-169,113,-187,140,-210,188,-149,163,-134,118,-157,220,-78,90,-124,157,-142,94,-188,143,-100,88,-130,108,-180,171,-130,100,-128,169,-168,141,-136,152,-144,116,-90,98,-144,151,-109,106,-145,155,-62,118,-137,165,-173,156,-160,144,-87,86,-136,161,-119,178,-113,106,-85,99,-99,98,-84,71,-148,105,-135,115,-92,105,-100,78,-87,87,-84,84,-95,118,-79,84,-101,113,-93,98,-124,86,-105,99,-111,104,-99,119,-101,100,-98,106,-127,101,-96,86,-86,107,-104,99,-67,72,-92,99,-99,98,-101,135,-122,89,-111,124,-85,75,-113,122,-84,99,-82,83,-134,116,-55,71,-104,63,-90,89,-95,86,-80,74,-80,119,-100,78,-97,94,-82,76,-118,104,-139,157,-123,132,-99,96,-100,76,-80,92,-91,96,-80,72,-83,92,-93,79,-72,70,-55,49,-69,60,-72,65,-89,72,-98,62,-84,78,-60,70,-90,83,-83,80,-98,78,-82,62,-88,72,-73,87,-57,66,-96,87,-71,63,-75,64,-47,56,-92,50,-74,80,-48,64,-116,84,-63,70,-69,59,-73,71,-91,91,-62,58,-74,62,-65,62,-49,60,-50,51,-92,71,-103,80,-91,92,-56,58,-56,51,-75,75,-68,83,-69,74,-66,84,-80,71,-75,72,-60,46,-73,68,-46,50,-71,60,-39,48,-68,56,-69,77,-60,50,-71,66,-69,77,-64,74,-71,62,-69,51,-43,40,-44,52,-63,70,-53,50,-58,62,-76,79,-71,83,-65,65,-47,46,-82,86,-45,40,-27,35,-55,41,-37,33,-48,58,-50,50,-48,35,-34,35,-56,51,-49,48,-53,55,-73,55,-50,46,-35,37,-42,60,-37,27,-49,64,-65,39,-41,49,-54,56,-49,54,-41,37,-47,60,-33,50,-47,32,-44,39,-53,53,-46,35,-44,47,-34,39,-37,31,-53,50,-41,53,-42,48,-42,42,-33,30,-41,50,-61,43,-35,29,-54,48,-38,44,-35,27,-50,41,-50,30,-54,48,-41,45,-29,25,-34,27,-43,39,-44,41,-24,25,-29,35,-36,28,-35,38,-34,34,-41,26,-29,22,-37,34,-55,54,-35,35,-27,28,-45,34,-38,29,-39,48,-34,33,-47,40,-25,27,-35,25,-32,34,-32,41,-44,44,-34,21,-33,33,-39,40,-27,29,-38,49,-33,37,-28,29,-28,27,-26,27,-30,31,-28,23,-20,23,-32,34,-20,25,-21,20,-29,26,-31,26,-35,28,-28,31,-29,24,-21,14,-32,32,-25,23,-35,34,-27,25,-27,24,-19,19,-27,31,-36,22,-21,14,-31,36,-30,29,-32,29,-26,31,-31,27,-27,23,-17,12,-37,26,-27,15,-23,24,-21,22,-14,19,-26,19,-15,18,-29,27,-25,23,-18,18,-18,23,-21,21,-18,17,-29,24,-19,19,-24,15,-21,18,-19,16,-25,26,-17,17,-16,20,-15,17,-16,15,-22,15,-18,18,-19,21,-21,18,-21,15,-22,17,-22,17,-19,25,-25,22,-22,17,-18,19,-14,13,-17,17,-15,14,-22,22,-16,15,-25,19,-28,32,-15,18,-15,21,-19,21,-16,14,-16,17,-21,18,-16,15,-14,12,-14,15,-16,22,-22,27,-19,16,-25,19,-20,20,-22,19,-16,11,-12,11,-18,15,-22,18,-11,12,-18,15,-14,12,-18,13,-15,13,-16,12,-14,11,-13,11,-18,15,-14,12,-18,16,-12,12,-14,15,-23,17,-13,14,-13,12,-13,12,-13,11,-16,14,-11,10,-13,14,-16,16,-19,17,-15,17,-15,9,-10,12,-11,7,-15,11,-12,9,-13,14,-13,12,-15,12,-17,16,-12,11,-12,14,-13,14,-10,10,-13,11,-12,11,-14,11,-13,14,-13,11,-13,10,-17,14,-15,11,-8,8,-15,16,-16,11,-12,10,-11,10,-12,14,-9,8,-11,11,-18,15,-12,8,-8,10,-12,11,-9,7,-10,9,-12,11,-11,11,-9,7,-10,10,-9,9,-11,9,-9,9,-12,8,-9,9,-9,6,-11,10,-11,8,-9,8,-9,9,-12,13,-11,9,-14,14,-12,12,-12,9,-10,10,-11,12,-15,10,-11,7,-11,10,-11,11,-12,8,-11,10,-10,12,-12,10,-10,7,-8,7,-5,4,-7,5,-12,11,-10,9,-9,7,-9,7,-8,7,-10,10,-12,10,-10,9,-8,8,-8,6,-14,9,-8,6,-11,9,-7,6,-6,7,-12,11,-12,10,-10,8,-8,6,-9,8,-7,6,-8,5,-10,6,-8,7,-11,8,-6,5,-6,7,-7,4,-7,9,-5,4,-5,3,-7,4,-8,9,-8,6,-6,5,-5,5,-7,6,-7,6,-5,5,-8,7,-8,8,-4,5,-10,6,-5,3,-5,4,-5,4,-5,5,-8,4,-6,4,-6,6,-5,3,-8,6,-7,6,-7,5,-5,5,-7,6,-8,7,-5,3,-8,7,-5,5,-7,6,-8,5,-8,6,-5,4,-6,7,-6,5,-6,5,-5,4,-4,4,-5,5,-7,5,-6,6,-5,4,-4,3,-7,5,-5,3,-6,6,-6,6,-6,6,-5,4,-7,6,-8,6,-7,5,-6,6,-5,3,-4,4,-5,5,-4,4,-6,4,-5,6,-7,5,-3,3,-5,4,-5,4,-5,3,-5,3,-4,3,-4,4,-5,4,-5,4,-4,3,-3,3,-4,3,-5,5,-7,5,-5,5,-5,5,-4,3,-5,3,-4,3,-3,3,-3,2,-3,2,-5,5,-4,3,-5,4,-4,3,-4,3,-3,2,-3,3,-4,2,-5,4,-5,2,-4,2,-5,3,-4,3,-4,3,-2,1,-3,2,-3,2,-5,4,-4,2,-4,3,-5,3,-3,3,-4,2,-3,3,-3,2,-5,3,-2,2,-6,4,-5,4,-3,2,-5,4,-3,2,-3,2,-4,3,-4,4,-4,2,-4,2,-2,2,-3,2,-4,2,-4,4,-3,2,-3,2,-2,1,-2,2,-3,2,-3,3,-3,2,-2,2,-3,2,-3,2,-3,2,-3,3,-3,2,-3,2,-3,2,-2,1,-2,3,-3,1,-2,2,-4,3,-3,2,-3,3,-3,2,-3,2,-2,1,-2,1,-3,2,-2,2,-2,1,-3,1,-2,1,-3,2,-2,1,-2,1,-2,1,-3,2,-3,2,-4,3,-3,2,-3,2,-3,2,-2,1,-3,1,-2,2,-2,2,-2,1,-3,1,-3,2,-2,1,-3,1,-3,1,-3,1,-2,1,-2,1,-3,1,-3,2,-2,1,-2,1,-2,0,-2,1]);
-    // sampleData = WaveformData.fromJson('{"version":2,"channels":1,"sample_rate":44100,"samples_per_pixel":64,"bits":16,"length":1034,"data":[-23254,16644,-30935,20205,-16593,16930,-11736,13287,-18606,13789,-10566,13918,-13824,14620,-11527,8676,-12231,15098,-11159,9512,-12696,14081,-10952,11740,-12275,11320,-10848,9477,-14906,17874,-11615,12593,-13266,11521,-16097,12726,-11027,11909,-13936,12957,-12427,13551,-13273,12631,-12068,12180,-16960,10204,-11003,15350,-9547,7862,-11642,9156,-12916,11414,-12254,12014,-10904,10699,-19290,17371,-18661,14840,-10483,7772,-12001,14139,-11743,12346,-8817,7486,-13723,12268,-12806,11932,-10766,9278,-14363,10833,-10968,10201,-7769,11178,-9181,10532,-11108,10264,-9397,9859,-10956,8993,-10164,9633,-9415,11935,-9315,7894,-11991,8480,-10056,9279,-11766,10108,-8676,9179,-6572,6416,-10415,8478,-9494,10295,-10625,10694,-12682,10206,-7907,7254,-8939,6862,-7444,7746,-9598,10933,-8451,7638,-9671,10051,-11103,8560,-8351,8265,-7618,10012,-9122,6387,-8906,6005,-7509,6537,-10554,8008,-9442,7675,-7059,5806,-8574,5545,-6884,6272,-8838,7777,-7123,6712,-6712,7930,-7544,7704,-7624,7634,-7423,9566,-10375,7497,-7437,6828,-8448,7644,-7928,7369,-5000,6147,-5130,6864,-8465,7033,-6381,5755,-6005,4566,-4916,5251,-5549,4577,-8633,8432,-5557,5441,-7610,6335,-6404,8627,-6402,5347,-6471,5600,-5128,5529,-6062,5212,-7089,4902,-4649,4729,-5128,4554,-5152,4176,-5765,3603,-5866,4989,-3389,4127,-5480,4420,-6319,5139,-4871,4421,-3887,5301,-5045,3809,-5203,3625,-4372,4901,-5183,4618,-5778,4335,-3816,3887,-4553,5277,-4152,3205,-3674,3579,-3696,3572,-3956,5101,-4741,5534,-5473,3850,-4049,3141,-4748,3341,-3427,4422,-4851,3985,-4356,4846,-3412,4368,-3631,4046,-3406,2807,-3376,4007,-3634,3886,-3689,3219,-2725,2106,-3044,3071,-3348,3085,-3919,3154,-4708,3611,-3795,3468,-2688,4142,-3358,2785,-3194,3590,-2778,2962,-2843,3011,-3312,3016,-3596,2896,-2266,2318,-2694,2653,-2403,2834,-2194,1972,-2739,2152,-2862,1949,-2803,3438,-2871,2196,-1829,2132,-2549,2528,-2377,1562,-2152,2535,-2630,2717,-2292,1672,-2840,2415,-2307,2046,-1984,1766,-2259,2241,-1898,1693,-1497,1362,-1639,1986,-1748,2077,-1815,1743,-1906,1791,-1610,1541,-1629,1726,-1522,1478,-1665,1841,-1872,1383,-2102,1654,-2218,1754,-1710,1342,-1383,1168,-1351,1371,-1122,1323,-1633,1467,-1011,1221,-1144,1533,-1512,2114,-1038,687,-1687,1691,-1081,1380,-1671,1373,-1489,957,-1635,1308,-1142,975,-1216,1315,-1038,1183,-1632,1497,-1265,1182,-896,1011,-1273,965,-946,1027,-913,983,-1194,1121,-1206,1065,-1218,1070,-745,883,-997,1082,-1454,1274,-1188,1147,-1228,1031,-720,767,-1287,1075,-663,727,-607,903,-961,1347,-779,761,-1336,1049,-892,861,-1114,1363,-942,1068,-1154,1125,-784,924,-774,822,-905,860,-825,854,-551,509,-566,597,-932,739,-776,868,-665,638,-466,647,-541,667,-887,873,-891,812,-570,803,-762,716,-542,788,-618,941,-577,681,-648,883,-778,705,-820,880,-749,699,-738,903,-875,1091,-745,747,-576,528,-611,641,-548,630,-501,454,-625,517,-436,377,-573,589,-486,487,-462,458,-310,323,-376,477,-498,675,-342,454,-653,618,-550,454,-549,409,-492,659,-621,678,-499,447,-414,508,-419,354,-446,379,-609,568,-740,599,-542,456,-491,398,-374,365,-425,472,-446,421,-460,460,-586,529,-387,404,-599,548,-464,411,-410,369,-300,253,-454,444,-369,369,-441,374,-244,314,-467,428,-410,400,-310,450,-508,382,-373,414,-300,368,-364,374,-439,356,-440,472,-351,332,-429,348,-291,308,-336,318,-386,338,-350,364,-276,329,-326,314,-311,308,-263,286,-279,357,-283,349,-260,284,-317,300,-252,224,-230,204,-293,288,-300,399,-221,297,-404,372,-297,161,-178,270,-257,317,-270,253,-325,305,-257,225,-388,326,-220,211,-240,239,-277,307,-267,301,-331,327,-171,297,-270,316,-226,217,-338,319,-273,326,-224,232,-282,230,-239,216,-279,244,-235,229,-392,327,-333,275,-246,217,-253,215,-258,247,-169,213,-239,252,-212,217,-304,303,-204,199,-160,202,-284,244,-264,355,-254,207,-209,181,-147,204,-245,222,-200,195,-199,239,-294,238,-200,210,-152,167,-182,183,-261,152,-175,167,-276,284,-225,173,-208,187,-210,206,-213,212,-176,169,-202,183,-131,143,-187,170,-217,231,-202,209,-215,194,-214,227,-270,232,-283,332,-124,181,-193,202,-291,294,-170,176,-203,267,-204,174,-202,183,-160,205,-155,159,-270,259,-132,144,-159,195,-221,201,-169,189,-212,216,-146,143,-158,171,-193,179,-154,178,-211,158,-148,149,-148,176,-194,175,-143,150,-177,193,-170,146,-142,136,-153,157,-166,153,-203,181,-154,185,-164,152,-161,149,-122,145,-169,113,-187,140,-210,188,-149,163,-134,118,-157,220,-78,90,-124,157,-142,94,-188,143,-100,88,-130,108,-180,171,-130,100,-128,169,-168,141,-136,152,-144,116,-90,98,-144,151,-109,106,-145,155,-62,118,-137,165,-173,156,-160,144,-87,86,-136,161,-119,178,-113,106,-85,99,-99,98,-84,71,-148,105,-135,115,-92,105,-100,78,-87,87,-84,84,-95,118,-79,84,-101,113,-93,98,-124,86,-105,99,-111,104,-99,119,-101,100,-98,106,-127,101,-96,86,-86,107,-104,99,-67,72,-92,99,-99,98,-101,135,-122,89,-111,124,-85,75,-113,122,-84,99,-82,83,-134,116,-55,71,-104,63,-90,89,-95,86,-80,74,-80,119,-100,78,-97,94,-82,76,-118,104,-139,157,-123,132,-99,96,-100,76,-80,92,-91,96,-80,72,-83,92,-93,79,-72,70,-55,49,-69,60,-72,65,-89,72,-98,62,-84,78,-60,70,-90,83,-83,80,-98,78,-82,62,-88,72,-73,87,-57,66,-96,87,-71,63,-75,64,-47,56,-92,50,-74,80,-48,64,-116,84,-63,70,-69,59,-73,71,-91,91,-62,58,-74,62,-65,62,-49,60,-50,51,-92,71,-103,80,-91,92,-56,58,-56,51,-75,75,-68,83,-69,74,-66,84,-80,71,-75,72,-60,46,-73,68,-46,50,-71,60,-39,48,-68,56,-69,77,-60,50,-71,66,-69,77,-64,74,-71,62,-69,51,-43,40,-44,52,-63,70,-53,50,-58,62,-76,79,-71,83,-65,65,-47,46,-82,86,-45,40,-27,35,-55,41,-37,33,-48,58,-50,50,-48,35,-34,35,-56,51,-49,48,-53,55,-73,55,-50,46,-35,37,-42,60,-37,27,-49,64,-65,39,-41,49,-54,56,-49,54,-41,37,-47,60,-33,50,-47,32,-44,39,-53,53,-46,35,-44,47,-34,39,-37,31,-53,50,-41,53,-42,48,-42,42,-33,30,-41,50,-61,43,-35,29,-54,48,-38,44,-35,27,-50,41,-50,30,-54,48,-41,45,-29,25,-34,27,-43,39,-44,41,-24,25,-29,35,-36,28,-35,38,-34,34,-41,26,-29,22,-37,34,-55,54,-35,35,-27,28,-45,34,-38,29,-39,48,-34,33,-47,40,-25,27,-35,25,-32,34,-32,41,-44,44,-34,21,-33,33,-39,40,-27,29,-38,49,-33,37,-28,29,-28,27,-26,27,-30,31,-28,23,-20,23,-32,34,-20,25,-21,20,-29,26,-31,26,-35,28,-28,31,-29,24,-21,14,-32,32,-25,23,-35,34,-27,25,-27,24,-19,19,-27,31,-36,22,-21,14,-31,36,-30,29,-32,29,-26,31,-31,27,-27,23,-17,12,-37,26,-27,15,-23,24,-21,22,-14,19,-26,19,-15,18,-29,27,-25,23,-18,18,-18,23,-21,21,-18,17,-29,24,-19,19,-24,15,-21,18,-19,16,-25,26,-17,17,-16,20,-15,17,-16,15,-22,15,-18,18,-19,21,-21,18,-21,15,-22,17,-22,17,-19,25,-25,22,-22,17,-18,19,-14,13,-17,17,-15,14,-22,22,-16,15,-25,19,-28,32,-15,18,-15,21,-19,21,-16,14,-16,17,-21,18,-16,15,-14,12,-14,15,-16,22,-22,27,-19,16,-25,19,-20,20,-22,19,-16,11,-12,11,-18,15,-22,18,-11,12,-18,15,-14,12,-18,13,-15,13,-16,12,-14,11,-13,11,-18,15,-14,12,-18,16,-12,12,-14,15,-23,17,-13,14,-13,12,-13,12,-13,11,-16,14,-11,10,-13,14,-16,16,-19,17,-15,17,-15,9,-10,12,-11,7,-15,11,-12,9,-13,14,-13,12,-15,12,-17,16,-12,11,-12,14,-13,14,-10,10,-13,11,-12,11,-14,11,-13,14,-13,11,-13,10,-17,14,-15,11,-8,8,-15,16,-16,11,-12,10,-11,10,-12,14,-9,8,-11,11,-18,15,-12,8,-8,10,-12,11,-9,7,-10,9,-12,11,-11,11,-9,7,-10,10,-9,9,-11,9,-9,9,-12,8,-9,9,-9,6,-11,10,-11,8,-9,8,-9,9,-12,13,-11,9,-14,14,-12,12,-12,9,-10,10,-11,12,-15,10,-11,7,-11,10,-11,11,-12,8,-11,10,-10,12,-12,10,-10,7,-8,7,-5,4,-7,5,-12,11,-10,9,-9,7,-9,7,-8,7,-10,10,-12,10,-10,9,-8,8,-8,6,-14,9,-8,6,-11,9,-7,6,-6,7,-12,11,-12,10,-10,8,-8,6,-9,8,-7,6,-8,5,-10,6,-8,7,-11,8,-6,5,-6,7,-7,4,-7,9,-5,4,-5,3,-7,4,-8,9,-8,6,-6,5,-5,5,-7,6,-7,6,-5,5,-8,7,-8,8,-4,5,-10,6,-5,3,-5,4,-5,4,-5,5,-8,4,-6,4,-6,6,-5,3,-8,6,-7,6,-7,5,-5,5,-7,6,-8,7,-5,3,-8,7,-5,5,-7,6,-8,5,-8,6,-5,4,-6,7,-6,5,-6,5,-5,4,-4,4,-5,5,-7,5,-6,6,-5,4,-4,3,-7,5,-5,3,-6,6,-6,6,-6,6,-5,4,-7,6,-8,6,-7,5,-6,6,-5,3,-4,4,-5,5,-4,4,-6,4,-5,6,-7,5,-3,3,-5,4,-5,4,-5,3,-5,3,-4,3,-4,4,-5,4,-5,4,-4,3,-3,3,-4,3,-5,5,-7,5,-5,5,-5,5,-4,3,-5,3,-4,3,-3,3,-3,2,-3,2,-5,5,-4,3,-5,4,-4,3,-4,3,-3,2,-3,3,-4,2,-5,4,-5,2,-4,2,-5,3,-4,3,-4,3,-2,1,-3,2,-3,2,-5,4,-4,2,-4,3,-5,3,-3,3,-4,2,-3,3,-3,2,-5,3,-2,2,-6,4,-5,4,-3,2,-5,4,-3,2,-3,2,-4,3,-4,4,-4,2,-4,2,-2,2,-3,2,-4,2,-4,4,-3,2,-3,2,-2,1,-2,2,-3,2,-3,3,-3,2,-2,2,-3,2,-3,2,-3,2,-3,3,-3,2,-3,2,-3,2,-2,1,-2,3,-3,1,-2,2,-4,3,-3,2,-3,3,-3,2,-3,2,-2,1,-2,1,-3,2,-2,2,-2,1,-3,1,-2,1,-3,2,-2,1,-2,1,-2,1,-3,2,-3,2,-4,3,-3,2,-3,2,-3,2,-2,1,-3,1,-2,2,-2,2,-2,1,-3,1,-3,2,-2,1,-3,1,-3,1,-3,1,-2,1,-2,1,-3,1,-3,2,-2,1,-2,1,-2,0,-2,1]}');    
-    js.context['jsToDart'] = js2Dart;
-    js.context['callbackErrorLog'] = callbackErrorLog;
-    js.context['callbackSerialInit'] = callbackSerialInit;
-    js.context['callbackAudioInit'] = callbackAudioInit;
-    js.context['callbackGetDeviceInfo'] = callbackGetDeviceInfo;
-    js.context['callbackOpenWavFile'] = callbackOpenWavFile;
-    js.context['callbackOpeningFile'] = callbackOpeningFile;
-    js.context['callbackIsOpeningWavFile'] = callbackIsOpeningWavFile;
-    js.context['changeResetPlayback'] = changeResetPlayback;
-    js.context['resetToAudio'] = resetToAudio;
-    js.context['drawEventMarkers'] = drawEventMarkers;
-    js.context['drawElapsedTime'] = drawElapsedTime;
-    js.context['changeTimeBarStatus'] = changeTimeBarStatus;
-    js.context['callbackSetRecording'] = callbackSetRecording;
-    js.context['callbackGetChromeVersion'] = callbackGetChromeVersion;
-    js.context['callbackHorizontalDiff'] = callbackHorizontalDiff;
-    js.context['callAlert'] = callAlert;
-    
-    js.context['changePlaybackButton'] = changePlaybackButton;
-    // chartData = [];
-
-    chartData = [0.00014653186372015625, 0.00016304542077705264];
-    storage.ready.then((flag){
-      isTutored = storage.getItem('isTutored') == null ? '0':'1';
-      // print(storage.getItem('isTutored'));
-      // print(storage.getItem('isTutored') != null);
-      print("isTutored : " + isTutored.toString());
-      print("isTutored? : " + (isTutored.toString() != '0').toString() );
-      // isTutored = '0';
-      if ( isTutored == '1'){
-        Future.delayed(const Duration(seconds: 2), (){
-          isPlaying = 1;
-          js.context.callMethod('recordAudio', ['Flutter is calling upon JavaScript!']);
-          setState(() {        
-          });
-        });
-      }else{
-        // storage.setItem('isTutored', '1');
-        // tutorialCoachMark.show();
-        Future.delayed(const Duration(seconds: 1), (){
-          showTutorial();
-        });
-      }
-      
-      setState((){});
-
-    });
-
-  }
-
-  void initTargets(){
-    targets.clear();
-    targets.add(
-      TargetFocus(
-        identify: "keyTutorialNavigation",
-        keyTarget: keyTutorialNavigation,
-        alignSkip: Alignment.bottomLeft,
-        contents: [
-          TargetContent(
-            align: ContentAlign.bottom,
-            builder: (context, controller) {
-              return Container(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                  ],
-                ),
-              );
-            },
-          ),
-        ],
-      ),    
+        onPressed: () async {
+          if (kIsWeb) {
+            // js.context.callMethod('openReadWavFile', ["openReadWavFile"]);
+          }
+          // _sendAnalyticsEvent("button_open_file", {"isOpeningFile": 1});
+        },
+        child: const Icon(
+          Icons.menu,
+          color: Color(0xFF800000),
+        ),
+      ),
     );
 
-    targets.add(
-      TargetFocus(
-        identify: "keyTutorialAudio",
-        keyTarget: keyTutorialAudio,
-        alignSkip: Alignment.bottomLeft,
-        contents: [
-          TargetContent(
-            align: ContentAlign.right,
-            builder: (context, controller) {
-              return Container(
-                margin: EdgeInsets.only(top:50),
-                child: Text( "", style: TextStyle(color: Colors.white) )
-              );
-            },
+    settingDialogButton = Positioned(
+      top: 10,
+      left: 10,
+      child: Container(
+        key: keyTutorialSetting,
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            fixedSize: const Size(50, 50),
+            shape: const CircleBorder(),
+            shadowColor: Colors.blue,
+            primary: Colors.white,
+            onPrimary: Colors.green,
+            onSurface: Colors.red,
           ),
-        ],
-      ),    
-    );    
-
-
-  // GlobalKey keyTutorialSerial = GlobalKey();
-  // GlobalKey keyTutorialHid = GlobalKey();
-  // GlobalKey keyTutorialSetting = GlobalKey();
-  // GlobalKey keyTutorialTimescale = GlobalKey();
-
-    targets.add(
-      TargetFocus(
-        identify: "keyTutorialSerial",
-        keyTarget: keyTutorialSerial,
-        alignSkip: Alignment.bottomLeft,
-        contents: [
-          TargetContent(
-            align: ContentAlign.bottom,
-            builder: (context, controller) {
-              return Column(
-                children: [
-                  // Text( "To start, make sure the device is connected, so it can be listed here when clicked", style: TextStyle(fontSize:15, color: Colors.white) ),
-                  Text( "To start, make sure your recording device is connected to your computer. If it is, it will show up in the USB connection list", style: TextStyle(fontSize:15, color: Colors.white) ),
-                  Text( "Click the USB button and find your device. If you don’t know which one it is, disconnect the device and click it again. The one that disappeared is your device!", style: TextStyle(fontSize:15, color: Colors.white) ),
-                  Text( "Click the USB button to proceed.", style: TextStyle(fontSize:12, color: Colors.white) )
-                ]
-              );
-            },
+          child: Icon(
+            Icons.settings,
+            color: Color(0xFF800000),
           ),
-        ],
-      ),    
-    );    
+          onPressed: () {
+            if (deviceType == 0) {
+              _sendAnalyticsEvent("button_setting", {
+                "device": "Audio",
+                "deviceType": deviceType,
+              });
+              bool enableDeviceLegacy =
+                  settingParams["enableDeviceLegacy"] as bool;
+              settingParams['highFilterValue'] =
+                  (_lowPassFilter).floor().toString();
+              settingParams['lowFilterValue'] =
+                  (_highPassFilter).floor().toString();
+              settingParams['sampleRate'] = (sampleRate).floor().toString();
+              isSettingDialog = true;
 
-    // targets.add(
-    //   TargetFocus(
-    //     identify: "keyTutorialHid",
-    //     keyTarget: keyTutorialHid,
-    //     alignSkip: Alignment.bottomLeft,
-    //     contents: [
-    //       TargetContent(
-    //         align: ContentAlign.bottom,
-    //         builder: (context, controller) {
-    //           return Column(
-    //             children: [
-    //               Text( "To start, make sure your recording device is connected to your computer. If it is, it will show up in the Pro connection list", style: TextStyle(fontSize:15, color: Colors.white) ),
-    //               Text( "Click the PRO button and find your device. If you don’t know which one it is, disconnect the device and click it again. The one that disappeared is your device!", style: TextStyle(fontSize:15, color: Colors.white) ),
-    //               Text( "Click the PRO button to proceed.", style: TextStyle(fontSize:12, color: Colors.white) )
-    //             ]
-    //           );
-    //         },
-    //       ),
-    //     ],
-    //   ),    
-    // );
+              showCustomAudioDialog(context, settingParams).then((params) {
+                try {
+                  print("params");
+                  print(params);
+                  if (params == null) return;
 
-    targets.add(
-      TargetFocus(
-        identify: "keyTutorialSetting",
-        keyTarget: keyTutorialSetting,
-        alignSkip: Alignment.bottomLeft,
-        contents: [
-          TargetContent(
-            align: ContentAlign.bottom,
-            builder: (context, controller) {
-              return Column(
-                children: [
-                  Text( "Open settings to change the number of channels, line thickness and color of the graph.", style: TextStyle(fontSize:15, color: Colors.white) ),
-                  Text( "Press the settings button to continue.", style: TextStyle(fontSize:12, color: Colors.white) )
-                ]
-              );
+                  settingParams = params;
 
-              // return Container(
-              //   child: Text( "The setting page may differ, according current device sampled", style: TextStyle(color: Colors.white) )
-              // );
-            },
-          ),
-        ],
-      ),    
-    );   
+                  if (params["enableDeviceLegacy"] != enableDeviceLegacy) {
+                    _sendAnalyticsEvent("enable_legacy_device",
+                        {"isEnableDeviceLegacy": params["enableDeviceLegacy"]});
+                  }
 
-    targets.add(
-      TargetFocus(
-        identify: "keyTutorialTimescale",
-        keyTarget: keyTutorialTimescale,
-        alignSkip: Alignment.bottomLeft,
-        contents: [
-          TargetContent(
-            align: ContentAlign.top,
-            builder: (context, controller) {
-              return Padding(
-                padding: const EdgeInsets.only(top:50.0,left:100, right:100, bottom:20,),
-                child: Column(
-                  children: [
-                    Text( "Time Scale", style: TextStyle(fontWeight:FontWeight.bold,fontSize:17, color: Colors.white) ),
-                    Text( "Use your trackpad or mouse wheel to adjust the time scale. You can also adjust it by dragging up and down and releasing.", style: TextStyle(fontSize:12, color: Colors.white) ),
-                    SizedBox(height: 10),
-                    Text( "Click on the time scale to proceed", style: TextStyle(fontSize:12, color: Colors.white) ),                    
-                  ],
-                ),
-              );
-            },
-          ),
-        ],
-      ),    
-    ); 
+                  channelsColor[0] = audioChannelColors[
+                      settingParams["defaultMicrophoneLeftColor"] as int];
+                  channelsColor[1] = audioChannelColors[
+                      settingParams["defaultMicrophoneRightColor"] as int];
+                  print("channelsColor[1] : " + channelsColor[1].toString());
+                  // need to check again
+                  _lowPassFilter =
+                      int.parse(settingParams["highFilterValue"] as String)
+                          .toDouble();
+                  _highPassFilter =
+                      int.parse(settingParams["lowFilterValue"] as String)
+                          .toDouble();
 
+                  isNotch50 = settingParams["isNotch50"] as bool;
+                  isNotch60 = settingParams["isNotch60"] as bool;
 
+                  print("Filter : ");
+                  print(_lowPassFilter);
+                  // if (_highPassFilter == 0){
+                  //   _highPassFilter = 1;
+                  // }
+                  print(_highPassFilter);
 
+                  if (_lowPassFilter > sampleRate / 2 - 2) {
+                    isLowPass = false;
+                  } else {
+                    isLowPass = true;
+                  }
 
+                  if (_highPassFilter == 0) {
+                    isHighPass = false;
+                  } else {
+                    isHighPass = true;
+                  }
 
-    targets.add(
-      TargetFocus(
-        identify: "keyTutorialEnd",
-        keyTarget: keyTutorialEnd,
-        alignSkip: Alignment.bottomLeft,
-        contents: [
-          TargetContent(
-            align: ContentAlign.bottom,
-            builder: (context, controller) {
-              return Padding(
-                padding: const EdgeInsets.only(top:50.0,left:100, right:100, bottom:20,),
-                child: Column(
-                  children: [
-                    Text( "That's All", style: TextStyle(fontWeight:FontWeight.bold,fontSize:17, color: Colors.white) ),
-                    Text( "Thank you for following the tutorial, we hope that you will enjoy using the app!", style: TextStyle(fontSize:12, color: Colors.white) ),
-                    // SizedBox(height: 10),
-                    // Text( "Note:", style: TextStyle(fontSize:12, color: Colors.white) ),
-                    // Text( "Recording data and event keypress is still in progress", style: TextStyle(fontSize:12, color: Colors.white) ),
-                    SizedBox(height: 10),
-                    Text( "Your feedback is highly appreciated, please send us comment or report a bug by clicking the icon above.", style: TextStyle(fontSize:12, color: Colors.white) ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ],
-      ),    
-    );           
+                  print("low High ");
+                  print(isLowPass);
+                  print(isHighPass);
+
+                  double result = -100;
+
+                  if (isLowPass) {
+                    result = nativec.initLowPassFilter(maxOsChannel,
+                        sampleRate.toDouble(), _lowPassFilter, 0.5);
+                    print("result");
+                    print(result);
+                  }
+                  if (isHighPass) {
+                    result = nativec.initHighPassFilter(maxOsChannel,
+                        sampleRate.toDouble(), _highPassFilter, 0.5);
+                    print("result high");
+                    print(result);
+                  }
+
+                  if (isNotch50) {
+                    result = nativec.initNotchPassFilter(
+                        1, maxOsChannel, sampleRate.toDouble(), 50.0, 1.0);
+                  }
+                  if (isNotch60) {
+                    result = nativec.initNotchPassFilter(
+                        -1, maxOsChannel, sampleRate.toDouble(), 60.0, 1.0);
+                  }
+
+                  if (channelsColor[1] != Color(0xff000000)) {
+                    var data = {
+                      "channelCount": 2,
+                    };
+
+                    if (kIsWeb) {
+                      // js.context.callMethod('changeChannel', [json.encode(data)]);
+                    }
+                  }
+
+                  setState(() {});
+                } catch (err) {
+                  print("err 123");
+                  print(err);
+                }
+              });
+            } else {
+              if (deviceType == 1) {
+                _sendAnalyticsEvent("button_setting", {
+                  "device": "Serial",
+                  "deviceType": deviceType,
+                });
+              } else {
+                _sendAnalyticsEvent("button_setting", {
+                  "device": "HID",
+                  "deviceType": deviceType,
+                });
+              }
+
+              int prevChannelCount = settingParams["channelCount"] as int;
+              if (prevChannelCount == -1) {
+                settingParams['channelCount'] = 1;
+              } else {
+                settingParams['channelCount'] = prevChannelCount;
+              }
+
+              if (extraChannels == 0) {
+                settingParams["minSerialChannels"] = minChannels;
+                settingParams["maxSerialChannels"] = maxChannels;
+              } else {
+                settingParams["minSerialChannels"] = minChannels;
+                settingParams["maxSerialChannels"] = extraChannels;
+              }
+              print("settingParams");
+              print(minChannels);
+              print(maxChannels);
+              print(settingParams);
+              if (deviceTypeInt == 2) {
+                settingParams['deviceType'] = 'hid';
+                if (extraChannels == 0) {
+                  settingParams['channelCount'] = minChannels;
+                } else {
+                  settingParams['channelCount'] = maxChannels;
+                }
+              } else {
+                settingParams.remove('deviceType');
+              }
+
+              // if (settingParams['maxSerialChannels'] as int > 5) {
+              settingParams['displayChannelCount'] = true;
+              // }
+
+              bool enableDeviceLegacy =
+                  settingParams["enableDeviceLegacy"] as bool;
+              isSettingDialog = true;
+              showCustomSerialDialog(context, settingParams).then((params) {
+                // check with previous data
+                try {
+                  settingParams.remove('displayChannelCount');
+
+                  int val = params["channelCount"];
+                  if (val != prevChannelCount) {
+                    var data = {
+                      "channelCount": val,
+                    };
+                    initLevelMedian(val);
+
+                    callChangeSerialChannel(data);
+                  }
+
+                  print(val.toString() +
+                      " @@ " +
+                      settingParams["channelCount"].toString());
+                  if (params["enableDeviceLegacy"] != enableDeviceLegacy) {
+                    _sendAnalyticsEvent("enable_legacy_device",
+                        {"isEnableDeviceLegacy": params["enableDeviceLegacy"]});
+                  }
+
+                  if (params['commandType'] == 'update') {
+                    params.remove('commandType');
+                    if (kIsWeb) {
+                      // js.context.callMethod('updateFirmware', ['hid']);
+                    } else {}
+                    setState(() {});
+                    return;
+                  }
+                  if (params['deviceType'] == 'hid') {
+                    deviceType = 2;
+                    deviceTypeInt = 2;
+                  } else {
+                    deviceType = 1;
+                    deviceTypeInt = 1;
+                  }
+
+                  settingParams = params;
+
+                  channelsColor[0] = serialChannelColors[
+                      settingParams["defaultSerialColor1"] as int];
+                  if (settingParams["channelCount"] as int >= 2)
+                    channelsColor[1] = serialChannelColors[
+                        settingParams["defaultSerialColor2"] as int];
+                  if (settingParams["channelCount"] as int >= 3)
+                    channelsColor[2] = serialChannelColors[
+                        settingParams["defaultSerialColor3"] as int];
+                  if (settingParams["channelCount"] as int >= 4)
+                    channelsColor[3] = serialChannelColors[
+                        settingParams["defaultSerialColor4"] as int];
+                  if (settingParams["channelCount"] as int >= 5)
+                    channelsColor[4] = serialChannelColors[
+                        settingParams["defaultSerialColor5"] as int];
+                  if (settingParams["channelCount"] as int >= 6)
+                    channelsColor[5] = serialChannelColors[
+                        settingParams["defaultSerialColor6"] as int];
+
+                  if (kIsWeb) {
+                    // js.context.callMethod('setFlagChannelDisplay', [
+                    //   settingParams["flagDisplay1"],
+                    //   settingParams["flagDisplay2"],
+                    //   settingParams["flagDisplay3"],
+                    //   settingParams["flagDisplay4"],
+                    //   settingParams["flagDisplay5"],
+                    //   settingParams["flagDisplay6"]
+                    // ]);
+                  }
+
+                  setState(() {});
+                } catch (err) {
+                  print("err 12356");
+                  print(err);
+                }
+              });
+            }
+          },
+        ),
+      ),
+    );
   }
 
-  getNearestPower(d){
-    for (var i = 1;i<100;i++){
-      var power = pow(2,i);
-      if (d==power){
-        return i;
-      }else
-      if (d>power){
-        var nextPower = pow(2,i+1);
-        if (d == nextPower){
-          return i+1;
-        }else
-        if (d < nextPower){
-          return i;
+  void calculateArrScaleBar() {
+    List<double> myTimeScale = [];
+    int factor = 0;
+    var factors = [1, 2, 10, 20, 100, 1000, 10000, 100000];
+    var targets = [6, 12, 60, 120, 600, 1200, 6000, 60000, 600000];
+    int idx = 0;
+    for (int idxBar = 0; idxBar < 81; idxBar++) {
+      int myIdx = (idx / 10).floor();
+      double res;
+      if (idxBar == 80) {
+        res = targets[myIdx] * 10;
+      } else {
+        if (idxBar % 10 == 0) {
+          factor = 0;
         }
+        int range = targets[myIdx + 1] - targets[myIdx];
+        // myTimeScale.push( Math.round(range *100 * (1+factor/10 * factors[myIdx]) )/10 );
+        res = (targets[myIdx] + (range * factor / 10)) * 10;
       }
+
+      myTimeScale.add(res);
+      factor++;
+      idx++;
     }
+    List<double> myArrTimescale = new List.from(myTimeScale.reversed);
+    List<double> myArrScaleBar = [];
+    // let mytargets = [0.6,6,60, 300,600,3000, 6000,30000,60000];
+    const circularBuffersTime = 6000 * 10;
+    for (int idxBar = 0; idxBar < 81; idxBar++) {
+      // const divIdx = Math.floor( idxBar / 10 );
+      // myTimeScale.push( Math.round(range *100 * (1+factor/10 * factors[myIdx]) )/10 );
+
+      double res = circularBuffersTime / (myArrTimescale[idxBar] / 10);
+      // if (isNaN (res)) res = targets[divIdx] * 10;
+
+      myArrScaleBar.add(res);
+    }
+    this.myArrTimescale = myArrTimescale;
+    arrScaleBar = myArrScaleBar;
+    // print(myArrScaleBar);
   }
 
-  List<Widget> getDataWidgets(){
+  List<Widget> getDataWidgets() {
     const shapeLevelHeight = 35;
     int _channelActive = -1;
-    // List<int> channelsTop = [];
     for (var c = 0; c < channelsData.length; c++) {
-      initialLevelMedian[c] = (c * MediaQuery.of(context).size.height/channelsData.length) + MediaQuery.of(context).size.height/channelsData.length / 2;
-      // channelsTop.add(c * MediaQuery.of(context).size.height/channelsData.length);
+      initialLevelMedian[c] =
+          (c * MediaQuery.of(context).size.height / channelsData.length) +
+              MediaQuery.of(context).size.height / channelsData.length / 2;
       int channelNumber = c + 1;
-      if (settingParams["flagDisplay"+channelNumber.toString()] == 1 && _channelActive == -1){
+      if (settingParams["flagDisplay" + channelNumber.toString()] == 1 &&
+          _channelActive == -1) {
         _channelActive = c;
       }
-      // print( "CHANNEL : "+_channelActive.toString() + " : "+c.toString()+" _ "+ settingParams["flagDisplay"+channelNumber.toString()].toString() );
     }
-    // print("getDataWidgets "+channelGains[0].toString());
+    // init Threshold Value
+    if (thresholdMarkerTop[selectedThresholdIdx] == -10000) {
+      initLevelMedian(2);
+    }
 
-    // print("levelMedian : ");
-    // print(levelMedian);
-    List<Widget> dataWidgets = <Widget>[
-                // Text( (!isLocal && sampleData.data.length>0).toString() + sampleData.data.length.toString(), style:TextStyle(color: Colors.white) ),
-      if (!isLocal && channelsData.length>0)...{
-
-        Positioned(
-          top:0,
-          left:0,
-          child:settingParams["flagDisplay1"]==0?Container():WavForm.PolygonWaveform( 
-            // inactiveColor: Colors.green,
-            inactiveColor: channelsColor[0],
-            activeColor: Colors.transparent,
-            maxDuration: const Duration(days: 1),
-            elapsedDuration: const Duration(hours: 0),
-            samples: channelsData[0],
-            channelIdx: 0,
-            channelActive: _channelActive,
-            // channelTop: top,
-            height: MediaQuery.of(context).size.height/channelsData.length,
-            width:  MediaQuery.of(context).size.width, 
-            gain: channelGains[0],
-            levelMedian : levelMedian[0] == -1? initialLevelMedian[0] : levelMedian[0],
-            strokeWidth: settingParams["strokeWidth"] as double,
-            eventMarkersNumber : eventMarkersNumber,
-            eventMarkersPosition : eventMarkersPosition,
-          ),
-        ),
-        if (channelsData.length>=2)...{
-
-          Positioned(
-            // top:MediaQuery.of(context).size.height/channelsData.length,
-            top:0,
-            left:0,
-            child:settingParams["flagDisplay2"]==0?Container():WavForm.PolygonWaveform( 
+    List<Widget> dataWidgets = [];
+    if (!isLocal && channelsData.length > 0) {
+      for (int channelIdx = 0; channelIdx < channelsData.length; channelIdx++) {
+        if (settingParams["flagDisplay" + (channelIdx + 1).toString()] != 0) {
+          dataWidgets.add(
+            PolygonWaveform(
               // inactiveColor: Colors.green,
-              inactiveColor: channelsColor[1],
+              inactiveColor: channelsColor[channelIdx],
               activeColor: Colors.transparent,
               maxDuration: const Duration(days: 1),
               elapsedDuration: const Duration(hours: 0),
-              samples: channelsData[1],
-              channelIdx: 1,
+              samples: channelsData[channelIdx],
+              channelIdx: channelIdx,
               channelActive: _channelActive,
               // channelTop: top,
-
-              height: MediaQuery.of(context).size.height/channelsData.length,
-              width:  MediaQuery.of(context).size.width, 
-              gain: channelGains[1],
-              levelMedian : levelMedian[1] == -1? initialLevelMedian[1] : levelMedian[1],
+              height: MediaQuery.of(context).size.height / channelsData.length,
+              width: MediaQuery.of(context).size.width,
+              gain: channelGains[channelIdx],
+              levelMedian: levelMedian[channelIdx] == -1
+                  ? initialLevelMedian[channelIdx]
+                  : levelMedian[channelIdx],
               strokeWidth: settingParams["strokeWidth"] as double,
-              eventMarkersNumber : eventMarkersNumber,
-              eventMarkersPosition : eventMarkersPosition,
+              eventMarkersNumber: globalMarkers,
+              eventMarkersPosition: markersData,
             ),
-          ),
+          );
+        }
+      }
+    }
 
-        },
+    // if (isThreshold){
+    //   dataWidgets.add(
+    //     Positioned(
+    //       top:thresholdValue[0].toDouble(),
+    //       left:100,
+    //       child:Text("Thres Value : " + thresholdValue[0].toString(), style:TextStyle(color: Colors.white))
+    //     )
+    //   );
+    // }
 
-        if (channelsData.length>=3)...{
-                            
-          Positioned(
-            // top:2*MediaQuery.of(context).size.height/channelsData.length,
-            top:0,
-            left:0,
-            child:Container(
-              // color: Colors.red,
-              padding: EdgeInsets.only(top:10),
-              child:settingParams["flagDisplay3"]==0?Container():WavForm.PolygonWaveform( 
-                // inactiveColor: Colors.green,
-                inactiveColor: channelsColor[2],
-                activeColor: Colors.transparent,
-                maxDuration: Duration(days: 1),
-                elapsedDuration: Duration(hours: 0),
-                samples: channelsData[2],
-                channelIdx: 2,
-                channelActive: _channelActive,
-                // channelTop: top,
-
-                height: MediaQuery.of(context).size.height/channelsData.length,
-                width:  MediaQuery.of(context).size.width, 
-                gain: channelGains[2],
-                levelMedian : (levelMedian[2] == -1? initialLevelMedian[2] : levelMedian[2])*0.985,
-                strokeWidth: settingParams["strokeWidth"] as double,
-                eventMarkersNumber : eventMarkersNumber,
-                eventMarkersPosition : eventMarkersPosition,
-
-
-              ),
-            ),
-          ),
-        },
-
-        if (channelsData.length>=4)...{
-          
-          Positioned(
-            // top:3*MediaQuery.of(context).size.height/channelsData.length,
-            top:0,
-            left:0,
-            child:settingParams["flagDisplay4"]==0?Container():WavForm.PolygonWaveform( 
-              // inactiveColor: Colors.green,
-              inactiveColor: channelsColor[3],
-              activeColor: Colors.transparent,
-              maxDuration: Duration(days: 1),
-              elapsedDuration: Duration(hours: 0),
-              samples: channelsData[3],
-              channelIdx: 3,
-              channelActive: _channelActive,
-              // channelTop: top,
-
-              height: MediaQuery.of(context).size.height/channelsData.length,
-              width:  MediaQuery.of(context).size.width, 
-              gain: channelGains[3],
-              levelMedian : levelMedian[3] == -1? initialLevelMedian[3] : levelMedian[3],
-              strokeWidth: settingParams["strokeWidth"] as double,
-              eventMarkersNumber : eventMarkersNumber,
-              eventMarkersPosition : eventMarkersPosition,
-
-
-            ),
-          ),
-
-        },                
-
-        if (channelsData.length>=5)...{
-          
-          Positioned(
-            // top:4*MediaQuery.of(context).size.height/channelsData.length,
-            top:0,
-            left:0,
-            child:settingParams["flagDisplay5"]==0?Container():WavForm.PolygonWaveform( 
-              // inactiveColor: Colors.green,
-              inactiveColor: channelsColor[4],
-              activeColor: Colors.transparent,
-              maxDuration: Duration(days: 1),
-              elapsedDuration: Duration(hours: 0),
-              samples: channelsData[4],
-              channelIdx: 4,
-              channelActive: _channelActive,
-              // channelTop: top,
-
-              height: MediaQuery.of(context).size.height/channelsData.length,
-              width:  MediaQuery.of(context).size.width, 
-              gain: channelGains[4],
-              levelMedian : levelMedian[4] == -1? initialLevelMedian[4] : levelMedian[4],
-              strokeWidth: settingParams["strokeWidth"] as double,
-              eventMarkersNumber : eventMarkersNumber,
-              eventMarkersPosition : eventMarkersPosition,
-
-
-            ),
-          ),
-
-        },                
-        if (channelsData.length>=6)...{
-
-          Positioned(
-            // top:5*MediaQuery.of(context).size.height/channelsData.length,
-            top:0,
-            left:0,
-            child:settingParams["flagDisplay6"]==0?Container():WavForm.PolygonWaveform( 
-              // inactiveColor: Colors.green,
-              inactiveColor: channelsColor[5],
-              activeColor: Colors.transparent,
-              maxDuration: Duration(days: 1),
-              elapsedDuration: Duration(hours: 0),
-              samples: channelsData[5],
-              channelIdx: 5,
-              channelActive: _channelActive,
-              // channelTop: top,
-
-              height: MediaQuery.of(context).size.height/channelsData.length,
-              width:  MediaQuery.of(context).size.width, 
-              gain: channelGains[5],
-              levelMedian : levelMedian[5] == -1? initialLevelMedian[5] : levelMedian[5],
-              strokeWidth: settingParams["strokeWidth"] as double,
-              eventMarkersNumber : eventMarkersNumber,
-              eventMarkersPosition : eventMarkersPosition,
-
-
-            ),
-          ),
-
-        },                
-
-      },
-      
-
-      // Positioned(
-      //   top:0,
-      //   left:0,
-      //   width: MediaQuery.of(context).size.width,
-      //   height: 60,
-      //   child: Container(
-      //     width: MediaQuery.of(context).size.width,
-      //     height: 60,
-      //     color: Colors.black,
-      //   ),
-      // ),
+    List<Widget> dataAdditionalWidgets = <Widget>[
       Positioned(
-        top:0,
-        left:0,
-        width:50,
+        top: 0,
+        left: 0,
+        width: 50,
         height: MediaQuery.of(context).size.height,
         child: Container(
-          width:50,
+          width: 50,
           height: MediaQuery.of(context).size.height,
           color: Colors.black,
         ),
       ),
-
-      // Container(
-      //     child: Row(
-      //       children: <Widget>[
-      //         CustomPaint(
-      //           size: Size(
-      //             MediaQuery.of(context).size.width,
-      //             MediaQuery.of(context).size.height,
-      //           ),
-      //           foregroundPainter: WaveformPainter(
-      //             sampleData,
-      //             zoomLevel: zoomLevel,
-      //             startingFrame: sampleData.frameIdxFromPercent(startPosition),
-      //             // color: Color(0xff3994DB),
-      //             color: Colors.green,
-      //           ),
-      //         ),
-      //       ],
-      //     ),
-      //   )
-
-      // SfCartesianChart(
-      //   plotAreaBorderWidth: 0,
-
-      //   primaryXAxis:
-      //       NumericAxis(
-      //         borderColor: Colors.black,
-      //         minimum: 0,
-
-      //         labelStyle: TextStyle(color:Colors.black),
-      //         isVisible: false,
-
-      //         maximum: maxAxis,
-      //         // interval: 1,
-      //         axisLine: const AxisLine(width: 0,color: Colors.black),
-      //         majorGridLines: const MajorGridLines(width: 0,color: Colors.black)
-      //       ),
-      //   primaryYAxis: NumericAxis(
-      //       borderColor: Colors.black,
-      //       minimum: -1,
-
-      //       borderWidth: 0,
-      //       axisBorderType: AxisBorderType.withoutTopAndBottom,
-      //       labelStyle: TextStyle(color:Colors.black),
-      //       isVisible: false,
-
-      //       maximum: 10,
-      //       // interval: 1,
-      //       axisLine: const AxisLine(width: 0,color: Colors.black),
-      //       majorTickLines: const MajorTickLines(size: 0,color: Colors.black)),
-
-      //   series: <LineSeries<_ChartData, int>>[
-      //     LineSeries<_ChartData, int>(
-      //       onRendererCreated: (ChartSeriesController controller) {
-      //         _chartSeriesController = controller;
-      //       },
-      //       dataSource: chartLiveData,
-      //       color: Colors.green,
-      //       xValueMapper: (_ChartData sales, _) => sales.country,
-      //       yValueMapper: (_ChartData sales, _) => sales.sales,
-      //       animationDuration: 0,
-      //     )
-      // ])           
-      // :
-      // Container(),
-
-      // Positioned(
-      //   top:140,
-      //   right:50,
-      //   child:ElevatedButton(
-      //     onPressed: (){
-      //       deviceType = 1;
-      //       isPlaying = 1;
-      //       startRecordingTime = (DateTime.now());
-      //       channelGains = [1000,1000,1000,1000,1000,1000];
-      //       js.context.callMethod('recordHid', ['Flutter is calling upon JavaScript!']);
-      //       setState(() {
-              
-      //       });
-      //     },
-      //     child: Icon(Icons.fiber_manual_record_rounded, ),
-      //   ),
-      // ),
-
-      // Positioned(
-      //   top:70,
-      //   right:50,
-      //   child:ElevatedButton(
-      //     onPressed: (){
-      //       deviceType = 1;
-      //       isPlaying = 1;
-      //       startRecordingTime = (DateTime.now());
-      //       channelGains = [1000,1000,1000,1000,1000,1000];
-      //       js.context.callMethod('recordSerial', ['Flutter is calling upon JavaScript!']);
-      //       setState(() {
-              
-      //       });
-      //     },
-      //     child: Icon(Icons.fiber_manual_record_rounded),
-      //   ),
-      // ),
-
-      // if (!isLocal)...{
-        // Positioned(
-        //   top:80,
-        //   left:0,
-        //   child:Container(
-        //     // width:300,
-        //     // height:150,
-        //     color:Colors.red,
-        //     child:CountStepper(
-
-        //       iconColor: Theme.of(context).primaryColor,
-        //       max:2,
-        //       min:1, 
-        //       defaultValue : stepperValue,
-        //       onPressed:(val){
-        //         var data = {
-        //           "channelCount":val,
-        //         };
-
-        //         js.context.callMethod('changeChannel', [json.encode(data)]);
-        //         setState(() {
-        //           stepperValue = val;
-        //         });
-        //       }
-        //     ),
-        //   ),
-        // ),
-      // SERIAL
-      //   Positioned(
-      //     top:150,
-      //     left:0,
-      //     child:Container(
-      //       // width:300,
-      //       // height:150,
-      //       color:Colors.red,
-      //       child:CountStepper(
-
-      //         iconColor: Theme.of(context).primaryColor,
-      //         max:6,
-      //         min:1, 
-      //         defaultValue : stepperValue,
-      //         onPressed:(val){
-      //           var data = {
-      //             "channelCount":val,
-      //           };
-
-      //           js.context.callMethod('changeSerialChannel', [json.encode(data)]);
-      //           setState(() {
-      //             stepperValue = val;
-      //           });
-      //         }
-      //       ),
-      //     ),
-      //   ),
-
-      //   Positioned(
-      //     top:220,
-      //     left:0,
-      //     child:Container(
-      //       // width:300,
-      //       // height:150,
-      //       color:Colors.red,
-      //       child:CountStepper(
-
-      //         iconColor: Theme.of(context).primaryColor,
-      //         max:4,
-      //         min:1, 
-      //         defaultValue : stepperValue,
-      //         onPressed:(val){
-      //           var data = {
-      //             "channelCount":val,
-      //           };
-
-      //           js.context.callMethod('changeHidChannel', [json.encode(data)]);
-      //           setState(() {
-      //             stepperValue = val;
-      //           });
-      //         }
-      //       ),
-      //     ),
-      //   ),
-
-      // },
-
-      // Positioned(
-      //   bottom: 10,
-      //   left: MediaQuery.of(context).size.width/3,
-      //   child: Center(
-      //     child: Container(
-      //       width: MediaQuery.of(context).size.width/4,
-      //       height:20,
-      //       child: Text(timeScale.toString()+"ms", style: TextStyle(color: Colors.white),)
-      //     ),
-      //   ),
-      // ),
-
       Positioned(
         bottom: 170,
         right: 50,
         child: Center(
-          child: Text(curTimeScaleBar == 1000 ? "1s" : curTimeScaleBar == 500 ? "0.5s"  : curTimeScaleBar.toString()+"ms", style: TextStyle(color: Colors.white),)
-          // child: Container(
-          //   width: MediaQuery.of(context).size.width/5,
-          //   height:15,
-          //   child: Text(curTimeScaleBar.toString()+"ms", style: TextStyle(color: Colors.white),)
-          // ),
-        ),
+            child: Text(
+          curTimeScaleBar == 1000
+              ? "1s"
+              : curTimeScaleBar == 500
+                  ? "0.5s"
+                  : curTimeScaleBar.floor().toString() + "ms",
+          style: TextStyle(color: Colors.white),
+        )
+            // child: Container(
+            //   width: MediaQuery.of(context).size.width/5,
+            //   height:15,
+            //   child: Text(curTimeScaleBar.toString()+"ms", style: TextStyle(color: Colors.white),)
+            // ),
+            ),
       ),
-
-
       Positioned(
         key: keyTutorialTimescale,
         bottom: 200,
         right: 50,
         child: Container(
           width: scaleBarWidth,
-          height:1,
+          height: 1,
           color: Colors.white,
           // child: Text(scaleBarWidth.toString(), style: TextStyle(color: Colors.red),)
         ),
       ),
+    ];
 
-      //TOP RED BANNER
+    dataWidgets.addAll(dataAdditionalWidgets);
+    // if (!isLocal && channelsData.length > 0) ...{
+    //   Positioned(
+    //     top: 0,
+    //     left: 0,
+    //     child: settingParams["flagDisplay1"] == 0
+    //         ? Container()
+    //         : PolygonWaveform(
+    //             // inactiveColor: Colors.green,
+    //             inactiveColor: channelsColor[0],
+    //             activeColor: Colors.transparent,
+    //             maxDuration: const Duration(days: 1),
+    //             elapsedDuration: const Duration(hours: 0),
+    //             samples: channelsData[0],
+    //             channelIdx: 0,
+    //             channelActive: _channelActive,
+    //             // channelTop: top,
+    //             height:
+    //                 MediaQuery.of(context).size.height / channelsData.length,
+    //             width: MediaQuery.of(context).size.width,
+    //             gain: channelGains[0],
+    //             levelMedian: levelMedian[0] == -1
+    //                 ? initialLevelMedian[0]
+    //                 : levelMedian[0],
+    //             strokeWidth: settingParams["strokeWidth"] as double,
+    //             eventMarkersNumber: globalMarkers,
+    //             eventMarkersPosition: markersData,
+    //           ),
+    //   ),
+    //   if (channelsData.length >= 2) ...{
+    //     Positioned(
+    //       // top:MediaQuery.of(context).size.height/channelsData.length,
+    //       top: 0,
+    //       left: 0,
+    //       child: settingParams["flagDisplay2"] == 0
+    //           ? Container()
+    //           : PolygonWaveform(
+    //               // inactiveColor: Colors.green,
+    //               inactiveColor: channelsColor[1],
+    //               activeColor: Colors.transparent,
+    //               maxDuration: const Duration(days: 1),
+    //               elapsedDuration: const Duration(hours: 0),
+    //               samples: channelsData[1],
+    //               channelIdx: 1,
+    //               channelActive: _channelActive,
+    //               // channelTop: top,
 
+    //               height: MediaQuery.of(context).size.height /
+    //                   channelsData.length,
+    //               width: MediaQuery.of(context).size.width,
+    //               gain: channelGains[1],
+    //               levelMedian: levelMedian[1] == -1
+    //                   ? initialLevelMedian[1]
+    //                   : levelMedian[1],
+    //               strokeWidth: settingParams["strokeWidth"] as double,
+    //               eventMarkersNumber: eventMarkersNumber,
+    //               eventMarkersPosition: eventMarkersPosition,
+    //             ),
+    //     ),
+    //   },
+    //   if (channelsData.length >= 3) ...{
+    //     Positioned(
+    //       // top:2*MediaQuery.of(context).size.height/channelsData.length,
+    //       top: 0,
+    //       left: 0,
+    //       child: Container(
+    //         // color: Colors.red,
+    //         padding: EdgeInsets.only(top: 10),
+    //         child: settingParams["flagDisplay3"] == 0
+    //             ? Container()
+    //             : PolygonWaveform(
+    //                 // inactiveColor: Colors.green,
+    //                 inactiveColor: channelsColor[2],
+    //                 activeColor: Colors.transparent,
+    //                 maxDuration: Duration(days: 1),
+    //                 elapsedDuration: Duration(hours: 0),
+    //                 samples: channelsData[2],
+    //                 channelIdx: 2,
+    //                 channelActive: _channelActive,
+    //                 // channelTop: top,
 
-      // !isLocal?
-      //   Container()
-      //   :
-        // Positioned(
-        //   top:10,
-        //   left:50,
-        //   child:Container(
-        //     width:150,
-        //     color: Colors.red,
-        //     child: CupertinoSlider(
-        //       value:zoomLevel,
-        //       min: 1,
-        //       max: 100,
-        //       divisions: 40,
-        //       onChanged: (newZoomLevel){
-        //         setState(() => zoomLevel = newZoomLevel);
-        //       },
-        //     ),
-        //   ),
-        // ),
+    //                 height: MediaQuery.of(context).size.height /
+    //                     channelsData.length,
+    //                 width: MediaQuery.of(context).size.width,
+    //                 gain: channelGains[2],
+    //                 levelMedian: (levelMedian[2] == -1
+    //                         ? initialLevelMedian[2]
+    //                         : levelMedian[2]) *
+    //                     0.985,
+    //                 strokeWidth: settingParams["strokeWidth"] as double,
+    //                 eventMarkersNumber: eventMarkersNumber,
+    //                 eventMarkersPosition: eventMarkersPosition,
+    //               ),
+    //       ),
+    //     ),
+    //   },
+    //   if (channelsData.length >= 4) ...{
+    //     Positioned(
+    //       // top:3*MediaQuery.of(context).size.height/channelsData.length,
+    //       top: 0,
+    //       left: 0,
+    //       child: settingParams["flagDisplay4"] == 0
+    //           ? Container()
+    //           : PolygonWaveform(
+    //               // inactiveColor: Colors.green,
+    //               inactiveColor: channelsColor[3],
+    //               activeColor: Colors.transparent,
+    //               maxDuration: Duration(days: 1),
+    //               elapsedDuration: Duration(hours: 0),
+    //               samples: channelsData[3],
+    //               channelIdx: 3,
+    //               channelActive: _channelActive,
+    //               // channelTop: top,
 
-      // !isLocal?
-      //   Container()
-      //   :
+    //               height: MediaQuery.of(context).size.height /
+    //                   channelsData.length,
+    //               width: MediaQuery.of(context).size.width,
+    //               gain: channelGains[3],
+    //               levelMedian: levelMedian[3] == -1
+    //                   ? initialLevelMedian[3]
+    //                   : levelMedian[3],
+    //               strokeWidth: settingParams["strokeWidth"] as double,
+    //               eventMarkersNumber: eventMarkersNumber,
+    //               eventMarkersPosition: eventMarkersPosition,
+    //             ),
+    //     ),
+    //   },
+    //   if (channelsData.length >= 5) ...{
+    //     Positioned(
+    //       // top:4*MediaQuery.of(context).size.height/channelsData.length,
+    //       top: 0,
+    //       left: 0,
+    //       child: settingParams["flagDisplay5"] == 0
+    //           ? Container()
+    //           : PolygonWaveform(
+    //               // inactiveColor: Colors.green,
+    //               inactiveColor: channelsColor[4],
+    //               activeColor: Colors.transparent,
+    //               maxDuration: Duration(days: 1),
+    //               elapsedDuration: Duration(hours: 0),
+    //               samples: channelsData[4],
+    //               channelIdx: 4,
+    //               channelActive: _channelActive,
+    //               // channelTop: top,
 
-        // Positioned(
-        //   top:10,
-        //   left:50,
-        //   child:Container(
-        //     width:150,
-        //     color: Colors.red,
-        //     child: Slider(
-        //       value:curLevel,
-        //       divisions: 9,
-        //       // label: "$curLevel",
-        //       onChanged: (_curLevel){
-        //         curLevel = _curLevel;
-        //         int lvl = ( curLevel * 10 ).floor();
-        //         if (curLevel == 1){
-        //           lvl = 9;
-        //         }
+    //               height: MediaQuery.of(context).size.height /
+    //                   channelsData.length,
+    //               width: MediaQuery.of(context).size.width,
+    //               gain: channelGains[4],
+    //               levelMedian: levelMedian[4] == -1
+    //                   ? initialLevelMedian[4]
+    //                   : levelMedian[4],
+    //               strokeWidth: settingParams["strokeWidth"] as double,
+    //               eventMarkersNumber: eventMarkersNumber,
+    //               eventMarkersPosition: eventMarkersPosition,
+    //             ),
+    //     ),
+    //   },
+    //   if (channelsData.length >= 6) ...{
+    //     Positioned(
+    //       // top:5*MediaQuery.of(context).size.height/channelsData.length,
+    //       top: 0,
+    //       left: 0,
+    //       child: settingParams["flagDisplay6"] == 0
+    //           ? Container()
+    //           : PolygonWaveform(
+    //               // inactiveColor: Colors.green,
+    //               inactiveColor: channelsColor[5],
+    //               activeColor: Colors.transparent,
+    //               maxDuration: Duration(days: 1),
+    //               elapsedDuration: Duration(hours: 0),
+    //               samples: channelsData[5],
+    //               channelIdx: 5,
+    //               channelActive: _channelActive,
+    //               // channelTop: top,
 
-        //         timeScale = arrTimescale[lvl];
-        //         int dataTimeScale = lblTimescale[lvl];
-        //         js.context.callMethod('refreshAudioSetting', [dataTimeScale]);
-        //         setState(() {
-                  
-        //         });
+    //               height: MediaQuery.of(context).size.height /
+    //                   channelsData.length,
+    //               width: MediaQuery.of(context).size.width,
+    //               gain: channelGains[5],
+    //               levelMedian: levelMedian[5] == -1
+    //                   ? initialLevelMedian[5]
+    //                   : levelMedian[5],
+    //               strokeWidth: settingParams["strokeWidth"] as double,
+    //               eventMarkersNumber: eventMarkersNumber,
+    //               eventMarkersPosition: eventMarkersPosition,
+    //             ),
+    //     ),
+    //   },
+    // },
+    if (Platform.isMacOS) {
+      // dataWidgets.add(
+      //   Positioned(
+      //     top: 10,
+      //     left: MediaQuery.of(context).size.width / 3,
+      //     child: ElevatedButton(
+      //       onPressed: () async {
+      //         if (Platform.isMacOS) {
+      //           // Stream<List<int>>? stream = await MicStream.microphone(
+      //           //     audioSource: AudioSource.DEFAULT,
+      //           //     sampleRate: 48000,
+      //           //     channelConfig: ChannelConfig.CHANNEL_IN_MONO,
+      //           //     audioFormat: AudioFormat.ENCODING_PCM_16BIT);
 
-        //       },
-        //     ),
-        //   ),
-        // ),
+      //           // double _sampleRate = await MicStream.sampleRate!;
+      //           // MicStream.stopListening();
 
+      //           // print("_sampleRate");
+      //           // print(_sampleRate);
+      //           // (Winaudio()).initBassAudio(48000);
+      //         }
+      //         // await (Winaudio()).initBassAudio(48000);
+      //         // Future.delayed(Duration(seconds: 1), () {
+      //         // await (Winaudio()).startRecording();
+      //         // });
+      //         // winAudioSubscription?.cancel();
+      //         // winAudioSubscription = Winaudio.audioData().listen((samples) {
+      //         //   // print(samples.length);
+      //         // });
 
-      // !isLocal?
-      //   Container()
-      //   :
-      //   // WavForm.PolygonWaveform( 
-      //   //   maxDuration: Duration(days: 1),
-      //   //   elapsedDuration: Duration(hours: 0),
-      //   //   samples: chartData,
-      //   //   height: MediaQuery.of(context).size.height,
-      //   //   width:  MediaQuery.of(context).size.width, 
-      //   // )              
-      //   CustomPaint(
-      //     size: Size(
-      //       MediaQuery.of(context).size.width,
-      //       MediaQuery.of(context).size.height,
-      //     ),
-      //     foregroundPainter: WaveformPainter(
-      //       sampleData,
-      //       zoomLevel: zoomLevel,
-      //       startingFrame: sampleData.frameIdxFromPercent(startPosition),
-      //       color: Color(0xff3994DB),
+      //         closeRawSerial();
+      //         print("abcd");
+      //       },
+      //       child: Text("Close Serial"),
       //     ),
       //   ),
-
-
-    ];    
-  
-
- 
+      // );
+    }
     List<Widget> widgetsChannelGainLevel = [];
+    Color curColor = Colors.white;
+    if (Platform.isIOS || Platform.isAndroid) {
+      curColor = Colors.black;
+    }
+
     for (var c = 0; c < channelsData.length; c++) {
-      widgetsChannelGainLevel.add(
-        Positioned(
-          // top : levelMedian[c] == -1?(c * MediaQuery.of(context).size.height/channelsData.length) + MediaQuery.of(context).size.height/channelsData.length / 2 - shapeLevelHeight : levelMedian[c],
-          top : levelMedian[c] == -1 ? initialLevelMedian[c] - shapeLevelHeight : levelMedian[c] - shapeLevelHeight,
-          left: 10,
-          child: GestureDetector(
+      widgetsChannelGainLevel.add(Positioned(
+        // top : levelMedian[c] == -1?(c * MediaQuery.of(context).size.height/channelsData.length) + MediaQuery.of(context).size.height/channelsData.length / 2 - shapeLevelHeight : levelMedian[c],
+        top: levelMedian[c] == -1
+            ? initialLevelMedian[c] - shapeLevelHeight
+            : levelMedian[c] - shapeLevelHeight,
+        left: 10,
+        child: GestureDetector(
             behavior: HitTestBehavior.translucent,
-            onTap: (){
-              if (c>-1){
-                if (isRecording<10){
-                  settingParams["flagDisplay"+(c+1).toString()] = settingParams["flagDisplay"+(c+1).toString()] == 0 ? 1 : 0;
-                  js.context.callMethod('setFlagChannelDisplay', [settingParams["flagDisplay1"],settingParams["flagDisplay2"],settingParams["flagDisplay3"],settingParams["flagDisplay4"],settingParams["flagDisplay5"],settingParams["flagDisplay6"] ]);
+            onTap: () {
+              if (c > -1) {
+                if (isRecording < 10) {
+                  print('selectedThresholdIdx zzz');
+                  print(selectedThresholdIdx);
+
+                  selectedThresholdIdx = c;
+                  // if ( settingParams["flagDisplay${c + 1}"] == 1 ){
+                  //   for (var cIdx = 0; cIdx < channelsData.length; cIdx++) {
+                  //     if (settingParams["flagDisplay${cIdx + 1}"] == 1){
+
+                  //     }
+                  //     selectedThresholdIdx = c;
+                  //   }
+                  // }
+
+                  settingParams["flagDisplay${c + 1}"] =
+                      settingParams["flagDisplay${c + 1}"] == 0 ? 1 : 0;
+
+                  // if ( !isThreshold ) selectedThresholdIdx = c;
+                  if (kIsWeb) {
+                    // js.context.callMethod('setFlagChannelDisplay', [
+                    //   settingParams["flagDisplay1"],
+                    //   settingParams["flagDisplay2"],
+                    //   settingParams["flagDisplay3"],
+                    //   settingParams["flagDisplay4"],
+                    //   settingParams["flagDisplay5"],
+                    //   settingParams["flagDisplay6"]
+                    // ]);
+                  }
                 }
                 _sendAnalyticsEvent("button_level_marker", {
-                  "deviceType" : deviceType,
-                  "channel" : c,
-                  "gains" : channelGains[c],
+                  "deviceType": deviceType,
+                  "channel": c,
+                  "gains": channelGains[c],
                 });
 
-                // settingParams["flagDisplay"+(c+1).toString()] = 1;
-                setState(() { });
+                setState(() {});
               }
             },
-            onVerticalDragUpdate: (dragUpdateVerticalDetails){
+            onVerticalDragStart: (dragDetailStart) {
+              // if ( !isThreshold ) selectedThresholdIdx = c;
+              print('selectedThresholdIdx');
+              print(c);
+              selectedThresholdIdx = c;
+              if (!isMedianDragStart) {
+                print('isMedianDragStart');
+                print(isMedianDragStart);
+                isMedianDragStart = true;
+                double median = levelMedian[c] == -1
+                    ? initialLevelMedian[c]
+                    : levelMedian[c];
+
+                // thresholdMarkerTop[0] += dragUpdateVerticalDetails.delta.dy;
+                // listMedianDistance[0] = thresholdMarkerTop[0] + 12 - median;
+                double curDistance = 0;
+                // if (thresholdMarkerTop[0] < 0){
+                //   curDistance = (thresholdMarkerTop[0] + 12 - median).abs();
+                // }else{
+                curDistance = thresholdMarkerTop[c] + 12 - median;
+                // }
+                // print('curDistance');
+                // print(curDistance);
+                // print('initial Distance');
+                // print(listMedianDistance[c]);
+                double scaleRatio = 1;
+                if (deviceType == 0) {
+                  scaleRatio = listChannelAudio[listIndexAudio[c].floor()] /
+                      listChannelAudio[defaultListIndexAudio];
+                } else {
+                  scaleRatio = listChannelSerial[listIndexSerial[c].floor()] /
+                      listChannelSerial[defaultListIndexSerial];
+                }
+
+                listMedianDistance[c] = curDistance * scaleRatio;
+                thresholdMarkerTop[c] =
+                    median + listMedianDistance[c] / scaleRatio - 12;
+
+                // print('transformed Distance ');
+                // print(thresholdMarkerTop[0]);
+                // print(curDistance);
+                // print(scaleRatio);
+                // print(listChannelAudio[listDefaultIndex[c]]);
+                // print(listChannelAudio[defaultListIndexAudio]);
+                // print(listMedianDistance[c]);
+              }
+              // if (isThreshold){
+              //   thresholdMarkerTop[0] -= 12;
+              // }
+            },
+            onVerticalDragEnd: (dragDetailEnd) {
+              print('isMedianDrag END');
+              print(isMedianDragStart);
+              isMedianDragStart = false;
+              // if (isThreshold){
+              //   thresholdMarkerTop[0] -= 12;
+              // }
+            },
+            onVerticalDragUpdate: (dragUpdateVerticalDetails) {
+              // forceThreshold = 0;
+              int diffPosition =
+                  (dragUpdateVerticalDetails.globalPosition.dy - levelMedian[c])
+                      .floor();
               levelMedian[c] = dragUpdateVerticalDetails.globalPosition.dy;
-              // print("isPlaying");
-              // print(isPlaying);
-              if (isPlaying == 2){
-                setState(() { });
+
+              double heightFactor = (channelGains[c] / signalMultiplier);
+              // thresholdValue[0] = ((thresholdMarkerTop[0] +
+              //                 12 -
+              //                 // (MediaQuery.of(context).size.height / 2))
+              //                 levelMedian[0] == -1 ? initialLevelMedian[0] : levelMedian[0])
+              //                 // levelMedian[0])
+              //             .floor() *
+              //         heightFactor)
+              //     .floor();
+
+              // thresholdValue[0] = ((thresholdMarkerTop[0] +
+              //                 12 -
+              //                 (levelMedian[0] == -1
+              //                     ? initialLevelMedian[0]
+              //                     : levelMedian[0]))
+              //             .floor() *
+              //         heightFactor)
+              //     .floor();
+              if (isThreshold) {
+                // print(diffPosition)
+                // thresholdValue[0] += diffPosition;
+                double median = levelMedian[c] == -1
+                    ? initialLevelMedian[c]
+                    : levelMedian[c];
+
+                // thresholdMarkerTop[0] += dragUpdateVerticalDetails.delta.dy;
+                // listMedianDistance[0] = thresholdMarkerTop[0] + 12 - median;
+                double scaleRatio = 1;
+                if (deviceType == 0) {
+                  scaleRatio = listChannelAudio[defaultListIndexAudio] /
+                      listChannelAudio[listIndexAudio[c].floor()];
+                } else {
+                  scaleRatio = listChannelSerial[defaultListIndexSerial] /
+                      listChannelSerial[listIndexSerial[c].floor()];
+                }
+                thresholdMarkerTop[c] =
+                    median + listMedianDistance[c] * scaleRatio - 12;
+
+                // if (deviceType == 0){
+                //   listDefaultIndex[c] = listIndexAudio[c].floor();
+                // }else{
+                //   listDefaultIndex[c] = listIndexSerial[c].floor();
+                // }
               }
-              // print("123 levelMedian : ");
-              // print(levelMedian);
-
-
-              // print("dragUpdateVerticalDetails");
-              // print(dragUpdateVerticalDetails.localPosition);
-              // print(dragUpdateVerticalDetails.globalPosition);
-              // setState(() {
-                
-              // });
+              if (isPlaying == 2) {
+                setState(() {});
+              }
             },
-            child : Container(
+            child: Container(
               // color:Colors.red,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-
                   GestureDetector(
                     onTap: () {
-                      //Increase Gain
-                      if (deviceType == 0){
-                        // if (channelGains[c] - 200 > 0){
-                        //   channelGains[c]-=200;
-                        // }
-                        double idx = listIndexAudio[c];
-                        if (idx - 1 > minIndexAudio){
-                          idx--;
-                          listIndexAudio[c]= idx;
-                          channelGains[c] = listChannelAudio[idx.toInt()];
+                      if (Platform.isMacOS || Platform.isWindows) {
+                        print("c");
+                        print(c);
+                        List<double> res = increaseGain(c);
+                        if (isThreshold) {
+                          forceThreshold = 0;
+                          // print('res[0]');
+                          // print(res[0]);
+                          // print(res[1]);
+
+                          // setThresholdMarker(c, thresholdMarkerTop[c]);
+                          if (res[0] != res[1])
+                            setThresholdMarker(c, thresholdMarkerTop,
+                                thresholdValue, res[0], res[1]);
                         }
-                        _sendAnalyticsEvent("button_gain_inc", {
-                          "device" : "Audio",
-                          "deviceType" : deviceType,
-                          "channel" : c,
-                          "gains" : channelGains[c],
-                        });
 
-                      }else
-                      if (deviceType == 2){
-                        // if (channelGains[c] - 50 > 50){
-                        //   channelGains[c] -= 50;
-                        // }
-                        double idx = listIndexHid[c];
-                        if (idx - 1 > minIndexHid){
-                          idx--;
-                          listIndexHid[c]= idx;
-                          channelGains[c] = listChannelHid[idx.toInt()];
-                        }
-                        _sendAnalyticsEvent("button_gain_inc", {
-                          "device" : "HID",
-                          "deviceType" : deviceType,
-                          "channel" : c,
-                          "gains" : channelGains[c],
-                        });
-
-
-                      }else{
-                        double idx = listIndexSerial[c];
-                        if (idx - 1 > minIndexSerial){
-                          idx--;
-                          listIndexSerial[c]= idx;
-                          
-                          channelGains[c] = listChannelSerial[idx.toInt()];
-                        }
-                        _sendAnalyticsEvent("button_gain_inc", {
-                          "device" : "Serial",
-                          "deviceType" : deviceType,
-                          "channel" : c,
-                          "gains" : channelGains[c],
-                        });
-
-
-
-                        // if (channelGains[c] - 100 > 200){
-                        //   channelGains[c]-=100;
-                        // }
+                        setState(() {});
                       }
-                      // print("deviceType --");
-                      // print(channelGains);
-                      // print(listIndexSerial);
-                      // print(deviceType);
-
-                      setState((){});
                     },
-
                     child: Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.white,
+                        color: curColor,
                       ),
-                      child : Icon(Icons.add, color: Colors.black,size:17),
+                      child: Icon(Icons.add, color: Colors.black, size: 17),
                     ),
-
-                    // style: ElevatedButton.styleFrom(
-                    //   fixedSize: Size(10, 10),
-                    //   shape: CircleBorder(),
-                    //   padding: EdgeInsets.all(3),
-                    //   primary: Colors.blue,
-                    //   onPrimary: Colors.black,
-                    // ),
                   ),
-
-
                   // Icon(Icons.arrow_circle_right_rounded, color: Colors.white,),
                   Transform.rotate(
-                    angle: 90 * pi /180,
+                    angle: 90 * pi / 180,
                     // child: settingParams["flagDisplay"+(c+1).toString()] == 0? Icon(Icons.water_drop_outlined ,color: audioChannelColors[c],size: 37,):Icon(Icons.water_drop_rounded,color: channelsColor[c],size: 37,),
-                    child: settingParams["flagDisplay"+(c+1).toString()] == 0? Icon(Icons.water_drop_outlined ,color: channelsColor[c],size: 37,):Icon(Icons.water_drop_rounded,color: channelsColor[c],size: 37,),
+                    child: settingParams["flagDisplay${c + 1}"] == 0
+                        ? Icon(
+                            Icons.water_drop_outlined,
+                            color: channelsColor[c],
+                            size: 37,
+                          )
+                        : Icon(
+                            Icons.water_drop_rounded,
+                            color: channelsColor[c],
+                            size: 37,
+                          ),
                   ),
-
-                  // ElevatedButton(
-                  //   onLongPress: (() {
-
-                  //   }),
-                  //   onPressed: () {},
-                  //   child: Icon(Icons.arrow_back, color: Colors.white),
-                  //   style: ElevatedButton.styleFrom(
-                  //     fixedSize: Size(30, 30),
-                  //     shape: CircleBorder(),
-                  //     padding: EdgeInsets.all(20),
-                  //     primary: Colors.blue,
-                  //     onPrimary: Colors.black,
-                  //   ),
-                  // ),
-
-                  
                   GestureDetector(
                     onTap: () {
-                      //Increase Gain
-                      if (deviceType == 0){
-                        // if (channelGains[c] + 200 < 20000){
-                        //   channelGains[c]+=200;
-                        // }
-                        double idx = listIndexAudio[c];
-                        if (idx + 1 < maxIndexAudio){
-                          idx++;
-                          listIndexAudio[c]= idx;
-                          channelGains[c] = listChannelAudio[idx.toInt()];
+                      if (Platform.isMacOS || Platform.isWindows) {
+                        // decreaseGain(c);
+                        List<double> res = decreaseGain(c);
+                        if (isThreshold) {
+                          forceThreshold = 0;
+                          // setThresholdMarker(c, thresholdMarkerTop[c]);
+                          print('res[0]');
+                          print(res[0]);
+                          print(res[1]);
+                          if (res[0] != res[1])
+                            setThresholdMarker(c, thresholdMarkerTop,
+                                thresholdValue, res[0], res[1]);
                         }
-                        _sendAnalyticsEvent("button_gain_dec", {
-                          "device" : "Audio",
-                          "deviceType" : deviceType,
-                          "channel" : c,
-                          "gains" : channelGains[c],
-                        });
 
-                      }else
-                      if (deviceType == 2){
-                        // if (channelGains[c] + 50 < 1000){
-                        //   channelGains[c]+=50;
-                        // }
-                        double idx = listIndexHid[c];
-                        if (idx + 1 < maxIndexHid){
-                          idx++;
-                          listIndexHid[c]= idx;
-
-                          channelGains[c] = listChannelHid[idx.toInt()];
-                        }
-                        _sendAnalyticsEvent("button_gain_dec", {
-                          "device" : "HID",
-                          "deviceType" : deviceType,
-                          "channel" : c,
-                          "gains" : channelGains[c],
-                        });
-
-
-                      }else{
-                        // if (channelGains[c] + 100 < 1800){
-                        //   channelGains[c]+=100;
-                        // }
-                        double idx = listIndexSerial[c];
-                        if (idx + 1 < maxIndexSerial){
-                          idx++;
-                          listIndexSerial[c]= idx;
-                          channelGains[c] = listChannelSerial[idx.toInt()];
-                        }
-                        _sendAnalyticsEvent("button_gain_dec", {
-                          "device" : "Serial",
-                          "deviceType" : deviceType,
-                          "channel" : c,
-                          "gains" : channelGains[c],
-                        });
-
+                        setState(() {});
                       }
-                      print("deviceType ++");
-                      // print(channelGains);
-                      // print(channelsData);
-                      print(deviceType);
-                      print(channelGains);
-                      print(listIndexSerial);
-
-                      setState((){});
                     },
                     child: Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.white,
-                      ),   
-                      child: Icon(Icons.remove, color: Colors.black, size:17),
+                        color: curColor,
+                      ),
+                      child: Icon(Icons.remove, color: Colors.black, size: 17),
                     ),
-                    // style: ElevatedButton.styleFrom(
-                    //   fixedSize: Size(10, 10),
-                    //   shape: CircleBorder(),
-                    //   padding: EdgeInsets.all(3),
-                    //   primary: Colors.blue,
-                    //   onPrimary: Colors.black,
-                    // ),
                   ),
-
                 ],
               ),
-            )
-          ),
-        )
-      );
+            )),
+      ));
     }
     dataWidgets.addAll(widgetsChannelGainLevel);
-    if (isLocal){
-      if (channels.length>0){
-        dataWidgets.add(
-          Positioned(
-            top : 0,
-            left : 0,
-            child : Container(
-              color: Colors.black,
-              child: CustomPaint(
-                size: Size(
-                  MediaQuery.of(context).size.width,
-                  MediaQuery.of(context).size.height/localChannel,
-                ),
-                foregroundPainter: WaveformPainter(
-                  // sampleData,
-                  channels[0],
-                  zoomLevel: zoomLevel,
-                  startingFrame: channels[0].frameIdxFromPercent(startPosition),
-                  color: Color(0xff3994DB),
-                ),
-              ),
-            ),
-          )
-        );
-      }
 
-      if (channels.length>1){
-        dataWidgets.add(
-          Positioned(
-            top:MediaQuery.of(context).size.height/localChannel,
-            left: 0,
-            child : Container(
-              color: Colors.black,
-              child: CustomPaint(
-                size: Size(
-                  MediaQuery.of(context).size.width,
-                  MediaQuery.of(context).size.height/localChannel,
-                ),
-                foregroundPainter: WaveformPainter(
-                  channels[1],
-                  zoomLevel: zoomLevel,
-                  startingFrame: channels[1].frameIdxFromPercent(startPosition),
-                  color: Color(0xff990000), 
-                ),
-              ),
-            ),
-
-          )
-        );
-      }
-
-      dataWidgets.add(  
-        Positioned(
-          top:70,
-          right:50,
-          child:Container(
-            width:150,
-            color: Colors.red,
-            child: CupertinoSlider(
-              value:zoomLevel,
-              min: 1,
-              max: 100,
-              divisions: 40,
-              onChangeEnd: (newZoomLevel){
-                setState(() => zoomLevel = newZoomLevel);
-              },
-              onChanged: (double value) {  },              
-            ),
-          ),
-        ),
-      );
-      dataWidgets.add(
-        Positioned(
-          top:120,
-          right:50,
-          child:Container(
-            width:250,
-            color: Colors.green,
-            child: CupertinoSlider(
-              value:startPosition,
-              min: 1,
-              max: 95,
-              divisions: 42,
-              onChangeEnd: (newstartPosition) {
-                setState(() => startPosition = newstartPosition);
-              }, 
-              onChanged: (double value) {  },                    
-            ),
-          ),
-        )
-      );     
-    }
-    
     // Putting Toolbar Button
     // // FILE RECORD
 
-    if (isOpeningFile==1){
+    if (isOpeningFile == 1) {
       // strMinTime = "00:00 000";
-      dataWidgets.add(
-        Positioned(
-          left:50,
-          bottom : 70,
-          child: Text( strMinTime, textAlign: TextAlign.left, style:TextStyle(color: Colors.white)),
-        )
-      );
-      dataWidgets.add(
-        Positioned(
-          right:50,
-          bottom : 70,
-          child: Container(
-            width:150,
-            child: Text( strMaxTime, textAlign: TextAlign.right, style:TextStyle(color: Colors.white))
-          ),
-        )
-      );
-
+      dataWidgets.add(Positioned(
+        left: 50,
+        bottom: 70,
+        child: Text(strMinTime,
+            textAlign: TextAlign.left, style: TextStyle(color: Colors.white)),
+      ));
+      dataWidgets.add(Positioned(
+        right: 50,
+        bottom: 70,
+        child: Container(
+            width: 150,
+            child: Text(strMaxTime,
+                textAlign: TextAlign.right,
+                style: TextStyle(color: Colors.white))),
+      ));
 
       // ScrollBar When Opening File
-      if (isPlaying == 2){
-        dataWidgets.add(
-          Positioned(
-            left: 0,
-            bottom:100,
-            child: GestureDetector(
-              onTapDown :(onTapDownDetails){
-                horizontalDragX = onTapDownDetails.localPosition.dx - 50;
-                if (horizontalDragX <0){
-                  horizontalDragX = 0;
-                }
-                if (horizontalDragX > MediaQuery.of(context).size.width - 100 - 20){
-                  horizontalDragX = MediaQuery.of(context).size.width - 100 -20;
-                }
+      if (isPlaying == 2) {
+        dataWidgets.add(Positioned(
+          left: 0,
+          bottom: 100,
+          child: GestureDetector(
+            onTapDown: (onTapDownDetails) {
+              horizontalDragX = onTapDownDetails.localPosition.dx - 50;
+              if (horizontalDragX < 0) {
+                horizontalDragX = 0;
+              }
+              if (horizontalDragX >
+                  MediaQuery.of(context).size.width - 100 - 20) {
+                horizontalDragX = MediaQuery.of(context).size.width - 100 - 20;
+              }
 
-                strMinTime = getStrMinTime(horizontalDragX, horizontalDragXFix, maxTime);
-                setState((){});
+              strMinTime =
+                  getStrMinTime(horizontalDragX, horizontalDragXFix, maxTime);
+              setState(() {});
 
-                debouncer.run((){
-                  js.context.callMethod('setScrollValue', [horizontalDragX, horizontalDragXFix]);
-                });
-              },
-              onHorizontalDragUpdate: (dragUpdateHorizontalDetails){
-                horizontalDragX = dragUpdateHorizontalDetails.globalPosition.dx-50;
-                if (horizontalDragX < 0){
-                  horizontalDragX = 0;
-                }
-                if (horizontalDragX > MediaQuery.of(context).size.width - 100 - 20){
-                  horizontalDragX = MediaQuery.of(context).size.width - 100 -20;
-                }
+              debouncer.run(() {
+                if (kIsWeb) {
+                  // js.context.callMethod(
+                  //     'setScrollValue', [horizontalDragX, horizontalDragXFix]);
+                } else {}
+              });
+            },
+            onHorizontalDragUpdate: (dragUpdateHorizontalDetails) {
+              horizontalDragX =
+                  dragUpdateHorizontalDetails.globalPosition.dx - 50;
+              if (horizontalDragX < 0) {
+                horizontalDragX = 0;
+              }
+              if (horizontalDragX >
+                  MediaQuery.of(context).size.width - 100 - 20) {
+                horizontalDragX = MediaQuery.of(context).size.width - 100 - 20;
+              }
 
-                strMinTime = getStrMinTime(horizontalDragX, horizontalDragXFix, maxTime);
-                setState((){});
+              strMinTime =
+                  getStrMinTime(horizontalDragX, horizontalDragXFix, maxTime);
+              setState(() {});
 
-                debouncer.run((){
-
-                  js.context.callMethod('setScrollValue', [horizontalDragX, horizontalDragXFix]);
-
-                });
-              },          
-
-
-
-              child: Container(
+              debouncer.run(() {
+                if (kIsWeb) {
+                  // js.context.callMethod(
+                  //     'setScrollValue', [horizontalDragX, horizontalDragXFix]);
+                } else {}
+              });
+            },
+            child: Container(
                 color: const Color(0xFF505050),
-                margin: const EdgeInsets.only(left:50, right : 50),
-                width:MediaQuery.of(context).size.width - 100,
+                margin: const EdgeInsets.only(left: 50, right: 50),
+                width: MediaQuery.of(context).size.width - 100,
                 height: 20,
-                child : Stack(
+                child: Stack(
                   children: [
                     Positioned(
                       left: horizontalDragX,
                       child: Container(
                         // color: Colors.green,
                         color: const Color(0xFF808080),
-                        width:20,
-                        height:20,
+                        width: 20,
+                        height: 20,
                       ),
                     )
                   ],
-                )
+                )),
+          ),
+        ));
+      }
+    }
+
+    // if (isOpeningFile == 1) {
+    // } else {
+    //   dataWidgets.add(
+    //     Positioned(
+    //       top: 10,
+    //       right: 160,
+    //       child: ElevatedButton(
+    //         style: ElevatedButton.styleFrom(
+    //           // style: ButtonStyle(
+    //           fixedSize: const Size(50, 50),
+    //           shape: const CircleBorder(),
+    //           shadowColor: Colors.blue,
+
+    //           primary: Colors.white,
+    //           onPrimary: Colors.green,
+    //           onSurface: Colors.red,
+    //           // backgroundColor: getColor(Colors.blueGrey, Colors.blueGrey),
+    //           // overlayColor: getColor(Colors.white60, Colors.white70)
+    //         ),
+    //         onPressed: () {
+    //           bool flag = false;
+    //           for (int c = 0; c < 6; c++) {
+    //             if (settingParams["flagDisplay" + c.toString()] == '1') {
+    //               flag = true;
+    //             }
+    //           }
+    //           if (flag) {
+    //             infoDialog(
+    //               context,
+    //               "Warning",
+    //               "To start recording, please activate a channel first.",
+    //               positiveButtonText: "OK",
+    //               positiveButtonAction: () {},
+    //               negativeButtonText: "",
+    //               negativeButtonAction: null,
+    //               hideNeutralButton: true,
+    //               closeOnBackPress: false,
+    //             );
+    //           }
+    //           if (deviceType == 0) {
+    //             if (isRecording < 10) {
+    //               // isRecording = 10;
+    //               _sendAnalyticsEvent("button_stop_rec", {
+    //                 "deviceType": deviceType,
+    //                 "device": "Audio",
+    //               });
+    //             } else {
+    //               isRecording = 0;
+    //               _sendAnalyticsEvent("button_start_rec", {
+    //                 "deviceType": deviceType,
+    //                 "device": "Audio",
+    //               });
+    //             }
+    //             print("flagDisplay12");
+    //             print(settingParams);
+    //             print(settingParams["flagDisplay1"]);
+    //             print(settingParams["flagDisplay2"]);
+    //             if (kIsWeb) {
+    //               // js.context.callMethod('fileRecordAudio', [
+    //               //   settingParams["flagDisplay1"] as int,
+    //               //   settingParams["flagDisplay2"] as int,
+    //               //   settingParams["defaultMicrophoneLeftColor"] as int,
+    //               //   settingParams['defaultMicrophoneRightColor'] as int
+    //               // ]);
+
+    //             } else {}
+    //           } else if (deviceType == 1) {
+    //             if (isRecording < 10) {
+    //               // isRecording = 11;
+    //               _sendAnalyticsEvent("button_start_rec", {
+    //                 "deviceType": deviceType,
+    //                 "device": "Serial",
+    //               });
+    //             } else {
+    //               isRecording = 0;
+    //               _sendAnalyticsEvent("button_stop_rec", {
+    //                 "deviceType": deviceType,
+    //                 "device": "Serial",
+    //               });
+    //             }
+    //             if (kIsWeb) {
+    //               // js.context.callMethod('fileRecordSerial', [
+    //               //   settingParams["flagDisplay1"],
+    //               //   settingParams["flagDisplay2"],
+    //               //   settingParams["flagDisplay3"],
+    //               //   settingParams["flagDisplay4"],
+    //               //   settingParams["flagDisplay5"],
+    //               //   settingParams["flagDisplay6"],
+    //               //   settingParams['defaultSerialColor1'] as int,
+    //               //   settingParams['defaultSerialColor2'] as int,
+    //               //   settingParams['defaultSerialColor3'] as int,
+    //               //   settingParams['defaultSerialColor4'] as int,
+    //               //   settingParams['defaultSerialColor5'] as int,
+    //               //   settingParams['defaultSerialColor6'] as int
+    //               // ]);
+
+    //             } else {}
+    //           } else if (deviceType == 2) {
+    //             if (isRecording < 10) {
+    //               // isRecording = 12;
+    //               _sendAnalyticsEvent("button_start_rec", {
+    //                 "deviceType": deviceType,
+    //                 "device": "Audio",
+    //               });
+    //             } else {
+    //               isRecording = 0;
+    //               _sendAnalyticsEvent("button_stop_rec", {
+    //                 "deviceType": deviceType,
+    //                 "device": "Hid",
+    //               });
+    //             }
+    //             if (kIsWeb) {
+    //               // js.context.callMethod('fileRecordSerial', [
+    //               //   settingParams["flagDisplay1"],
+    //               //   settingParams["flagDisplay2"],
+    //               //   settingParams["flagDisplay3"],
+    //               //   settingParams["flagDisplay4"],
+    //               //   settingParams["flagDisplay5"],
+    //               //   settingParams["flagDisplay6"],
+    //               //   settingParams['defaultSerialColor1'] as int,
+    //               //   settingParams['defaultSerialColor2'] as int,
+    //               //   settingParams['defaultSerialColor3'] as int,
+    //               //   settingParams['defaultSerialColor4'] as int,
+    //               //   settingParams['defaultSerialColor5'] as int,
+    //               //   settingParams['defaultSerialColor6'] as int
+    //               // ]);
+
+    //             } else {}
+    //           }
+    //         },
+    //         child: const Icon(
+    //           Icons.fiber_manual_record_rounded,
+    //           color: Color(0xFF800000),
+    //         ),
+    //       ),
+    //     ),
+    //   );
+    // }
+
+    if (isRecording == 0) {
+      dataWidgets.add(feedbackButton);
+      // }
+
+      // if ( isRecording == 0 ){
+      // dataWidgets.add(openFileButton);
+    }
+
+    if (isRecording > 0 || isOpeningFile == 1) {
+    } else {
+      dataWidgets.add(settingDialogButton);
+    }
+
+    dataWidgets.add(Positioned(
+        top: Platform.isMacOS || Platform.isWindows ? 10 : 70,
+        left: Platform.isMacOS || Platform.isWindows ? 200 : 10,
+        child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              fixedSize: const Size(50, 50),
+              shape: const CircleBorder(),
+              shadowColor: Colors.blue,
+              primary: Colors.white,
+              onPrimary: Colors.green,
+              onSurface: Colors.red,
+            ),
+            child: Icon(
+              Icons.stacked_line_chart,
+              color:
+                  isThreshold ? Colors.amber.shade900 : const Color(0xFF800000),
+            ),
+            onPressed: () {
+              try {
+                // selectedThresholdIdx = 0;
+                globalMarkers.clear();
+                markersData.clear();
+                isThreshold = !isThreshold;
+                // if (isThreshold)
+                thresholdType = -1;
+                CURRENT_START = 0;
+                isZooming = false;
+                for (int c = 0; c < 6; c++) {
+                  // initialLevelMedian[c] =
+                  //     MediaQuery.of(context).size.height / 2;
+                  // levelMedian[c] = MediaQuery.of(context).size.height / 2;
+                  initialLevelMedian[c] = (c *
+                          MediaQuery.of(context).size.height /
+                          channelsData.length) +
+                      MediaQuery.of(context).size.height /
+                          channelsData.length /
+                          2;
+                  levelMedian[c] = initialLevelMedian[c];
+
+                  listMedianDistance[c] =
+                      thresholdMarkerTop[c] + 12 - levelMedian[c];
+
+                  double heightFactor = (channelGains[c] / signalMultiplier);
+                  thresholdValue[c] = ((thresholdMarkerTop[c] +
+                                  12 -
+                                  (levelMedian[c] == -1
+                                      ? initialLevelMedian[c]
+                                      : levelMedian[c]))
+                              .floor() *
+                          heightFactor)
+                      .floor();
+                }
+
+                // isChangingThresholdType = true;
+                // Future.delayed(Duration(milliseconds: 300), () {
+                //   globalMarkers.clear();
+                //   markersData.clear();
+                //   isChangingThresholdType = false;
+                // });
+
+                setState(() {});
+              } catch (err) {
+                print("error revert to audio");
+              }
+            })));
+    if (isThreshold) {
+      // dataWidgets.add(
+      //   Positioned(
+      //     top: 10,
+      //     left: 220,
+      //     child: Text("123")
+      //   )
+      // );
+      //RIGHT markerIdx
+      if (thresholdType == -1) {
+        dataWidgets.add(Positioned(
+          top: markerOutOfRange == 1
+              ? 50
+              : markerOutOfRange == 2
+                  ? MediaQuery.of(context).size.height * 0.95
+                  : thresholdMarkerTop[selectedThresholdIdx],
+          right: 20,
+          child: GestureDetector(
+            onVerticalDragUpdate: (dragUpdateVerticalDetails) {
+              forceThreshold = 1;
+              int c = selectedThresholdIdx;
+
+              double currentY =
+                  dragUpdateVerticalDetails.globalPosition.dy - 12;
+
+              print('levelMedian[0] ');
+              print(levelMedian[c] == -1
+                  ? initialLevelMedian[c]
+                  : levelMedian[c]);
+              // double heightFactor = 32767 / (MediaQuery.of(context).size.height/2);
+
+              double median =
+                  levelMedian[c] == -1 ? initialLevelMedian[c] : levelMedian[c];
+              double heightFactor = (channelGains[c] / signalMultiplier);
+              // (MediaQuery.of(context).size.height / 2))
+
+              // listMedianDistance[0] = currentY + 12 - median;
+              // if (deviceType == 0){
+              //   listDefaultIndex[0] = listIndexAudio[0].floor();
+              // }else{
+              //   listDefaultIndex[0] = listIndexSerial[0].floor();
+              // }
+
+              int tempThresholdValue =
+                  ((currentY + 12 - median).floor() * heightFactor).floor();
+              if (currentY > 50 &&
+                  currentY < MediaQuery.of(context).size.height * 0.95) {
+                markerOutOfRange = 0;
+              }
+              if (markerOutOfRange == 0) {
+                if (currentY < 50) {
+                  markerOutOfRange = 1;
+                } else if (currentY >
+                    MediaQuery.of(context).size.height * 0.95) {
+                  markerOutOfRange = 2;
+                } else {
+                  markerOutOfRange = 0;
+                  thresholdValue[c] = tempThresholdValue;
+                  thresholdMarkerTop[c] = currentY;
+                }
+              }
+
+              double scaleRatio = 1;
+              if (deviceType == 0) {
+                scaleRatio = listChannelAudio[listIndexAudio[c].floor()] /
+                    listChannelAudio[defaultListIndexAudio];
+              } else {
+                scaleRatio = listChannelSerial[listIndexSerial[c].floor()] /
+                    listChannelSerial[defaultListIndexSerial];
+              }
+              double curDistance = thresholdMarkerTop[c] + 12 - median;
+              listMedianDistance[c] = curDistance * scaleRatio;
+              print('thresholdMarkerTop[c]');
+              print(thresholdMarkerTop[c]);
+              print(listMedianDistance[c]);
+
+              setState(() {});
+              // print('channelGains[0]2222');
+              // // print(channelGains[0]);
+              // print(heightFactor);
+              // print(thresholdValue[0]);
+              // print(thresholdMarkerTop[0].toString() +
+              //     "  _  " +
+              //     (levelMedian[0] == -1 ? initialLevelMedian[0] : levelMedian[0])
+              //         .toString() +
+              //     "  _  " +
+              //     heightFactor.toString() +
+              //     " __ " +
+              //     (thresholdMarkerTop[0] + 12 - levelMedian[0] == -1
+              //             ? initialLevelMedian[0]
+              //             : levelMedian[0])
+              //         .floor()
+              //         .toString());
+            },
+            child: Container(
+              width: 35,
+              height: 25,
+              color: Colors.transparent,
+              child: Transform.rotate(
+                angle: markerOutOfRange == 0
+                    ? -90 * pi / 180
+                    : markerOutOfRange == 2
+                        ? -180 * pi / 180
+                        : 0,
+                // child: Icon(Icons.water_drop_rounded, color: Colors.green),
+                child: Icon(Icons.water_drop_rounded,
+                    color: channelsColor[selectedThresholdIdx]),
               ),
             ),
-          )
-        );
-      }  
-      
-    }
-
-    if ( isOpeningFile == 1 ){
-    }else{
-
-      dataWidgets.add(
-
-      Positioned(
-        top:10,
-        right:160,
-        child:ElevatedButton(
-          style: ElevatedButton.styleFrom(
-          // style: ButtonStyle(
-            fixedSize: const Size(50, 50),
-            shape : const CircleBorder(),
-            shadowColor: Colors.blue,
-
-            primary: Colors.white,
-            onPrimary: Colors.green,
-            onSurface: Colors.red,
-            // backgroundColor: getColor(Colors.blueGrey, Colors.blueGrey),
-            // overlayColor: getColor(Colors.white60, Colors.white70)
           ),
-          
-          onPressed: (){
-            bool flag = false;
-            for (int c = 0; c< 6; c++){
-              if (settingParams["flagDisplay"+c.toString()] == '1'){
-                flag = true;
-              }
-            }
-            if (flag){
-              infoDialog(
-                context,
-                "Warning",
-                "To start recording, please activate a channel first.",
-                positiveButtonText: "OK",
-                positiveButtonAction: () {},
+        ));
+        if (markerOutOfRange == 0) {
+          dataWidgets.add(Positioned(
+              top: thresholdMarkerTop[selectedThresholdIdx] + 12,
+              right: 20,
+              child: Container(
+                width: MediaQuery.of(context).size.width,
+                child: DottedLine(
+                  direction: Axis.horizontal,
+                  lineLength: double.infinity,
+                  lineThickness: 1.0,
+                  dashLength: 4.0,
+                  dashColor: channelsColor[selectedThresholdIdx],
+                  dashRadius: 0.0,
+                  dashGapLength: 4.0,
+                  dashGapColor: Colors.transparent,
+                  dashGapRadius: 0.0,
+                ),
+              )));
+        }
+      } else if (thresholdType == 0) {
+        dataWidgets.add(createDottedCenterLine());
+      } else {
+        dataWidgets.add(createDottedCenterLine());
+      }
 
-                negativeButtonText: "",
-                negativeButtonAction: null,
+      Widget triggerWidget = thresholdType == -1
+          ? Icon(
+              Icons.escalator_sharp,
+              color: !isThreshold
+                  ? Colors.amber.shade900
+                  : const Color(0xFF800000),
+            )
+          : thresholdType == 0
+              ? Text("Ev", style: fontThresholdStyle)
+              : Text("E$thresholdType", style: fontThresholdStyle);
 
-                hideNeutralButton: true,
-                closeOnBackPress: false,
-              );    
+      CustomPopupMenuController _controller = CustomPopupMenuController();
+      dataWidgets.add(Positioned(
+          top: Platform.isMacOS || Platform.isWindows ? 20 : 75,
+          left: Platform.isMacOS || Platform.isWindows ? 245 : 75,
+          child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                fixedSize: const Size(30, 30),
+                shape: const CircleBorder(),
+                shadowColor: Colors.blue,
+                primary: Colors.white,
+                onPrimary: Colors.green,
+                onSurface: Colors.red,
+              ),
+              child: CustomPopupMenu(
+                child: triggerWidget,
+                menuBuilder: _buildPopupMenu,
+                barrierColor: Colors.transparent,
+                pressType: PressType.singleClick,
+                controller: _controller,
+              ),
+              // child: triggerWidget,
+              onPressed: () {
+                //popup and choose what triggerType
+                print('button press');
+                if (!_controller.menuIsShowing) {
+                  // thresholdType = 0;
+                  // nativec.setTriggerTypeProcess(0, 0);
+                  _controller.toggleMenu();
+                }
+                setState(() {});
+              })));
 
-            }
-            // startRecordingTime = DateTime.now();
-            // currentRecordingTime = DateTime.now();
-            // duration = currentRecordingTime.difference(startRecordingTime);
-            // labelDuration = ( (duration.inHours) ).toString()+":"+( (duration.inMinutes) ).toString()+":"+(duration.inSeconds % 60).toString();
-            if (deviceType == 0){
-              if (isRecording < 10){
-                // isRecording = 10;
-                _sendAnalyticsEvent("button_stop_rec", {
-                  "deviceType":deviceType,
-                  "device" : "Audio",
-                });
-              }else{
-                isRecording = 0;
-                _sendAnalyticsEvent("button_start_rec", {
-                  "deviceType":deviceType,
-                  "device" : "Audio",
-                });
+      dataWidgets.add(Positioned(
+          top: Platform.isMacOS || Platform.isWindows ? 10 : 70,
+          left: Platform.isMacOS || Platform.isWindows ? 290 : 130,
+          child: Container(
+            width: 200,
+            height: 50,
+            child: FlutterSlider(
+              tooltip: FlutterSliderTooltip(
+                disabled: true,
 
-              }
-              print("flagDisplay12");
-              print(settingParams);
-              print(settingParams["flagDisplay1"]);
-              print(settingParams["flagDisplay2"]);
-              js.context.callMethod('fileRecordAudio', [ settingParams["flagDisplay1"] as int,settingParams["flagDisplay2"] as int, settingParams["defaultMicrophoneLeftColor"] as int, settingParams['defaultMicrophoneRightColor'] as int ]);
+                // positionOffset: FlutterSliderTooltipPositionOffset(
+                //   top: 30,
+                //   left:50,
+                // ),
+              ),
+              handler: FlutterSliderHandler(
+                decoration: BoxDecoration(),
+                child: Container(
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: Colors.grey,
+                    shape: BoxShape.rectangle,
+                    borderRadius: BorderRadius.all(Radius.circular(3.0)),
+                  ),
+                ),
+              ),
+              trackBar: FlutterSliderTrackBar(
+                inactiveTrackBarHeight: 10,
+                activeTrackBarHeight: 10,
+                inactiveTrackBar: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  color: Colors.black12,
+                  border: Border.all(width: 3, color: Colors.grey),
+                ),
+                activeTrackBar: BoxDecoration(
+                    borderRadius: BorderRadius.circular(4),
+                    color: Colors.grey.withOpacity(0.5)),
+              ),
+              values: snapshotAveragedSamples,
+              max: 50,
+              min: 1,
+              onDragging: (handlerIndex, lowerValue, upperValue) {
+                snapshotAveragedSamples = [lowerValue];
+                setState(() {});
+              },
+            ),
+          )));
 
-            }else
-            if (deviceType == 1){
-              if (isRecording < 10){
-                // isRecording = 11;
-                _sendAnalyticsEvent("button_start_rec", {
-                  "deviceType":deviceType,
-                  "device" : "Serial",
-                });
-              }else{
-                isRecording = 0;
-                _sendAnalyticsEvent("button_stop_rec", {
-                  "deviceType":deviceType,
-                  "device" : "Serial",
-                });
-
-              }
-              js.context.callMethod('fileRecordSerial', [ settingParams["flagDisplay1"],settingParams["flagDisplay2"],settingParams["flagDisplay3"],settingParams["flagDisplay4"],settingParams["flagDisplay5"],settingParams["flagDisplay6"],  settingParams['defaultSerialColor1'] as int,  settingParams['defaultSerialColor2'] as int,  settingParams['defaultSerialColor3'] as int,  settingParams['defaultSerialColor4'] as int,  settingParams['defaultSerialColor5'] as int,  settingParams['defaultSerialColor6'] as int ]);
-            }else
-            if (deviceType == 2){
-              if (isRecording < 10){
-                // isRecording = 12;
-                _sendAnalyticsEvent("button_start_rec", {
-                  "deviceType":deviceType,
-                  "device" : "Audio",
-                });
-              }else{
-                isRecording = 0;
-                _sendAnalyticsEvent("button_stop_rec", {
-                  "deviceType":deviceType,
-                  "device" : "Hid",
-                });
-
-              }
-              js.context.callMethod('fileRecordSerial', [ settingParams["flagDisplay1"],settingParams["flagDisplay2"],settingParams["flagDisplay3"],settingParams["flagDisplay4"],settingParams["flagDisplay5"],settingParams["flagDisplay6"],  settingParams['defaultSerialColor1'] as int,  settingParams['defaultSerialColor2'] as int,  settingParams['defaultSerialColor3'] as int,  settingParams['defaultSerialColor4'] as int,  settingParams['defaultSerialColor5'] as int,  settingParams['defaultSerialColor6'] as int ]);
-            }
-            // isPlaying = 1;
-            // deviceType = 0;
-            // startRecordingTime = (DateTime.now());
-            // channelGains = [10000,10000,10000,10000,10000,10000];
-            // js.context.callMethod('recordAudio', ['Flutter is calling upon JavaScript!']);
-            // setState(() {
-              
-            // });
-          },
-          child: const Icon(Icons.fiber_manual_record_rounded, color: Color(0xFF800000),),
-        ),
-      ),
-    );  
+      dataWidgets.add(Positioned(
+          top: Platform.isMacOS || Platform.isWindows ? 25 : 85,
+          left: Platform.isMacOS || Platform.isWindows ? 485 : 320,
+          child: Text(snapshotAveragedSamples[0].floor().toString(),
+              style: const TextStyle(color: Colors.white))));
     }
 
-    if ( isRecording == 0 ){
-      dataWidgets.add(
-        feedbackButton
-      );
-    // }
-    
-    // if ( isRecording == 0 ){
-      dataWidgets.add(
-        openFileButton
-      );
-    }
-
-    if ( isRecording > 0 || isOpeningFile == 1){
-    }else{
-      dataWidgets.add(
-
-        // Positioned(
-        //   top:10,
-        //   right:230,
-        //   child: Container(
-        //     width:100,
-        //     color: Colors.white,
-        //     child: CupertinoSlider(
-        //       value:timeScale.toDouble(),
-        //       min: 10,
-        //       max: 10000,
-        //       divisions: 5,
-        //       onChanged: (newScale){
-        //         timeScale = newScale.toInt();
-        //         changeMaxAxis();
-        //         zoomLevel = (newScale/10000).ceil().toDouble();
-        //         startPosition = 70;
-        //         // js.context.callMethod('refreshAudioSetting', [timeScale]);
-        //         // capacity = (sampleRate/timeScale).floor();
-        //         setState(() {
-                  
-        //         });
-
-        //       },
-        //     ),
-        //   ),
-        // ),
-        settingDialogButton
-      );
-    }
-
-    if ( isRecording > 0 || isOpeningFile == 1){
-    }else{
-    // if ( isRecording == 0 ){
-      dataWidgets.add(
+    if (isRecording > 0 || isOpeningFile == 1) {
+    } else {
+      if (DEVICE_CATALOG.keys.length > 0) {
+        dataWidgets.add(
           Positioned(
-            top:10,
-            left:80,
-            child:Container(
-              key:keyTutorialSerial,
+            top: 10,
+            left: 80,
+            child: Container(
+              key: keyTutorialSerial,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   fixedSize: const Size(50, 50),
-                  shape : const CircleBorder(),
+                  shape: const CircleBorder(),
                   shadowColor: Colors.blue,
-
                   primary: Colors.white,
                   onPrimary: Colors.green,
                   onSurface: Colors.red,
                 ),
-                child:Transform.rotate(
-                  angle: 90 * pi /180,
-                  child: Icon(Icons.usb_rounded, color: deviceType == 1 && isPlaying ==1 ? Colors.amber.shade900 : Color(0xFF800000),),
+                child: Transform.rotate(
+                  angle: 90 * pi / 180,
+                  child: Icon(
+                    Icons.usb_rounded,
+                    color: deviceType == 1 && isPlaying == 1
+                        ? Colors.amber.shade900
+                        : Color(0xFF800000),
+                  ),
                 ),
-              
-                onPressed: () {  
-                  if (deviceType == 0 || deviceType == 2){
+                onPressed: () {
+                  if (deviceType == 0 || deviceType == 2) {
                     deviceTypeInt = 1;
                     deviceType = 1;
-                    js.context.callMethod('recordSerial', ['Flutter is calling upon JavaScript!']);
-                    setState(() {
-                      
-                    });
-                    _sendAnalyticsEvent("button_serial", {
-                      "deviceType" : deviceType,
-                      "isStartingSerial" : 1,
-                      "isStartingAudio" : 0
-                    });
+                    listDefaultIndex = [5, 5, 5, 5, 5, 5];
+                    if (kIsWeb) {
+                      // js.context.callMethod(
+                      //     'recordSerial', ['Flutter is calling upon JavaScript!']);
+                    } else {
+                      getSerialParsing();
+                    }
+                    initLevelMedian(1);
 
+                    setState(() {});
+                    _sendAnalyticsEvent("button_serial", {
+                      "deviceType": deviceType,
+                      "isStartingSerial": 1,
+                      "isStartingAudio": 0
+                    });
                   } else {
-                  // if (deviceType == 1){
-                  
+                    // if (deviceType == 1){
+                    listDefaultIndex = [9, 9, 9, 9, 9, 9];
                     deviceTypeInt = 0;
                     deviceType = 0;
-                    js.context.callMethod('recordAudio', ['Flutter is calling upon JavaScript!']);
-                    setState(() {
-                      
-                    });
+                    if (kIsWeb) {
+                      // js.context.callMethod(
+                      //     'recordAudio', ['Flutter is calling upon JavaScript!']);
+                    } else {
+                      closeRawSerial();
+                      isThreshold = false;
+                      thresholdType = -1;
+                      getMicrophoneData();
+                    }
+
+                    setState(() {});
                     _sendAnalyticsEvent("button_serial", {
-                      "deviceType" : deviceType,
-                      "isStartingSerial" : 0,
-                      "isStartingAudio" : 1
+                      "deviceType": deviceType,
+                      "isStartingSerial": 0,
+                      "isStartingAudio": 1
                     });
-
                   }
-
-
                 },
-
               ),
             ),
-          ),      
-      );
+          ),
+        );
+      }
     }
-    if ( isRecording > 0 || isOpeningFile == 1){
-    }else{
-    // if ( isRecording == 0 ){
+    if (isRecording > 0 || isOpeningFile == 1) {
+    } else {
+      // if ( isRecording == 0 ){
       dataWidgets.add(
-          !( (settingParams["enableDeviceLegacy"]) as bool ) ?
-          Container()
-          :
-          Positioned(
-            key:keyTutorialHid,          
-            top:10,
-            left:150,
-            child:Stack(
-              children: [
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    fixedSize: const Size(50, 50),
-                    shape : const CircleBorder(),
-                    shadowColor: Colors.blue,
-
-                    primary: Colors.white,
-                    onPrimary: Colors.green,
-                    onSurface: Colors.red,
-                  ),
-                  
-                  child: Transform.rotate(
-                    angle: 90 * pi /180,
-                    child: Icon(Icons.usb_outlined, color: deviceType == 2 && isPlaying ==1 ? Colors.yellow : Color(0xFF800000),),
-                  ),
-                
-                  onPressed: () {  
-
-                    if (deviceType == 0 || deviceType == 1){
-                      deviceTypeInt = 2;
-                      deviceType = 2;
-                      js.context.callMethod('recordHid', ['Flutter is calling upon JavaScript!']);
-                      setState(() {
-                        
-                      });
-                    } else {
-                    // if (deviceType == 1){
-                    
-                      deviceTypeInt = 0;
-                      deviceType = 0;
-                      js.context.callMethod('recordAudio', ['Flutter is calling upon JavaScript!']);
-                      setState(() {
-                        
-                      });
-
-                    }
-                  },
-                ),
-                Positioned(
-                  bottom:0,
-                  right:12,
-                  child: GestureDetector(
-                    onTap:(){
-                      if (deviceType == 0 || deviceType == 1){
+        !((settingParams["enableDeviceLegacy"]) as bool)
+            ? Container()
+            : Positioned(
+                key: keyTutorialHid,
+                top: 10,
+                left: 150,
+                child: Stack(children: [
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      fixedSize: const Size(50, 50),
+                      shape: const CircleBorder(),
+                      shadowColor: Colors.blue,
+                      primary: Colors.white,
+                      onPrimary: Colors.green,
+                      onSurface: Colors.red,
+                    ),
+                    child: Transform.rotate(
+                      angle: 90 * pi / 180,
+                      child: Icon(
+                        Icons.usb_outlined,
+                        color: deviceType == 2 && isPlaying == 1
+                            ? Colors.yellow
+                            : Color(0xFF800000),
+                      ),
+                    ),
+                    onPressed: () {
+                      if (deviceType == 0 || deviceType == 1) {
                         deviceTypeInt = 2;
                         deviceType = 2;
-                        js.context.callMethod('recordHid', ['Flutter is calling upon JavaScript!']);
-                        setState(() {
-                          
-                        });
-                        _sendAnalyticsEvent("button_hid", {
-                          "deviceType" : deviceType,
-                          "isStartingHid" : 1,
-                          "isStartingAudio" : 0
-                        });
+                        if (kIsWeb) {
+                          // js.context.callMethod('recordHid',
+                          //     ['Flutter is calling upon JavaScript!']);
+                        } else {}
 
+                        setState(() {});
                       } else {
-                      // if (deviceType == 1){
-                      
+                        // if (deviceType == 1){
+
                         deviceTypeInt = 0;
                         deviceType = 0;
-                        js.context.callMethod('recordAudio', ['Flutter is calling upon JavaScript!']);
-                        setState(() {
-                          
-                        });
-                        _sendAnalyticsEvent("button_hid", {
-                          "deviceType" : deviceType,
-                          "isStartingHid" : 0,
-                          "isStartingAudio" : 1
-                        });
+                        if (kIsWeb) {
+                          // js.context.callMethod('recordAudio',
+                          //     ['Flutter is calling upon JavaScript!']);
+                        } else {}
 
+                        setState(() {});
                       }
-
                     },
-                    child : Text("  PRO", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize:15) ,),
                   ),
-                  
-                ),            
-              ]
-            ),
-          ),      
+                  Positioned(
+                    bottom: 0,
+                    right: 12,
+                    child: GestureDetector(
+                      onTap: () {
+                        if (deviceType == 0 || deviceType == 1) {
+                          deviceTypeInt = 2;
+                          deviceType = 2;
+                          if (kIsWeb) {
+                            // js.context.callMethod('recordHid',
+                            //     ['Flutter is calling upon JavaScript!']);
+                          } else {}
+
+                          setState(() {});
+                          _sendAnalyticsEvent("button_hid", {
+                            "deviceType": deviceType,
+                            "isStartingHid": 1,
+                            "isStartingAudio": 0
+                          });
+                        } else {
+                          // if (deviceType == 1){
+
+                          deviceTypeInt = 0;
+                          deviceType = 0;
+                          if (kIsWeb) {
+                            // js.context.callMethod('recordAudio',
+                            //     ['Flutter is calling upon JavaScript!']);
+                          } else {}
+
+                          setState(() {});
+                          _sendAnalyticsEvent("button_hid", {
+                            "deviceType": deviceType,
+                            "isStartingHid": 0,
+                            "isStartingAudio": 1
+                          });
+                        }
+                      },
+                      child: Text(
+                        "  PRO",
+                        style: TextStyle(
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15),
+                      ),
+                    ),
+                  ),
+                ]),
+              ),
       );
     }
 
-    if (isPlaying == 2 || isZooming){
+    if (isPlaying == 2 || isZooming) {
       lastPositionButton = Positioned(
-        bottom: 20,
-        left: MediaQuery.of(context).size.width/2 + 70,
-        child: Container(
-          width: 60,
-          height:40,
-
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-            // style: ButtonStyle(
-              fixedSize: const Size(50, 50),
-              shape : const CircleBorder(),
-              shadowColor: Colors.blue,
-
-              primary: Colors.white,
-              onPrimary: Colors.green,
-              onSurface: Colors.red,
-              // backgroundColor: getColor(Colors.blueGrey, Colors.blueGrey),
-              // overlayColor: getColor(Colors.white60, Colors.white70)
-            ),
-
-            child: Icon(Icons.arrow_right_alt_rounded, color: Color(0xFF800000),),
-            // onPressed:  null,
-            onPressed:  (){
-
-              if (isPlaying==2){
-                horizontalDiff = 0;
-                isPlaying = 1;
-                // if (deviceType == 0){
-                  if (isOpeningFile == 0){
-                    js.context.callMethod('pauseResume', [3]);
-                    _sendAnalyticsEvent("return_play",{"openingFile":0, "previous_playing":0, "deviceType": deviceType});
-                  }else{
-                    isOpeningFile = 1;
-                    js.context.callMethod('playData', [3]);
-                    _sendAnalyticsEvent("return_play",{"openingFile":1, "previous_playing":0, "deviceType": deviceType});
-                  }
-                // }else{
-
-                // }
-              }else
-              if (isPlaying == 1 ){
-                horizontalDiff = 0;
-                if (isOpeningFile == 0){
-                  js.context.callMethod('pauseResume', [3]);
-                  _sendAnalyticsEvent("return_play",{"openingFile":0, "previous_playing":1, "deviceType": deviceType});
-                }else{
-                  isOpeningFile = 1;
-                  js.context.callMethod('playData', [3]);
-                  _sendAnalyticsEvent("return_play",{"openingFile":1, "previous_playing":1, "deviceType": deviceType});
-                }
-
-              }
-
-              setState(() {
-              });
-            },
-          ),
-        )
-
-      );
-
-      dataWidgets.add(
-        lastPositionButton
-      );
-
-    }
-
-    if (isOpeningFile == 1 && isShowingResetButton){
-      dataWidgets.add(
-        Positioned(
           bottom: 20,
-          left : MediaQuery.of(context).size.width/2 - 70,
+          left: MediaQuery.of(context).size.width / 2 + 70,
           child: Container(
-            width: 55,
-            height:35,
+            width: 60,
+            height: 40,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                fixedSize: const Size(30, 30),
-                shape : const CircleBorder(),
+                // style: ButtonStyle(
+                fixedSize: const Size(50, 50),
+                shape: const CircleBorder(),
                 shadowColor: Colors.blue,
 
                 primary: Colors.white,
                 onPrimary: Colors.green,
                 onSurface: Colors.red,
+                // backgroundColor: getColor(Colors.blueGrey, Colors.blueGrey),
+                // overlayColor: getColor(Colors.white60, Colors.white70)
               ),
 
-              child: Transform(
-                alignment: Alignment.center,
-                transform: Matrix4.rotationY(pi),                
-                child: const Icon(Icons.refresh, color: Color(0xFF800000)),
+              child: Icon(
+                Icons.arrow_right_alt_rounded,
+                color: Color(0xFF800000),
               ),
+              // onPressed:  null,
+              onPressed: () {
+                if (isPlaying == 2) {
+                  horizontalDiff = 0;
+                  isPlaying = 1;
+                  CURRENT_START = 0;
+                  // if (deviceType == 0){
+                  isPaused = false;
+                  if (isOpeningFile == 0) {
+                    if (kIsWeb) {
+                      // js.context.callMethod('pauseResume', [3]);
+                    } else {}
 
-              onPressed:  (){
-                js.context.callMethod('resetPlayback', [1]);
+                    _sendAnalyticsEvent("return_play", {
+                      "openingFile": 0,
+                      "previous_playing": 0,
+                      "deviceType": deviceType
+                    });
+                  } else {
+                    isOpeningFile = 1;
+                    if (kIsWeb) {
+                      // js.context.callMethod('playData', [3]);
+                    } else {}
 
-                setState(() {
-                });
-                _sendAnalyticsEvent("button_reset_playback", {
-                  "isOpeningFile" : 1,
-                  "deviceType" : deviceType,
-                });
-                
+                    _sendAnalyticsEvent("return_play", {
+                      "openingFile": 1,
+                      "previous_playing": 0,
+                      "deviceType": deviceType
+                    });
+                  }
+                  // }else{
+
+                  // }
+                } else if (isPlaying == 1) {
+                  isPaused = false;
+                  horizontalDiff = 0;
+                  CURRENT_START = 0;
+                  if (isOpeningFile == 0) {
+                    if (kIsWeb) {
+                      // js.context.callMethod('pauseResume', [3]);
+                    } else {}
+
+                    _sendAnalyticsEvent("return_play", {
+                      "openingFile": 0,
+                      "previous_playing": 1,
+                      "deviceType": deviceType
+                    });
+                  } else {
+                    isOpeningFile = 1;
+                    if (kIsWeb) {
+                      // js.context.callMethod('playData', [3]);
+                    } else {}
+
+                    _sendAnalyticsEvent("return_play", {
+                      "openingFile": 1,
+                      "previous_playing": 1,
+                      "deviceType": deviceType
+                    });
+                  }
+                }
+
+                setState(() {});
               },
-            )
+            ),
+          ));
 
-          ),
-        )
-      );
+      dataWidgets.add(lastPositionButton);
     }
 
-    if ( isRecording == 0 ){
-      dataWidgets.add(
-        Positioned(
-          bottom: 20,
-          left: MediaQuery.of(context).size.width/2,
-          child: Center(
-            child: Container(
+    if (isOpeningFile == 1 && isShowingResetButton) {
+      dataWidgets.add(Positioned(
+        bottom: 20,
+        left: MediaQuery.of(context).size.width / 2 - 70,
+        child: Container(
+            width: 55,
+            height: 35,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                fixedSize: const Size(30, 30),
+                shape: const CircleBorder(),
+                shadowColor: Colors.blue,
+                primary: Colors.white,
+                onPrimary: Colors.green,
+                onSurface: Colors.red,
+              ),
+              child: Transform(
+                alignment: Alignment.center,
+                transform: Matrix4.rotationY(pi),
+                child: const Icon(Icons.refresh, color: Color(0xFF800000)),
+              ),
+              onPressed: () {
+                if (kIsWeb) {
+                  // js.context.callMethod('resetPlayback', [1]);
+                } else {}
+
+                setState(() {});
+                _sendAnalyticsEvent("button_reset_playback", {
+                  "isOpeningFile": 1,
+                  "deviceType": deviceType,
+                });
+              },
+            )),
+      ));
+    }
+
+    if (isRecording == 0) {
+      dataWidgets.add(Positioned(
+        bottom: 20,
+        left: MediaQuery.of(context).size.width / 2,
+        child: Center(
+          child: Container(
               width: 60,
-              height:40,
+              height: 40,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                // style: ButtonStyle(
+                  // style: ButtonStyle(
                   fixedSize: const Size(50, 50),
-                  shape : const CircleBorder(),
+                  shape: const CircleBorder(),
                   shadowColor: Colors.blue,
 
                   primary: Colors.white,
@@ -3036,214 +6782,598 @@ class _MyHomePageState extends State<MyHomePage> {
                   // overlayColor: getColor(Colors.white60, Colors.white70)
                 ),
 
-                child: 
-                  isPlaying == 1 ?
-                    Icon(Icons.pause, color: Color(0xFF800000))
-                  :
-                    Icon(Icons.play_arrow, color: Color(0xFF800000),),
-                    
+                child: isPlaying == 1
+                    ? Icon(Icons.pause, color: Color(0xFF800000))
+                    : Icon(
+                        Icons.play_arrow,
+                        color: Color(0xFF800000),
+                      ),
 
                 // onPressed:  null,
-                onPressed:  (){
-
+                onPressed: () {
                   // if (isPlaying==1){
                   //   return;
                   // }else
                   print("isOpeningFile");
                   print(isOpeningFile);
-                  if (isOpeningFile == 0){
-                    if (isPlaying == 1){
+                  if (isOpeningFile == 0) {
+                    if (isPlaying == 1) {
                       debouncerPlayback.run(() {
-                        js.context.callMethod('pauseResume', [1]);
-                        isPlaying = 2;
-                        setState((){});
-                        _sendAnalyticsEvent("button_play",{"isOpeningFile":0,"isPlaying":2, "deviceType": deviceType});
-                      });
+                        if (kIsWeb) {
+                          // js.context.callMethod('pauseResume', [1]);
+                        } else {}
+                        isPaused = true;
 
-                    }else{
+                        isPlaying = 2;
+                        setState(() {});
+                        _sendAnalyticsEvent("button_play", {
+                          "isOpeningFile": 0,
+                          "isPlaying": 2,
+                          "deviceType": deviceType
+                        });
+                      });
+                    } else {
                       debouncerPlayback.run(() {
-                        js.context.callMethod('pauseResume', [2]);
+                        if (kIsWeb) {
+                          // js.context.callMethod('pauseResume', [2]);
+                        } else {}
+                        isPaused = false;
+
                         isPlaying = 1;
-                        setState((){});
-                        _sendAnalyticsEvent("button_play",{"isOpeningFile":0,"isPlaying":1, "deviceType": deviceType});
+                        setState(() {});
+                        _sendAnalyticsEvent("button_play", {
+                          "isOpeningFile": 0,
+                          "isPlaying": 1,
+                          "deviceType": deviceType
+                        });
                       });
                     }
-                  }else{
-                    if (isPlaying == 1){
+                  } else {
+                    if (isPlaying == 1) {
                       debouncerPlayback.run(() {
-                        js.context.callMethod('playData', [2]);
-                        isPlaying = 2;
-                        setState((){});
-                        _sendAnalyticsEvent("button_play",{"isOpeningFile":1,"isPlaying":2, "deviceType": deviceType});
-                      });
-                    }else{
-                      debouncerPlayback.run(() {
-                        js.context.callMethod('playData', [1]);
-                        isPlaying = 1;
-                        setState((){});
-                        _sendAnalyticsEvent("button_play",{"isOpeningFile":1,"isPlaying":1, "deviceType": deviceType});
+                        if (kIsWeb) {
+                          // js.context.callMethod('playData', [2]);
+                        } else {}
 
+                        isPlaying = 2;
+                        setState(() {});
+                        _sendAnalyticsEvent("button_play", {
+                          "isOpeningFile": 1,
+                          "isPlaying": 2,
+                          "deviceType": deviceType
+                        });
+                      });
+                    } else {
+                      debouncerPlayback.run(() {
+                        if (kIsWeb) {
+                          // js.context.callMethod('playData', [1]);
+                        } else {}
+
+                        isPlaying = 1;
+                        setState(() {});
+                        _sendAnalyticsEvent("button_play", {
+                          "isOpeningFile": 1,
+                          "isPlaying": 1,
+                          "deviceType": deviceType
+                        });
                       });
                     }
                   }
 
-                  setState(() {
-                  });
+                  setState(() {});
                 },
-              )
-            ),
-          ),
-        )
-      );
+              )),
+        ),
+      ));
     }
-    // END adding TOOLBAR Button  
+    // END adding TOOLBAR Button
 
-
-    if (isTutored == '0' && tutorialStep == 1){
-      double tempMedian = ( MediaQuery.of(context).size.height/2 / 2 );
+    if (isTutored == '0' && tutorialStep == 1) {
+      double tempMedian = (MediaQuery.of(context).size.height / 2 / 2);
 
       dataWidgets.insert(
         0,
         Positioned(
-          key : keyTutorialAudio,
-          top : tempMedian - 20,
+          key: keyTutorialAudio,
+          top: tempMedian - 20,
           left: 170,
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children:[
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
                   Container(
                     decoration: const BoxDecoration(
                       shape: BoxShape.circle,
                       color: Colors.white,
                     ),
-                    child : Icon(
-                      Icons.add, 
-                      // key: keyTutorialAudioGainPlus,
-                      color: Colors.black,
-                      size:17
-                    ),
+                    child: const Icon(Icons.add,
+                        // key: keyTutorialAudioGainPlus,
+                        color: Colors.black,
+                        size: 17),
                   ),
-                  SizedBox(width:10),
-                  Text( 'Increase Gain', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color:Colors.white) ),
-                ]
-              ),
-              Text( 'To increase the signal gain click on plus sign', style: TextStyle( fontSize: 12, color:Colors.white) ),
-              SizedBox(
-                height:10,
-              ),
-              Row(
-                children: [
-                  Transform.rotate(
-                    angle: 90 * pi /180,
-                    child:  Icon(
-                      Icons.water_drop_outlined,
-                      // key: keyTutorialAudioLevel,
-                      color: Colors.green
+                  SizedBox(width: 10),
+                  const Text('Increase Gain',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: Colors.white)),
+                ]),
+                const Text('To increase the signal gain click on plus sign',
+                    style: TextStyle(fontSize: 12, color: Colors.white)),
+                const SizedBox(
+                  height: 10,
+                ),
+                Row(
+                  children: [
+                    Transform.rotate(
+                      angle: 90 * pi / 180,
+                      child: const Icon(Icons.water_drop_outlined,
+                          // key: keyTutorialAudioLevel,
+                          color: Colors.green),
                     ),
-                  ),
-                  SizedBox(width:10),
-                  Text( 'Level', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color:Colors.white) ),
-                ],
-              ),
-              // Text( 'This is the median of the sample data', style: TextStyle( fontSize: 12, color:Colors.white) ),
-              Text( 'This is the origin (y=0) point of the signal channel. ', style: TextStyle( fontSize: 12, color:Colors.white) ),
-              Text( 'Click this button to toggle the channel on/off and ', style: TextStyle( fontSize: 12, color:Colors.white) ),
-              Text( 'drag it to move the channel up or down. ', style: TextStyle( fontSize: 12, color:Colors.white) ),
+                    SizedBox(width: 10),
+                    const Text('Level',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: Colors.white)),
+                  ],
+                ),
+                // Text( 'This is the median of the sample data', style: TextStyle( fontSize: 12, color:Colors.white) ),
+                const Text(
+                    'This is the origin (y=0) point of the signal channel. ',
+                    style: TextStyle(fontSize: 12, color: Colors.white)),
+                const Text(
+                    'Click this button to toggle the channel on/off and ',
+                    style: TextStyle(fontSize: 12, color: Colors.white)),
+                const Text('drag it to move the channel up or down. ',
+                    style: TextStyle(fontSize: 12, color: Colors.white)),
 
-
-              SizedBox(
-                height:10,
-              ),
-              Row(
-                children: [
-                  Container(
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white,
-                    ),   
-                    child: Icon(
-                      Icons.remove, 
-                      // key: keyTutorialAudioGainMinus,
-                      color: Colors.black, 
-                      size:17
+                const SizedBox(
+                  height: 10,
+                ),
+                Row(
+                  children: [
+                    Container(
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white,
+                      ),
+                      child: const Icon(Icons.remove,
+                          // key: keyTutorialAudioGainMinus,
+                          color: Colors.black,
+                          size: 17),
                     ),
-                  ),
-                  SizedBox(width:10),
-                  Text( 'Decrease Gain', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color:Colors.white) ),
-                ],
-              ),
-              Text( 'To decrease the signal gain click on minus sign', style: TextStyle( fontSize: 12, color:Colors.white) ),
-              SizedBox(
-                height:50,
-              ),
+                    const SizedBox(width: 10),
+                    const Text('Decrease Gain',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: Colors.white)),
+                  ],
+                ),
+                const Text('To decrease the signal gain click on minus sign',
+                    style: TextStyle(fontSize: 12, color: Colors.white)),
+                const SizedBox(
+                  height: 50,
+                ),
 
-              Text( 'Click here to continue', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color:Colors.white) ),
-
-            ]
-          ),
+                const Text('Click here to continue',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: Colors.white)),
+              ]),
         ),
       );
-
     }
 
-    if (isTutored == '0' && tutorialStep == 0){
+    if (isTutored == '0' && tutorialStep == 0) {
       dataWidgets.insert(
-        0,
-        Positioned(
-          top: MediaQuery.of(context).size.height/2,
-          left: MediaQuery.of(context).size.width/2-100,
-          child: Container(
-            width : 150,
-            height: 200,
-            child: Column(
-              key : keyTutorialNavigation,                 
-              children: [
-                Image.asset('assets/sr_icon.png',width: 128, height:128),
-                const Text( "Welcome to Spike Recorder Web Edition", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color:Colors.white), textAlign: TextAlign.center, ),
-                // const Text( "Click the brain icon! You will start to understand your brain", style: TextStyle(fontSize:12, color:Colors.white), textAlign: TextAlign.center, )
-                // const Text( "Click the brain icon to start your journey into neuroscience", style: TextStyle(fontSize:12, color:Colors.white), textAlign: TextAlign.center, )
-                const Text( "Click the brain icon to start your neuroscience journey!", style: TextStyle(fontSize:12, color:Colors.white), textAlign: TextAlign.center, )
-                
-              ],
-            ),
-          )
-        )
-      );
+          0,
+          Positioned(
+              top: MediaQuery.of(context).size.height / 2,
+              left: MediaQuery.of(context).size.width / 2 - 100,
+              child: Container(
+                width: 150,
+                height: 200,
+                child: Column(
+                  key: keyTutorialNavigation,
+                  children: [
+                    Image.asset('assets/sr_icon.png', width: 128, height: 128),
+                    const Text(
+                      "Welcome to Spike Recorder Web Edition",
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: Colors.white),
+                      textAlign: TextAlign.center,
+                    ),
+                    const Text(
+                      "Click the brain icon to start your neuroscience journey!",
+                      style: TextStyle(fontSize: 12, color: Colors.white),
+                      textAlign: TextAlign.center,
+                    )
+                  ],
+                ),
+              )));
     }
 
-
-    // if (isTutored == '0' && tutorialStep == 6){
-    //   dataWidgets.insert(
-    //     0,
-    //     Positioned(
-    //       top: MediaQuery.of(context).size.height/2,
-    //       left: MediaQuery.of(context).size.width/2-100,
-    //       child: Container(
-    //         key: keyTutorialEnd
-    //       )
-    //     )
-    //   );
-    // }
+    // dataWidgets.add(
+    //   Positioned(
+    //     left: 10,
+    //     top: MediaQuery.of(context).size.height * 0.75,
+    //     child: Text(channelsData.length.toString(),
+    //         style: TextStyle(color: Colors.white)),
+    //   ),
+    // );
 
     return dataWidgets;
   }
 
+  String getStrMinTime(horizontalDragX, horizontalDragXFix, maxTime) {
+    String strMinTime = '';
+    double minTime = horizontalDragX / horizontalDragXFix * maxTime;
+    // print("minTime");
+    // print(minTime);
+    if (minTime > 3600) {
+      final lastDecimals =
+          (minTime - minTime.floor()).toStringAsFixed(3).replaceFirst("0.", "");
+      strMinTime =
+          ((minTime / 3600).floor() % (3600 * 24)).toString().padLeft(2, "0") +
+              ":" +
+              ((minTime / 60).floor() % 3600).toString().padLeft(2, "0") +
+              ":" +
+              (minTime.floor() % 60).toString().padLeft(2, "0") +
+              " " +
+              lastDecimals;
+    } else {
+      final lastDecimals =
+          (minTime - minTime.floor()).toStringAsFixed(3).replaceFirst("0.", "");
+      strMinTime = ((minTime / 60).floor() % 3600).toString().padLeft(2, "0") +
+          ":" +
+          (minTime.floor() % 60).toString().padLeft(2, "0") +
+          " " +
+          lastDecimals;
+    }
+    // print("minTime");
+    // print(strMinTime);
+    return strMinTime;
+  }
+
+  Widget getMainWidget() {
+    // return Stack(
+    //     children: getDataWidgets(),
+    // );
+    // final ScrollController canvasController = ScrollController();
+    // canvasController.addListener((){
+    //   print(canvasController.initialScrollOffset);
+    //   print(canvasController.offset);
+    // });
+    // return ScrollConfiguration(
+    //   behavior: CanvasScrollBehavior(),
+    //   child: ListView(
+    //     children:[
+    //       Stack(
+    //         children: getDataWidgets(),
+    //       )
+    //     ]
+    //   ),
+    // );
+    return Listener(
+        onPointerSignal: (PointerSignalEvent dragDetails) {
+          // debouncerTimeZoom.run(() {
+          if (dragDetails is PointerScrollEvent) {
+            int tempTimeScaleBar = timeScaleBar;
+            int direction = 0;
+            const arrTimeScale = [0.1, 1, 10, 50, 100, 500, 1000, 5000, 10000];
+
+            if (dragDetails.kind != PointerDeviceKind.mouse) {
+              return;
+            }
+            if (dragDetails.scrollDelta.dx == 0.0 &&
+                dragDetails.scrollDelta.dy == 0.0) {
+              return;
+            } else if (dragDetails.scrollDelta.dy < 0 &&
+                dragDetails.scrollDelta.dy > -500) {
+              prevY = dragDetails.scrollDelta.dy;
+              //down
+              direction = -1;
+
+              if (timeScaleBar - 1 < 0) {
+                return;
+              } else {
+                timeScaleBar--;
+              }
+            } else if (dragDetails.scrollDelta.dy > 0 &&
+                dragDetails.scrollDelta.dy < 500) {
+              direction = 1;
+              prevY = dragDetails.scrollDelta.dy;
+              // if (timeScaleBar + 1 >= 80) {
+              if (timeScaleBar + 1 > 80) {
+                // timeScaleBar = 80;
+                // isZooming = false;
+                // CURRENT_START = 0;
+                // print('current start 0');
+                // int transformScale = (timeScaleBar / 10).floor();
+
+                // scaleBarWidth = MediaQuery.of(context).size.width /
+                //     (arrScaleBar[timeScaleBar]) *
+                //     arrTimeScale[transformScale] /
+                //     10;
+                // curTimeScaleBar = (arrTimeScale[transformScale] / 10);
+
+                // divider = 6;
+                // level = calculateLevel(curTimeScaleBar, sampleRate, MediaQuery.of(context).size.width, skipCounts);
+
+                // setState((){});
+
+                // return;
+              } else {
+                timeScaleBar++;
+              }
+            }
+
+            double tempDivider = myArrTimescale[timeScaleBar] / 10;
+            int tempLevel = calculateLevel(myArrTimescale[timeScaleBar],
+                sampleRate, MediaQuery.of(context).size.width, skipCounts);
+            int prevSegment =
+                (allEnvelopes[0][tempLevel].length / tempDivider).floor();
+            // print(prevSegment);
+            // if (prevSegment <= 2) {
+            //   timeScaleBar = tempTimeScaleBar;
+            //   return;
+            // }
+
+            int transformScale = (timeScaleBar / 10).floor();
+            scaleBarWidth = MediaQuery.of(context).size.width /
+                (arrScaleBar[timeScaleBar]) *
+                arrTimeScale[transformScale] /
+                10;
+            curTimeScaleBar = (arrTimeScale[transformScale] / 10);
+            var data = {
+              "timeScaleBar": arrTimeScale[transformScale], // label in UI
+              "levelScale": timeScaleBar, //scrollIdx
+              "posX": dragDetails.localPosition.dx,
+              "direction": direction
+            };
+            if (isThreshold) {
+              data['posX'] = (MediaQuery.of(context).size.width / 2).floor();
+            }
+
+            print("data onPointerSignal");
+            print(data);
+
+            if (timeScaleBar == -1) {
+              isZooming = false;
+              timeScale = 1;
+            } else {
+              isZooming = true;
+              timeScale = arrTimeScale[transformScale];
+            }
+
+            if (kIsWeb) {
+              //   // js.context.callMethod('setZoomLevel', [json.encode(data)]);
+              //   level = calculateLevel(
+              //       timeScale, sampleRate, MediaQuery.of(context).size.width, skipCounts);
+            } else {
+              // if (isPaused){
+              setZoomLevel(data);
+              // }
+            }
+            // print('-----------------');
+            // double C_START =0;
+
+            // for (int i = 80; i>timeScaleBar && timeScaleBar > 0; i--){
+            //   int transformScaleIdx = (i / 10).floor();
+            //   double tempDivider = myArrTimescale[i] / 10;
+            //   int simLevel = calculateLevel(myArrTimescale[transformScaleIdx], sampleRate,
+            //       MediaQuery.of(context).size.width, skipCounts);
+
+            //   transformScaleIdx = ((i - 1) / 10).floor();
+            //   var row = {
+            //     "timeScaleBar": arrTimeScale[transformScaleIdx], // label in UI
+            //     "levelScale": i-1, //scrollIdx
+            //     "posX": dragDetails.localPosition.dx,
+            //     "direction": 1
+            //   };
+
+            //   C_START = simulateCurrentStartPosition(sampleRate.floor(), cBuffIdx, row,
+            //     simLevel, skipCounts[simLevel], tempDivider, surfaceWidth, false, 0, C_START, MediaQuery.of(context).devicePixelRatio, myArrTimescale, 0);
+            // }
+
+            setState(() {});
+          }
+          // });
+        },
+        child: SafeArea(
+          child: (isRecording > 9 && topRecordingBar > 0)
+              ? Column(children: [
+                  Container(
+                    color: const Color(0xFF5b0303),
+                    width: MediaQuery.of(context).size.width,
+                    height: topRecordingBar,
+                    child: Center(
+                        child: Text("Recording   " + labelDuration,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold))),
+                  ),
+                  Container(
+                    color: Colors.black,
+                    width: MediaQuery.of(context).size.width,
+                    height:
+                        MediaQuery.of(context).size.height - topRecordingBar,
+                    child: Stack(children: getDataWidgets()),
+                  ),
+                ])
+              : Container(
+                  color: Colors.black,
+                  width: MediaQuery.of(context).size.width,
+                  height: MediaQuery.of(context).size.height - topRecordingBar,
+                  child: Stack(children: getDataWidgets()),
+                ),
+        ));
+  }
+
+  getLoadingWidget(BuildContext context) {
+    return Container(
+      color: const Color(0x77CCCCFF),
+      width: MediaQuery.of(context).size.width,
+      height: MediaQuery.of(context).size.height,
+      alignment: Alignment.center,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircularProgressIndicator(),
+          SizedBox(height: 10),
+          Text("Loading file..."),
+        ],
+      ),
+    );
+  }
+
+  Widget getFeedbackWidget() {
+    // print("globalChromeVersion");
+    // print(globalChromeVersion);
+    return Container(
+      padding: const EdgeInsets.all(8.0),
+      color: Colors.white,
+      child: FormBuilder(
+          key: _formKey,
+          // enabled: false,
+          onChanged: () {
+            // _formKey.currentState!.save();
+            // debugPrint(_formKey.currentState!.value.toString());
+          },
+          // initialValue: {
+          //   'chromeversion': globalChromeVersion
+          // },
+
+          autovalidateMode: AutovalidateMode.disabled,
+          // initialValue: const {
+          // },
+          skipDisabled: true,
+          child: Column(
+            children: [
+              FormBuilderTextField(
+                autovalidateMode: AutovalidateMode.always,
+                name: 'Feedback description',
+                decoration: InputDecoration(
+                  labelText: 'Feedback Description',
+                  suffixIcon: _ageHasError
+                      ? const Icon(Icons.error, color: Colors.red)
+                      : const Icon(Icons.check, color: Colors.green),
+                ),
+                validator: FormBuilderValidators.compose([
+                  FormBuilderValidators.required(),
+                ]),
+                // initialValue: '12',
+                textInputAction: TextInputAction.next,
+              ),
+              // FormBuilderTextField(
+              //   autovalidateMode: AutovalidateMode.always,
+              //   readOnly: true,
+              //   name: 'chromeversion',
+              //   decoration: InputDecoration(
+              //     labelText: 'Chrome Version',
+              //   ),
+              //   validator: FormBuilderValidators.compose([
+              //     FormBuilderValidators.required(),
+              //   ]),
+              //   initialValue: globalChromeVersion,
+              //   textInputAction: TextInputAction.next,
+              // ),
+              FormBuilderTextField(
+                autovalidateMode: AutovalidateMode.always,
+                name: 'Name',
+                decoration: InputDecoration(
+                  labelText: 'Name',
+                  suffixIcon: _ageHasError
+                      ? const Icon(Icons.error, color: Colors.red)
+                      : const Icon(Icons.check, color: Colors.green),
+                ),
+                validator: FormBuilderValidators.compose([]),
+                // initialValue: '12',
+                textInputAction: TextInputAction.next,
+              ),
+
+              FormBuilderTextField(
+                autovalidateMode: AutovalidateMode.always,
+                name: 'Email',
+                decoration: InputDecoration(
+                  labelText: 'Email address',
+                  suffixIcon: _ageHasError
+                      ? const Icon(Icons.error, color: Colors.red)
+                      : const Icon(Icons.check, color: Colors.green),
+                ),
+                // valueTransformer: (text) => num.tryParse(text),
+                validator: FormBuilderValidators.compose([
+                  FormBuilderValidators.required(),
+                  FormBuilderValidators.email(
+                      errorText: "Please put correct email"),
+                ]),
+                // initialValue: '12',
+                textInputAction: TextInputAction.next,
+              ),
+
+              Text(errorMessage),
+              Row(children: <Widget>[
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      isFeedback = false;
+                      setState(() {});
+                    },
+                    style: ElevatedButton.styleFrom(
+                      primary: Colors.red, // background
+                      onPrimary: Colors.white, // foreground
+                    ),
+                    child: const Text(
+                      'Close',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 30),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      if (_formKey.currentState?.saveAndValidate() ?? false) {
+                        debugPrint(_formKey.currentState?.value.toString());
+                        errorMessage = "";
+                        sendFeedbackForm(_formKey.currentState?.value);
+                      } else {
+                        debugPrint(_formKey.currentState?.value.toString());
+                        errorMessage = "Validation failed";
+                      }
+                      setState(() {});
+                    },
+                    child: const Text(
+                      'Submit',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ),
+              ]),
+            ],
+          )),
+    );
+  }
 
   bool autoValidate = true;
   bool readOnly = false;
   bool showSegmentedControl = true;
   bool _ageHasError = false;
   bool _genderHasError = false;
-  bool isFeedback = false;
   String errorMessage = "";
   final _formKey = GlobalKey<FormBuilderState>();
 
   void sendFeedbackForm(mapValue) async {
     var url = Uri.parse('https://staging-bybrain.web.app/feedback');
-    var mapPost = new Map<String,String>.from(mapValue);
+    var mapPost = new Map<String, String>.from(mapValue);
 
     // mapPost['chromeVersion'] = globalChromeVersion;
     _deviceData.forEach((key, value) {
@@ -3259,12 +7389,8 @@ class _MyHomePageState extends State<MyHomePage> {
     print(mapPost);
 
     var response = https.post(url, body: json.encode(mapPost));
-    // print('Response status: ${response.statusCode}');
-    // print('Response body: ${response.body}');  
-    _sendAnalyticsEvent("feedback_sent", {
-      "deviceType":deviceType,
-      "feedbackSent": 1
-    });
+    _sendAnalyticsEvent(
+        "feedback_sent", {"deviceType": deviceType, "feedbackSent": 1});
     infoDialog(
       context,
       "Feedback Saved",
@@ -3272,732 +7398,455 @@ class _MyHomePageState extends State<MyHomePage> {
       positiveButtonText: "OK",
       positiveButtonAction: () {
         isFeedback = false;
-        setState((){});
+        setState(() {});
       },
-
       negativeButtonText: "",
-      negativeButtonAction: (){
+      negativeButtonAction: () {
         isFeedback = false;
-        setState((){});
+        setState(() {});
       },
-
       hideNeutralButton: true,
       closeOnBackPress: false,
-    );    
-  }
-
-  Widget getFeedbackWidget(){
-    print("globalChromeVersion");
-    print(globalChromeVersion);
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: FormBuilder(
-        key: _formKey,
-        // enabled: false,
-        onChanged: () {
-          // _formKey.currentState!.save();
-          // debugPrint(_formKey.currentState!.value.toString());
-        },
-        // initialValue: {
-        //   'chromeversion': globalChromeVersion
-        // },              
-
-        autovalidateMode: AutovalidateMode.disabled,
-        // initialValue: const {
-        // },
-        skipDisabled: true,
-        child: Column(
-          children: [
-            FormBuilderTextField(
-              autovalidateMode: AutovalidateMode.always,
-              name: 'Feedback description',
-              decoration: InputDecoration(
-                labelText: 'Feedback Description',
-                suffixIcon: _ageHasError
-                    ? const Icon(Icons.error, color: Colors.red)
-                    : const Icon(Icons.check, color: Colors.green),
-              ),
-              validator: FormBuilderValidators.compose([
-                FormBuilderValidators.required(),
-              ]),
-              // initialValue: '12',
-              textInputAction: TextInputAction.next,
-            ),          
-            // FormBuilderTextField(
-            //   autovalidateMode: AutovalidateMode.always,
-            //   readOnly: true,
-            //   name: 'chromeversion',
-            //   decoration: InputDecoration(
-            //     labelText: 'Chrome Version',
-            //   ),
-            //   validator: FormBuilderValidators.compose([
-            //     FormBuilderValidators.required(),
-            //   ]),
-            //   initialValue: globalChromeVersion,
-            //   textInputAction: TextInputAction.next,
-            // ),          
-            FormBuilderTextField(
-              autovalidateMode: AutovalidateMode.always,
-              name: 'Name',
-              decoration: InputDecoration(
-                labelText: 'Name',
-                suffixIcon: _ageHasError
-                    ? const Icon(Icons.error, color: Colors.red)
-                    : const Icon(Icons.check, color: Colors.green),
-              ),
-              validator: FormBuilderValidators.compose([
-              ]),
-              // initialValue: '12',
-              textInputAction: TextInputAction.next,
-            ),          
-
-            FormBuilderTextField(
-              autovalidateMode: AutovalidateMode.always,
-              name: 'Email',
-              decoration: InputDecoration(
-                labelText: 'Email address',
-                suffixIcon: _ageHasError
-                    ? const Icon(Icons.error, color: Colors.red)
-                    : const Icon(Icons.check, color: Colors.green),
-              ),
-              // valueTransformer: (text) => num.tryParse(text),
-              validator: FormBuilderValidators.compose([
-                FormBuilderValidators.required(),
-                FormBuilderValidators.email(errorText : "Please put correct email"),
-              ]),
-              // initialValue: '12',
-              textInputAction: TextInputAction.next,
-            ), 
-
-            Text(errorMessage),
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      isFeedback = false;
-                      setState((){});
-                    },
-                    style: ElevatedButton.styleFrom(
-                      primary: Colors.red, // background
-                      onPrimary: Colors.white, // foreground
-                    ),                  
-                    child: const Text(
-                      'Close',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ),            
-                SizedBox(width:30),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      if (_formKey.currentState?.saveAndValidate() ?? false) {
-                        debugPrint(_formKey.currentState?.value.toString());
-                        errorMessage = "";
-                        sendFeedbackForm(_formKey.currentState?.value);
-                      } else {
-                        debugPrint(_formKey.currentState?.value.toString());
-                        errorMessage = "Validation failed";
-                      }
-                      setState((){});
-                    },
-                    child: const Text(
-                      'Submit',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ),
-              ]
-            ),
-          ],
-        )
-      ),
-    );    
-  }
-
-
-  Widget getMainWidget(){
-    // return Stack(
-    //     children: getDataWidgets(),
-    // );
-    // final ScrollController canvasController = ScrollController();
-    // canvasController.addListener((){
-    //   print(canvasController.initialScrollOffset);
-    //   print(canvasController.offset);
-    // });
-    // return ScrollConfiguration(      
-    //   behavior: CanvasScrollBehavior(),
-    //   child: ListView(
-    //     children:[
-    //       Stack(
-    //         children: getDataWidgets(),
-    //       )
-    //     ]
-    //   ),
-    // );
-    return Listener(
-      onPointerSignal: (PointerSignalEvent dragDetails) {
-        if (dragDetails is PointerScrollEvent) {
-          int direction = 0;
-          const arrTimeScale = [0.1,1, 10,50, 100,500, 1000,5000,10000];
-
-          // print('x: ${event.position.dx}, y: ${event.position.dy}');
-          // print('scroll delta: ${dragDetails.delta}');
-          // print('scroll delta: ${dragDetails.scrollDelta}');
-          // print('scroll delta: ${dragDetails.kind}');
-          // print('scroll delta: ${dragDetails.localDelta}');
-          // print('scroll delta: ${dragDetails.device}');
-          // print('scroll delta: ${dragDetails.buttons}');
-          // print('scroll delta: ${dragDetails.position}');
-          if (dragDetails.kind != PointerDeviceKind.mouse){
-            return;
-          }
-
-          if (dragDetails.scrollDelta.dx == 0.0 && dragDetails.scrollDelta.dy == 0.0){
-            return;
-          }else
-          // if (dragDetails.scrollDelta.dy<-5 && dragDetails.scrollDelta.dy>-20 && dragDetails.scrollDelta.dy % 4 == 0){
-          if (dragDetails.scrollDelta.dy<0 && dragDetails.scrollDelta.dy>-500){
-            prevY = dragDetails.scrollDelta.dy;
-            //down
-            direction = -1;
-
-            // if (prevY != dragDetails.scrollDelta.dy){
-              // prevY = dragDetails.scrollDelta.dy;
-            // }else{
-            //   return;
-            // }
-          // if (dragDetails.scrollDelta.dy > 20.0){ // y0 is more bigger than y1 direction DOWN, scale both side
-            if (timeScaleBar-1 < 10){
-            }else{
-              timeScaleBar--;
-            }
-
-          }else
-          // if (dragDetails.scrollDelta.dy < -20){ // direction UP
-          // if (dragDetails.scrollDelta.dy>5 && dragDetails.scrollDelta.dy<20 && dragDetails.scrollDelta.dy % 4 == 0){
-          if (dragDetails.scrollDelta.dy>0 && dragDetails.scrollDelta.dy<500){
-            direction = 1;
-            prevY = dragDetails.scrollDelta.dy;
-            // if (prevY != dragDetails.scrollDelta.dy){
-            //   prevY = dragDetails.scrollDelta.dy;
-            // }else{
-            //   return;
-            // }
-            // const arrTimeScale = [0.1,1,10,50,100,500,1000,5000,10000];
-            if (timeScaleBar + 1 > 80){
-
-            }else{
-              timeScaleBar++;
-            }
-          }
-          // scaleBarWidth = MediaQuery.of(context).size.width / pow(2, (arrTimeScale.length * 5 / timeScaleBar).floor() );
-          int transformScale = (timeScaleBar / 10).floor();
-          // int transformScaleCeil = (timeScaleBar / 10).ceil();
-          // if (direction == 1){
-          //   transformScaleCeil = transformScale;
-          // }
-          // print("transformScale : "+transformScale.toString()+timeScaleBar.toString());
-          //const arrTimeScale = [0.1,1, 10,50, 100,500, 1000,5000,10000];
-          //  List<double> arrScaleBar = [ 600000, ... , 6.6, 6];
-          // 1ms ~ 0.0010pxl
-          // timescalebar is the division before changing to another time period
-          // List<double> arrScaleBar = [ 
-          //   6,6.6,  7.2,7.8,  8.4,9,  9.6,10.2,  10.8,11.4, 
-          //   12,16.8,  21.6,26.4,  31.2,36,  40.8,45.6,  50.4,552, 
-          //   60,66, 72,78, 84,90, 96,102, 108,114, 
-          //   120,168, 216,264, 312,360, 408,456, 504,552, 
-          //   600,660,  720,780,  840,900,  960,1020,  1080,1140, 
-          //   1200,1680, 2160,2640, 3120,3600, 4080,4560, 5040,5520, 
-          //   6000,11400, 16800,22200, 27600,33000, 38400,43800, 49200,54600, 
-          //   60000,114000, 168000,222000, 276000,330000, 384000,438000, 492000,546000, 
-          //   600000            
-          // ];
-
-          // List<double> arrScaleBar = [ 
-          //   6,8.4,10.8,  13.2,15.6,18,  20.4,22.8,25.2,  27.6,
-          //   60,84,108,  132,156,180,  204,228,252,  276,
-          //   600,840,1080,  1320,1560,1800,  2040,2280,2520,  2760,
-          //   3000,3300,3600,  3900,4200,4500,  4800,5100,5400,  5700,
-          //   6000,8400,10800,  13200,15600,18000,  20400,22800,25200,  27600,
-          //   30000,33000,36000,  39000,42000,45000,  48000,51000,54000,  57000,
-          //   60000,84000,108000,  132000,156000,180000,  204000,228000,252000,  276000,
-          //   300000,330000,360000,  390000,420000,450000,  480000,510000,540000,  570000,
-          //   600000            
-          // ];
-
-          // 100ms last
-          // TIME_DART : 1409 _ 600 _ 100
-          // level :  -1 timeScaleBar :  100 levelScale :  40 arrTimescale[ transformedScale ] | DIVIDER :  600
-
-          // const arrScaleBar = [ 
-          //   600000,
-          //   546000,492000,  438000,384000,  330000,276000,  222000,168000,  114000,60000, 
-          //   54600,49200,  43800,38400,  33000,27600,  22200,16800, 11400,6000, 
-          //   5520,5040,  4560,4080,  3600,3120,  2640,2160,  1680,1200, 
-          //   1140,1080, 1020,960,  900,840,  780,720,  660,600,            
-          //   552,504,  456,408,  360,312,  264,216, 168,120, 
-          //   114,108,  102,96,  90,84,  78,72,  66,60, 
-          //   552,50.4,  45.6,40.8,  36,31.2,  26.4,21.6,  16.8,12, 
-          //   11.4,10.8,  10.2,9.6,  9.0,8.4,  7.8,7.2,  6.6,6 ];
-
-          
-
-          scaleBarWidth = MediaQuery.of(context).size.width / (arrScaleBar[timeScaleBar]) * arrTimeScale[transformScale]/10;
-          curTimeScaleBar = (arrTimeScale[transformScale]/10);
-          // print("Scalebar Width : " + scaleBarWidth.toString() + " @@ TimeScalebar " +timeScaleBar.toString() + " __ arrScaleBar[]" + arrScaleBar[timeScaleBar].toString()+ " _ arrTimeScale "+arrTimeScale[transformScale].toString());
-          // print("WIDTH : " + MediaQuery.of(context).size.width.toString() + " @@ " +(arrScaleBar[timeScaleBar]).toString() + " __ " + (arrTimeScale[transformScale]/10).toString() );
-
-          // print(data);
-          // print(dragDetails.localPosition.dx);
-          // print(dragDetails.position.dx);
-          var data = {
-            "timeScaleBar":arrTimeScale[ transformScale ],// label in UI
-            "levelScale":timeScaleBar, //scrollIdx
-            "posX" : dragDetails.localPosition.dx,
-            "direction" : direction
-          };
-            // js.context.callMethod('setZoomPosition', [1, dragHorizontalDetails.globalPosition.dx, prevY]);
-
-          if (timeScaleBar == -1){
-            timeScale = 1;
-          }else{
-            timeScale = arrTimeScale[ transformScale ];
-          }
-          js.context.callMethod('setZoomLevel', [json.encode(data)]);
-          if ( timeScale == 10000 ){
-            horizontalDiff = 0;
-            isZooming = false;
-          }else{
-            if (horizontalDiff > 0){
-              isZooming = true;
-            }else{
-              isZooming = false;
-            }
-          }
-
-
-          setState(() {
-            
-          });
-
-
-        }
-      },
-      child: (isRecording > 9 && topRecordingBar > 0)?
-        Column(
-          children: [
-            Container(
-              color: const Color(0xFF5b0303),
-              width: MediaQuery.of(context).size.width,
-              height:topRecordingBar,
-              child: Center(
-                child : Text("Recording   "+labelDuration, style:const TextStyle(color:Colors.white,fontWeight: FontWeight.bold))
-              ),
-            ),
-            Container(
-              color: Colors.black,
-              width: MediaQuery.of(context).size.width,
-              height: MediaQuery.of(context).size.height-topRecordingBar,
-              child: Stack(
-                children: getDataWidgets()
-              ),
-            ),
-          ]
-        )
-        :
-        Container(
-          color: Colors.black,
-          width: MediaQuery.of(context).size.width,
-          height: MediaQuery.of(context).size.height-topRecordingBar,
-          child: Stack(
-            children: getDataWidgets()
-          ),
-        ),
-
     );
+  }
+
+  static Future<dynamic> getDeviceCatalog(localData) async {
+    String url =
+        "https://backyardbrains.com/products/firmwares/devices/board-config.json";
+    var config = localData;
+    try {
+      final response = (await https.get(Uri.parse(url)));
+      if (response.statusCode == 200) {
+        config = response.body;
+      } else {
+        config = localData;
+      }
+    } catch (err) {
+      config = localData;
+      print(err);
+    }
+    var catalog = json.decode(config);
+    print('catalog');
+    print(config.substring(0, 100));
+    catalog['config']['boards'].forEach((board) {
+      print(board['uniqueName']);
+      DEVICE_CATALOG[board["uniqueName"].toString().trim()] = board;
+    });
+    // errorOffline = "Error data2";
+    return [DEVICE_CATALOG, config];
+    // return {'errorOffline': errorOffline, 'abc':'','def':'hjklsdjkajds'};
+  }
+
+  getDeviceInfo() async {
+    if (kIsWeb) {
+      // js.context
+      //     .callMethod('changeSerialChannel', [json.encode(data)]);
+    } else if (Platform.isAndroid) {
+      var data = asciiToUint8Array("b:;\n");
+      print(data);
+      port.write(data);
+    } else {
+      var data = asciiToUint8Array("b:;\n");
+      print(data);
+      serialPort.write(data);
+      // print(serialPort.bytesToWrite);
+      print("getDeviceInfo()");
+    }
+  }
+
+  void callChangeSerialChannel(Map<String, int> params) {
+    if (kIsWeb) {
+      // js.context
+      //     .callMethod('changeSerialChannel', [json.encode(data)]);
+    } else {
+      DISPLAY_CHANNEL = params['channelCount'] as int;
+      String str = "c:" + DISPLAY_CHANNEL.toString() + ";\n";
+      var data = asciiToUint8Array(str);
+      print("write serial data");
+      print(str);
+      print(data);
+      if (Platform.isAndroid) {
+        port.write(data);
+      } else {
+        serialPort.write(data);
+      }
+
+      DISPLAY_CHANNEL = params["channelCount"] as int;
+      sampleRate =
+          (int.parse(CURRENT_DEVICE['maxSampleRate']) / DISPLAY_CHANNEL)
+              .floor();
+      cBuffIdx = -1;
+    }
   }
 
   @override
-  Widget build(BuildContext context) {
-
-    // Iterable<Widget> widgetsChannelGainLevel = widgetsChannelGainLevelList
-    // final ScrollController canvasController = ScrollController();
-    // canvasController.addListener((){
-    //   print(canvasController.initialScrollOffset);
-    //   print(canvasController.);
-    // })
-    if (!isFeedback)
-      FocusScope.of(context).requestFocus(keyboardFocusNode);
-
-    return Scaffold(
-      body: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onVerticalDragUpdate: (DragUpdateDetails details){
-          dragDetails = details;
-        },
-        onVerticalDragEnd: (DragEndDetails dragEndDetails){
-          const arrTimeScale = [0.1,1,10,50,100,500,1000,5000,10000];
-          int direction = 0;
-
-          // print("dragDetails.delta");
-          // print(dragDetails.delta);
-          if (dragDetails.delta.dx == 0.0 && dragDetails.delta.dy == 0.0){
-            return;
-          }else
-          if (dragDetails.delta.dy > 0.0){ // y0 is more bigger than y1 direction DOWN, scale both side
-            direction = -1;
-            if (timeScaleBar-1 < 0){
-            }else{
-              timeScaleBar--;
-            }
-            // var scale = (dragDetails.delta.dy / MediaQuery.of(context).size.height ).abs();
-
-            // if ( timeScaleBar/2 < 2 ){
-            //   if (levelScale < 4){
-            //     levelScale++;
-            //     // print("> 0 down? (log(2) * MediaQuery.of(context).size.width/2).floor()");
-            //     // print((log(2) * MediaQuery.of(context).size.width/2).floor());
-            //     int d = ( MediaQuery.of(context).size.width/2 ).floor();
-            //     double res = getNearestPower(d);
-            //     timeScaleBar = res;
-            //   }else{
-
-            //   }
-            // }else{
-            //   // timeScaleBar = min(2, (timeScaleBar / 2).floor().toDouble() );
-            //   timeScaleBar = timeScaleBar / 2;
-            // }
-          }else
-          if (dragDetails.delta.dy < 0){ // direction UP
-            direction = 1;
-            if (timeScaleBar + 1 > 80){
-
-            }else{
-              timeScaleBar++;
-            }
-            // var scale = (dragDetails.delta.dy / MediaQuery.of(context).size.height ).abs();
-
-            // if (timeScaleBar * 2 > MediaQuery.of(context).size.width / 2 ){
-            //   if (levelScale>0){
-            //     levelScale--;
-            //     print("< 0 down?  (log(2) * MediaQuery.of(context).size.width/2).floor()");
-            //     int d = ( MediaQuery.of(context).size.width/2 ).floor();
-            //     // double res = (log( d )/log(2)).floor().toDouble();
-            //     double res = getNearestPower(d);
-            //     timeScaleBar = res;
-
-            //   }else{
-
-            //   }
-            // }else{
-            //   timeScaleBar = timeScaleBar * 2;
-            // }
-          }
-
-
-          // BEFORE CHANGING
-          // int transformScale = (timeScaleBar / 10).floor();
-          // // print("transformScale : "+transformScale.toString()+timeScaleBar.toString());
-          // // scaleBarWidth = MediaQuery.of(context).size.width / arrScaleBar[timeScaleBar] ;
-          // scaleBarWidth = MediaQuery.of(context).size.width / arrTimeScale[transformScale] * arrScaleBar[timeScaleBar]/600 ;
-          // curTimeScaleBar = (arrTimeScale[transformScale]/10);
-          // // print(data);
-
-          // var data = {
-          //   "timeScaleBar":arrTimeScale[ transformScale ],// label in UI
-          //   "levelScale":timeScaleBar, //scrollIdx
-          // };
-
-          int transformScale = (timeScaleBar / 10).floor();
-
-
-          scaleBarWidth = MediaQuery.of(context).size.width / (arrScaleBar[timeScaleBar]) * arrTimeScale[transformScale]/10;
-          curTimeScaleBar = (arrTimeScale[transformScale]/10);
-          // print("Scalebar Width : " + scaleBarWidth.toString() + " @@ TimeScalebar " +timeScaleBar.toString() + " __ arrScaleBar[]" + arrScaleBar[timeScaleBar].toString()+ " _ arrTimeScale "+arrTimeScale[transformScale].toString());
-          // print("WIDTH : " + MediaQuery.of(context).size.width.toString() + " @@ " +(arrScaleBar[timeScaleBar]).toString() + " __ " + (arrTimeScale[transformScale]/10).toString() );
-
-          // print(data);
-
-          var data = {
-            "timeScaleBar":arrTimeScale[ transformScale ],// label in UI
-            "levelScale":timeScaleBar, //scrollIdx
-            "posX" : dragDetails.localPosition.dx,
-            "direction" : direction
-
-          };
-
-
-          if (timeScaleBar == -1){
-            timeScale = 1;
-          }else{
-            timeScale = arrTimeScale[ transformScale ];
-          }            
-          // scaleBarWidth = MediaQuery.of(context).size.width / pow(2, 6-timeScaleBar);
-          // // print(data);
-          // const arrTimeScale = [0.1,1,10,50,100,500,1000,5000,10000];
-
-          // var data = {
-          //   "timeScaleBar":arrTimeScale[timeScaleBar],
-          //   "levelScale":timeScaleBar,
-          // };
-
-          // if (timeScaleBar == -1){
-          //   timeScale = 1;
-          // }else{
-          //   timeScale = arrTimeScale[timeScaleBar];
-          // }
-          js.context.callMethod('setZoomLevel', [json.encode(data)]);
-
-          // print("scaleBarWidth");
-          // print(scaleBarWidth);
-          // print(timeScaleBar);
-          setState(() {
-            
-          });
-        },
-        // behavior: HitTestBehavior.translucent,
-        onHorizontalDragUpdate: (DragUpdateDetails details){
-          dragHorizontalDetails = details;
-        },
-        onHorizontalDragDown: (DragDownDetails details){
-          dragDownDetails = details;
-        },
-        onHorizontalDragEnd: (DragEndDetails dragEndDetails){
-          if ( isOpeningFile == 1 && isPlaying == 2 ){
-            if (dragHorizontalDetails.delta.dx == 0.0 && dragHorizontalDetails.delta.dy == 0.0){
-              return;
-            }else{
-              // const NUMBER_OF_SEGMENTS = 60;
-              // final SEGMENT_SIZE = sampleRate;
-              // final SIZE = NUMBER_OF_SEGMENTS * SEGMENT_SIZE;
-
-              // const arrTimeScale = [0.1,1, 10,50, 100,500, 1000,5000,10000];
-              // int transformScale = (timeScaleBar / 10).floor();
-              // var timeScale = arrTimeScale[transformScale];
-                          
-              // int curLevel = calculateLevel(timeScale, sampleRate);
-              // // FIND DRAG DISTANCE compared with current segment, current segment compare with SIZE circular buffer, change the scrollValue call setScrollValue
-              // if (curLevel == -1){
-              //   final skipCounts = 1;
-                
-              // }else{
-              //   double divider = NUMBER_OF_SEGMENTS * 1000 / timeScale;
-              //   int singleSegment = (SIZE / divider).floor();
-              //   var samplesPerPixel = singleSegment / MediaQuery.of(context).size.width;
-              //   var arrCounts = [ 4, 8, 16, 32, 64, 128, 256 ];
-              //   final skipCounts = arrCounts[curLevel];
-
-              //   horizontalDragX = dragHorizontalDetails.delta.dx - 50;
-              //   if (horizontalDragX <0){
-              //     horizontalDragX = 0;
-              //   }
-              //   if (horizontalDragX > MediaQuery.of(context).size.width - 100 - 20){
-              //     horizontalDragX = MediaQuery.of(context).size.width - 100 - 20;
-              //   }
-              //   js.context.callMethod('setScrollValue', [horizontalDragX, horizontalDragXFix]);
-              // }
-              
-              if (dragHorizontalDetails.delta.dx > 0.0){ // x0 is more bigger than x1 ; Hand Swipe direction LEFT, 
-                print("SLIDE RIGHT");
-                print(dragDownDetails.localPosition.dx);
-                js.context.callMethod('setScrollDrag', [1, dragHorizontalDetails.delta.dx, dragDownDetails.localPosition.dx, horizontalDragX, horizontalDragXFix]);
-
-              }else
-              if (dragHorizontalDetails.delta.dx < 0.0){ // x1 is more bigger than x0 ; Hand Swipe direction RIGHT, 
-                print("SLIDE LEFT");
-                print(dragDownDetails.localPosition.dx);
-                js.context.callMethod('setScrollDrag', [-1, dragHorizontalDetails.delta.dx, dragDownDetails.localPosition.dx, horizontalDragX, horizontalDragXFix]);
-              }
-            }
-
-
-          }
-        },
-        child: RawKeyboardListener(
-          onKey: (key){
-            if (isFeedback) return;
-
-            if ( key.character==null ){
-              prevKey="~";              
-            //   if ( prevKey.codeUnitAt(0) >= 48 && prevKey.codeUnitAt(0) <= 57 ){
-            //     js.context.callMethod('setEventKeypress',[prevKey]);
-            //     prevKey="~";
-            //   }
-            }else{
-              if ( key.character.toString().codeUnitAt(0) >= 48 && key.character.toString().codeUnitAt(0) <= 57 ){
-                if (prevKey != key.character.toString()){
-                  prevKey = key.character.toString();
-                  js.context.callMethod('setEventKeypress',[prevKey]);
-                }
-              }
-            }
-          },
-          focusNode: keyboardFocusNode,
-          child: isLoadingFile ? 
-              getLoadingWidget(context)
-            : ( isFeedback ? getFeedbackWidget() : getMainWidget() ),
-        ),
-        // child :NotificationListener<UserScrollNotification>(
-        //   onNotification: (notification) {
-        //     final ScrollDirection direction = notification.direction;
-        //     setState(() {
-        //       if (direction == ScrollDirection.reverse) {
-        //         // _visible = false;
-        //       } else if (direction == ScrollDirection.forward) {
-        //         // _visible = true;
-        //       }
-        //     });
-        //     return true;
-        //   }, child: ListView(
-        //     children: [
-        //       getMainWidget()
-        //     ],
-        //   ),
-
-        // ),
-
-        // child: ScrollConfiguration(
-        //   behavior: CanvasScrollBehavior(),
-        //   child : ListView(
-        //     controller: canvasController,
-        //     children: [
-        //       getMainWidget()
-        //     ],
-        //   ),
-        // )
-      ),
-      // floatingActionButton: FloatingActionButton(
-      //   onPressed: () async {
-      //     FilePickerResult? result = await FilePicker.platform.pickFiles(type:FileType.custom,allowedExtensions: ["wav"]);
-
-      //     if (result != null) {
-      //       isLocal = true;
-      //       Uint8List fileBytes = result.files.first.bytes!;
-      //       String fileName = result.files.first.name;
-      //       WavReader wavReader = WavReader();
-      //       (wavReader).open(pbytes: fileBytes);
-      //       // WavReader wav = wavReader;
-            
-      //       // chartData = fileBytes.toList().cast<double>();
-      //       // chartData = wavReader.readSamples().cast<double>();
-      //       // sampleData = WaveformData(version: 1, channels: wavReader.numChannels, sampleRate: wavReader.sampleRate, sampleSize: 64, bits: wavReader.bitsPerSample, length: wavReader.audioLength.toInt(), data: wavReader.readSamples().cast<double>() );
-      //       channels = [];
-      //       try{
-      //         // print("wavReader.channels.length");
-      //         // print(wavReader.channels.length);
-      //         for (int i =0;i<wavReader.channels.length;i++){
-      //           // print("wavReader.channels[i]");
-      //           // print(wavReader.channels[i]);
-      //           // print(wavReader.channels[i]!.cast<double>());
-      //           var samples = wavReader.channels[i]!.cast<double>();
-      //           // print("samples");
-      //           // print(samples);
-      //           channels.add( WaveformData(version: 1, channels: wavReader.numChannels, sampleRate: wavReader.sampleRate, sampleSize: 16, bits: wavReader.bitsPerSample, length: wavReader.audioLength.toInt(), data: samples ) );
-      //           // print(channels[i]);
-      //         }
-
-      //       }catch(err){
-      //         print("err");
-      //         print(err);
-      //       }
-
-
-      //       // print("chartData.length");
-      //       // print(chartData.length);
-      //       // sampleData = WaveformData(version: 1, channels: 1, sampleRate: this.sampleRate, sampleSize: 128, bits: 16, length: fileBytes.length, data: List.from(fileBytes) );
-      //       // print(fileBytes.toList());
-      //       // sampleData = WaveformData.fromJson('{"version":2,"channels":1,"sample_rate":44100,"samples_per_pixel":64,"bits":16,"length":1034,"data":[-23254,16644,-30935,20205,-16593,16930,-11736,13287,-18606,13789,-10566,13918,-13824,14620,-11527,8676,-12231,15098,-11159,9512,-12696,14081,-10952,11740,-12275,11320,-10848,9477,-14906,17874,-11615,12593,-13266,11521,-16097,12726,-11027,11909,-13936,12957,-12427,13551,-13273,12631,-12068,12180,-16960,10204,-11003,15350,-9547,7862,-11642,9156,-12916,11414,-12254,12014,-10904,10699,-19290,17371,-18661,14840,-10483,7772,-12001,14139,-11743,12346,-8817,7486,-13723,12268,-12806,11932,-10766,9278,-14363,10833,-10968,10201,-7769,11178,-9181,10532,-11108,10264,-9397,9859,-10956,8993,-10164,9633,-9415,11935,-9315,7894,-11991,8480,-10056,9279,-11766,10108,-8676,9179,-6572,6416,-10415,8478,-9494,10295,-10625,10694,-12682,10206,-7907,7254,-8939,6862,-7444,7746,-9598,10933,-8451,7638,-9671,10051,-11103,8560,-8351,8265,-7618,10012,-9122,6387,-8906,6005,-7509,6537,-10554,8008,-9442,7675,-7059,5806,-8574,5545,-6884,6272,-8838,7777,-7123,6712,-6712,7930,-7544,7704,-7624,7634,-7423,9566,-10375,7497,-7437,6828,-8448,7644,-7928,7369,-5000,6147,-5130,6864,-8465,7033,-6381,5755,-6005,4566,-4916,5251,-5549,4577,-8633,8432,-5557,5441,-7610,6335,-6404,8627,-6402,5347,-6471,5600,-5128,5529,-6062,5212,-7089,4902,-4649,4729,-5128,4554,-5152,4176,-5765,3603,-5866,4989,-3389,4127,-5480,4420,-6319,5139,-4871,4421,-3887,5301,-5045,3809,-5203,3625,-4372,4901,-5183,4618,-5778,4335,-3816,3887,-4553,5277,-4152,3205,-3674,3579,-3696,3572,-3956,5101,-4741,5534,-5473,3850,-4049,3141,-4748,3341,-3427,4422,-4851,3985,-4356,4846,-3412,4368,-3631,4046,-3406,2807,-3376,4007,-3634,3886,-3689,3219,-2725,2106,-3044,3071,-3348,3085,-3919,3154,-4708,3611,-3795,3468,-2688,4142,-3358,2785,-3194,3590,-2778,2962,-2843,3011,-3312,3016,-3596,2896,-2266,2318,-2694,2653,-2403,2834,-2194,1972,-2739,2152,-2862,1949,-2803,3438,-2871,2196,-1829,2132,-2549,2528,-2377,1562,-2152,2535,-2630,2717,-2292,1672,-2840,2415,-2307,2046,-1984,1766,-2259,2241,-1898,1693,-1497,1362,-1639,1986,-1748,2077,-1815,1743,-1906,1791,-1610,1541,-1629,1726,-1522,1478,-1665,1841,-1872,1383,-2102,1654,-2218,1754,-1710,1342,-1383,1168,-1351,1371,-1122,1323,-1633,1467,-1011,1221,-1144,1533,-1512,2114,-1038,687,-1687,1691,-1081,1380,-1671,1373,-1489,957,-1635,1308,-1142,975,-1216,1315,-1038,1183,-1632,1497,-1265,1182,-896,1011,-1273,965,-946,1027,-913,983,-1194,1121,-1206,1065,-1218,1070,-745,883,-997,1082,-1454,1274,-1188,1147,-1228,1031,-720,767,-1287,1075,-663,727,-607,903,-961,1347,-779,761,-1336,1049,-892,861,-1114,1363,-942,1068,-1154,1125,-784,924,-774,822,-905,860,-825,854,-551,509,-566,597,-932,739,-776,868,-665,638,-466,647,-541,667,-887,873,-891,812,-570,803,-762,716,-542,788,-618,941,-577,681,-648,883,-778,705,-820,880,-749,699,-738,903,-875,1091,-745,747,-576,528,-611,641,-548,630,-501,454,-625,517,-436,377,-573,589,-486,487,-462,458,-310,323,-376,477,-498,675,-342,454,-653,618,-550,454,-549,409,-492,659,-621,678,-499,447,-414,508,-419,354,-446,379,-609,568,-740,599,-542,456,-491,398,-374,365,-425,472,-446,421,-460,460,-586,529,-387,404,-599,548,-464,411,-410,369,-300,253,-454,444,-369,369,-441,374,-244,314,-467,428,-410,400,-310,450,-508,382,-373,414,-300,368,-364,374,-439,356,-440,472,-351,332,-429,348,-291,308,-336,318,-386,338,-350,364,-276,329,-326,314,-311,308,-263,286,-279,357,-283,349,-260,284,-317,300,-252,224,-230,204,-293,288,-300,399,-221,297,-404,372,-297,161,-178,270,-257,317,-270,253,-325,305,-257,225,-388,326,-220,211,-240,239,-277,307,-267,301,-331,327,-171,297,-270,316,-226,217,-338,319,-273,326,-224,232,-282,230,-239,216,-279,244,-235,229,-392,327,-333,275,-246,217,-253,215,-258,247,-169,213,-239,252,-212,217,-304,303,-204,199,-160,202,-284,244,-264,355,-254,207,-209,181,-147,204,-245,222,-200,195,-199,239,-294,238,-200,210,-152,167,-182,183,-261,152,-175,167,-276,284,-225,173,-208,187,-210,206,-213,212,-176,169,-202,183,-131,143,-187,170,-217,231,-202,209,-215,194,-214,227,-270,232,-283,332,-124,181,-193,202,-291,294,-170,176,-203,267,-204,174,-202,183,-160,205,-155,159,-270,259,-132,144,-159,195,-221,201,-169,189,-212,216,-146,143,-158,171,-193,179,-154,178,-211,158,-148,149,-148,176,-194,175,-143,150,-177,193,-170,146,-142,136,-153,157,-166,153,-203,181,-154,185,-164,152,-161,149,-122,145,-169,113,-187,140,-210,188,-149,163,-134,118,-157,220,-78,90,-124,157,-142,94,-188,143,-100,88,-130,108,-180,171,-130,100,-128,169,-168,141,-136,152,-144,116,-90,98,-144,151,-109,106,-145,155,-62,118,-137,165,-173,156,-160,144,-87,86,-136,161,-119,178,-113,106,-85,99,-99,98,-84,71,-148,105,-135,115,-92,105,-100,78,-87,87,-84,84,-95,118,-79,84,-101,113,-93,98,-124,86,-105,99,-111,104,-99,119,-101,100,-98,106,-127,101,-96,86,-86,107,-104,99,-67,72,-92,99,-99,98,-101,135,-122,89,-111,124,-85,75,-113,122,-84,99,-82,83,-134,116,-55,71,-104,63,-90,89,-95,86,-80,74,-80,119,-100,78,-97,94,-82,76,-118,104,-139,157,-123,132,-99,96,-100,76,-80,92,-91,96,-80,72,-83,92,-93,79,-72,70,-55,49,-69,60,-72,65,-89,72,-98,62,-84,78,-60,70,-90,83,-83,80,-98,78,-82,62,-88,72,-73,87,-57,66,-96,87,-71,63,-75,64,-47,56,-92,50,-74,80,-48,64,-116,84,-63,70,-69,59,-73,71,-91,91,-62,58,-74,62,-65,62,-49,60,-50,51,-92,71,-103,80,-91,92,-56,58,-56,51,-75,75,-68,83,-69,74,-66,84,-80,71,-75,72,-60,46,-73,68,-46,50,-71,60,-39,48,-68,56,-69,77,-60,50,-71,66,-69,77,-64,74,-71,62,-69,51,-43,40,-44,52,-63,70,-53,50,-58,62,-76,79,-71,83,-65,65,-47,46,-82,86,-45,40,-27,35,-55,41,-37,33,-48,58,-50,50,-48,35,-34,35,-56,51,-49,48,-53,55,-73,55,-50,46,-35,37,-42,60,-37,27,-49,64,-65,39,-41,49,-54,56,-49,54,-41,37,-47,60,-33,50,-47,32,-44,39,-53,53,-46,35,-44,47,-34,39,-37,31,-53,50,-41,53,-42,48,-42,42,-33,30,-41,50,-61,43,-35,29,-54,48,-38,44,-35,27,-50,41,-50,30,-54,48,-41,45,-29,25,-34,27,-43,39,-44,41,-24,25,-29,35,-36,28,-35,38,-34,34,-41,26,-29,22,-37,34,-55,54,-35,35,-27,28,-45,34,-38,29,-39,48,-34,33,-47,40,-25,27,-35,25,-32,34,-32,41,-44,44,-34,21,-33,33,-39,40,-27,29,-38,49,-33,37,-28,29,-28,27,-26,27,-30,31,-28,23,-20,23,-32,34,-20,25,-21,20,-29,26,-31,26,-35,28,-28,31,-29,24,-21,14,-32,32,-25,23,-35,34,-27,25,-27,24,-19,19,-27,31,-36,22,-21,14,-31,36,-30,29,-32,29,-26,31,-31,27,-27,23,-17,12,-37,26,-27,15,-23,24,-21,22,-14,19,-26,19,-15,18,-29,27,-25,23,-18,18,-18,23,-21,21,-18,17,-29,24,-19,19,-24,15,-21,18,-19,16,-25,26,-17,17,-16,20,-15,17,-16,15,-22,15,-18,18,-19,21,-21,18,-21,15,-22,17,-22,17,-19,25,-25,22,-22,17,-18,19,-14,13,-17,17,-15,14,-22,22,-16,15,-25,19,-28,32,-15,18,-15,21,-19,21,-16,14,-16,17,-21,18,-16,15,-14,12,-14,15,-16,22,-22,27,-19,16,-25,19,-20,20,-22,19,-16,11,-12,11,-18,15,-22,18,-11,12,-18,15,-14,12,-18,13,-15,13,-16,12,-14,11,-13,11,-18,15,-14,12,-18,16,-12,12,-14,15,-23,17,-13,14,-13,12,-13,12,-13,11,-16,14,-11,10,-13,14,-16,16,-19,17,-15,17,-15,9,-10,12,-11,7,-15,11,-12,9,-13,14,-13,12,-15,12,-17,16,-12,11,-12,14,-13,14,-10,10,-13,11,-12,11,-14,11,-13,14,-13,11,-13,10,-17,14,-15,11,-8,8,-15,16,-16,11,-12,10,-11,10,-12,14,-9,8,-11,11,-18,15,-12,8,-8,10,-12,11,-9,7,-10,9,-12,11,-11,11,-9,7,-10,10,-9,9,-11,9,-9,9,-12,8,-9,9,-9,6,-11,10,-11,8,-9,8,-9,9,-12,13,-11,9,-14,14,-12,12,-12,9,-10,10,-11,12,-15,10,-11,7,-11,10,-11,11,-12,8,-11,10,-10,12,-12,10,-10,7,-8,7,-5,4,-7,5,-12,11,-10,9,-9,7,-9,7,-8,7,-10,10,-12,10,-10,9,-8,8,-8,6,-14,9,-8,6,-11,9,-7,6,-6,7,-12,11,-12,10,-10,8,-8,6,-9,8,-7,6,-8,5,-10,6,-8,7,-11,8,-6,5,-6,7,-7,4,-7,9,-5,4,-5,3,-7,4,-8,9,-8,6,-6,5,-5,5,-7,6,-7,6,-5,5,-8,7,-8,8,-4,5,-10,6,-5,3,-5,4,-5,4,-5,5,-8,4,-6,4,-6,6,-5,3,-8,6,-7,6,-7,5,-5,5,-7,6,-8,7,-5,3,-8,7,-5,5,-7,6,-8,5,-8,6,-5,4,-6,7,-6,5,-6,5,-5,4,-4,4,-5,5,-7,5,-6,6,-5,4,-4,3,-7,5,-5,3,-6,6,-6,6,-6,6,-5,4,-7,6,-8,6,-7,5,-6,6,-5,3,-4,4,-5,5,-4,4,-6,4,-5,6,-7,5,-3,3,-5,4,-5,4,-5,3,-5,3,-4,3,-4,4,-5,4,-5,4,-4,3,-3,3,-4,3,-5,5,-7,5,-5,5,-5,5,-4,3,-5,3,-4,3,-3,3,-3,2,-3,2,-5,5,-4,3,-5,4,-4,3,-4,3,-3,2,-3,3,-4,2,-5,4,-5,2,-4,2,-5,3,-4,3,-4,3,-2,1,-3,2,-3,2,-5,4,-4,2,-4,3,-5,3,-3,3,-4,2,-3,3,-3,2,-5,3,-2,2,-6,4,-5,4,-3,2,-5,4,-3,2,-3,2,-4,3,-4,4,-4,2,-4,2,-2,2,-3,2,-4,2,-4,4,-3,2,-3,2,-2,1,-2,2,-3,2,-3,3,-3,2,-2,2,-3,2,-3,2,-3,2,-3,3,-3,2,-3,2,-3,2,-2,1,-2,3,-3,1,-2,2,-4,3,-3,2,-3,3,-3,2,-3,2,-2,1,-2,1,-3,2,-2,2,-2,1,-3,1,-2,1,-3,2,-2,1,-2,1,-2,1,-3,2,-3,2,-4,3,-3,2,-3,2,-3,2,-2,1,-3,1,-2,2,-2,2,-2,1,-3,1,-3,2,-2,1,-3,1,-3,1,-3,1,-2,1,-2,1,-3,1,-3,2,-2,1,-2,1,-2,0,-2,1]}');
-            
-      //       currentRecordingTime = DateTime.now();
-      //       duration = currentRecordingTime.difference(startRecordingTime);
-      //       labelDuration = ( (duration.inHours) ).toString()+":"+( (duration.inMinutes) ).toString()+":"+(duration.inSeconds % 60).toString();
-
-      //       setState(() {
-              
-      //       });
-            
-      //     }          
-      //   },
-      //   tooltip: 'Increment',
-      //   child: const Icon(Icons.add),
-      // ), // This trailing comma makes auto-formatting nicer for build methods.
-    );
+  void dispose() {
+    super.dispose();
+    print("dispose");
+    closeRawSerial();
   }
 
-  MaterialStateProperty<Color> getColor(Color color, Color colorPressed){
-    final getColor = (Set<MaterialState> states) {
-      if (states.contains(MaterialState.pressed)){
-        return colorPressed;
-      }else{
-        return color;
-      }
-    };
+  List<double> increaseGain(int c) {
+    //Increase Gain
+    List<double> result = [1, 1];
 
-    return MaterialStateProperty.resolveWith(getColor);
+    if (deviceType == 0) {
+      // if (channelGains[c] - 200 > 0){
+      //   channelGains[c]-=200;
+      // }
+      double idx = listIndexAudio[c];
+      print('minIndexAudio');
+      print(minIndexAudio);
+      print(idx);
+      if (idx - 1 > minIndexAudio) {
+        result[0] = listChannelAudio[idx.toInt()];
+        idx--;
+        listIndexAudio[c] = idx;
+        channelGains[c] = listChannelAudio[idx.toInt()];
+        result[1] = listChannelAudio[idx.toInt()];
+      }
+
+      _sendAnalyticsEvent("button_gain_inc", {
+        "device": "Audio",
+        "deviceType": deviceType,
+        "channel": c,
+        "gains": channelGains[c],
+      });
+    } else if (deviceType == 2) {
+      // if (channelGains[c] - 50 > 50){
+      //   channelGains[c] -= 50;
+      // }
+      double idx = listIndexHid[c];
+      if (idx - 1 > minIndexHid) {
+        result[0] = listChannelHid[idx.toInt()];
+        idx--;
+        listIndexHid[c] = idx;
+        channelGains[c] = listChannelHid[idx.toInt()];
+        result[1] = listChannelHid[idx.toInt()];
+      }
+      _sendAnalyticsEvent("button_gain_inc", {
+        "device": "HID",
+        "deviceType": deviceType,
+        "channel": c,
+        "gains": channelGains[c],
+      });
+    } else {
+      double idx = listIndexSerial[c];
+
+      if (idx - 1 > minIndexSerial) {
+        print('listIndexSerial[c]');
+        print(idx);
+        result[0] = listChannelSerial[idx.toInt()];
+        idx--;
+        listIndexSerial[c] = idx;
+
+        channelGains[c] = listChannelSerial[idx.toInt()];
+        print(channelGains[c]);
+        result[1] = listChannelSerial[idx.toInt()];
+      }
+      _sendAnalyticsEvent("button_gain_inc", {
+        "device": "Serial",
+        "deviceType": deviceType,
+        "channel": c,
+        "gains": channelGains[c],
+      });
+    }
+    return result;
   }
 
-  calculateLevel(timescale, sampleRate){
-    final rawPocket = timescale * sampleRate / MediaQuery.of(context).size.width /1000;
-    var currentLevel = 6;
-    var i = arrCounts.length-2;
-    if ((rawPocket).floor() < 4 ){
-      currentLevel = -1;
-    }else{
-      for ( ; i>=0; i--){
-        if (arrCounts[i+1] >= rawPocket && arrCounts[i]< rawPocket){
-          currentLevel = i;
-        }
+  List<double> decreaseGain(int c) {
+    //Decrease Gain
+    List<double> result = [1, 1];
+
+    if (deviceType == 0) {
+      // if (channelGains[c] + 200 < 20000){
+      //   channelGains[c]+=200;
+      // }
+      double idx = listIndexAudio[c];
+      print('maxIndexAudio');
+      print(maxIndexAudio);
+      print(idx);
+
+      if (idx + 1 < maxIndexAudio) {
+        result[0] = listChannelAudio[idx.toInt()];
+        idx++;
+        listIndexAudio[c] = idx;
+        channelGains[c] = listChannelAudio[idx.toInt()];
+        result[1] = listChannelAudio[idx.toInt()];
       }
+
+      // print('result');
+      // print(result);
+
+      _sendAnalyticsEvent("button_gain_dec", {
+        "device": "Audio",
+        "deviceType": deviceType,
+        "channel": c,
+        "gains": channelGains[c],
+      });
+    } else if (deviceType == 2) {
+      // if (channelGains[c] + 50 < 1000){
+      //   channelGains[c]+=50;
+      // }
+      double idx = listIndexHid[c];
+      if (idx + 1 < maxIndexHid) {
+        result[0] = listChannelHid[idx.toInt()];
+        idx++;
+        listIndexHid[c] = idx;
+
+        channelGains[c] = listChannelHid[idx.toInt()];
+        result[1] = listChannelHid[idx.toInt()];
+      }
+
+      _sendAnalyticsEvent("button_gain_dec", {
+        "device": "HID",
+        "deviceType": deviceType,
+        "channel": c,
+        "gains": channelGains[c],
+      });
+    } else {
+      // if (channelGains[c] + 100 < 1800){
+      //   channelGains[c]+=100;
+      // }
+      double idx = listIndexSerial[c];
+      if (idx + 1 < maxIndexSerial) {
+        result[0] = listChannelSerial[idx.toInt()];
+        idx++;
+        listIndexSerial[c] = idx;
+        channelGains[c] = listChannelSerial[idx.toInt()];
+        result[1] = listChannelSerial[idx.toInt()];
+      }
+
+      _sendAnalyticsEvent("button_gain_dec", {
+        "device": "Serial",
+        "deviceType": deviceType,
+        "channel": c,
+        "gains": channelGains[c],
+      });
+    }
+    print("deviceType ++");
+    print(deviceType);
+    print(channelGains);
+    print(listIndexSerial);
+    return result;
+  }
+
+  setThresholdMarker(int c, List<double> thresholdMarkerTop,
+      List<int> thresholdValue, double prevVal, double curVal) {
+    // c = 0;
+    // double idx = listIndexAudio[c];
+    // if (idx - 1 > minIndexAudio) {
+    //   idx--;
+    //   listIndexAudio[c] = idx;
+    //   channelGains[c] = listChannelAudio[idx.toInt()];
+    // }
+
+    // double scaleRatio = prevVal / curVal;
+    double scaleRatio = 0;
+    print('setThresholdMarker scaleratio');
+    print(deviceType);
+    print(listChannelSerial[listDefaultIndex[c]]);
+    print(curVal);
+
+    if (deviceType == 0) {
+      scaleRatio = listChannelAudio[listDefaultIndex[c]] / curVal;
+    } else {
+      scaleRatio = listChannelSerial[listDefaultIndex[c]] / curVal;
+    }
+    // double scaleRatio = curVal / prevVal;
+    /*
+
+    -- 72 - 10%
+      72 to 80 8/72 = 11.1111%
+      72 + 10%y = y
+      72 = 0.9*y
+      y - x = 72
+    -- 80 - 20%
+
+    --100 
+      IncreaseGain
+      gainidx--;
+      10000 to 9000
+    */
+    print('scaleRatio');
+    print(scaleRatio);
+
+    double tempMarkerTop = thresholdMarkerTop[c];
+    final double prevScaleRatio = scaleRatio;
+    final double prevTempMarkerTop = tempMarkerTop;
+
+    double median =
+        levelMedian[c] == -1 ? initialLevelMedian[c] : levelMedian[c];
+    // double medianDistance = (thresholdMarkerTop[c] - median);
+    double medianDistance = listMedianDistance[c];
+
+    print('medianDistance');
+    // print(thresholdMarkerTop[c]);
+    // print(median);
+    print(medianDistance);
+    // print('excessiveTopGain');
+    // print(excessiveTopGain);
+    // print('excessiveBottomGain');
+    // print(excessiveBottomGain);
+
+    if (scaleRatio == 1)
+      // return;
+      tempMarkerTop = median + medianDistance * scaleRatio - 12;
+    else if (scaleRatio < 1) {
+      if (excessiveTopGain - 1 > 0) {
+        excessiveTopGain--;
+        print('excessiveTopGain return');
+        print(excessiveTopGain);
+        return;
+      } else {
+        excessiveTopGain = 0;
+      }
+      print("increasing? " +
+          prevVal.toString() +
+          " _ " +
+          curVal.toString() +
+          " : " +
+          scaleRatio.toString());
+      print(tempMarkerTop);
+      scaleRatio = scaleRatio;
+      // tempMarkerTop = tempMarkerTop + thresholdMarkerTop[0] * scaleRatio;
+      tempMarkerTop = median + medianDistance * scaleRatio - 12;
+      print(tempMarkerTop);
+      print("-----------");
+      // scaleRatio = scaleRatio * -1;
+    } else {
+      //UP or +
+      if (excessiveBottomGain - 1 > 0) {
+        excessiveBottomGain--;
+        print('excessiveBottomGain return');
+        print(excessiveBottomGain);
+
+        return;
+      } else {
+        excessiveBottomGain = 0;
+      }
+
+      print("decreasing? " +
+          prevVal.toString() +
+          " _ " +
+          curVal.toString() +
+          " : " +
+          scaleRatio.toString());
+      print(tempMarkerTop);
+      print(median);
+      print(medianDistance);
+      // scaleRatio = 1 - scaleRatio;
+      // tempMarkerTop = tempMarkerTop + thresholdMarkerTop[0] * scaleRatio;
+      tempMarkerTop = median + medianDistance * scaleRatio - 12;
+
+      print(tempMarkerTop);
+      print("-----------");
     }
 
-    return currentLevel;
-  }
+    if (tempMarkerTop < 50) {
+      excessiveTopGain++;
+      markerOutOfRange = 1;
+      thresholdMarkerTop[c] = tempMarkerTop;
+    } else if (tempMarkerTop > MediaQuery.of(context).size.height * 0.95) {
+      excessiveBottomGain++;
 
-  String getStrMinTime(horizontalDragX, horizontalDragXFix, maxTime){
-    String strMinTime = '';
-    double minTime = horizontalDragX/horizontalDragXFix * maxTime;
-    // print("minTime");
-    // print(minTime);
-    if (minTime > 3600){
-      final lastDecimals = (minTime - minTime.floor()).toStringAsFixed(3).replaceFirst("0.","");
-      strMinTime = ( (minTime / 3600).floor() % (3600 * 24) ).toString().padLeft(2,"0") + ":" + ( (minTime / 60).floor() % 3600 ).toString().padLeft(2,"0") + ":" + (minTime.floor() % 60).toString().padLeft(2,"0") + " " + lastDecimals;
-    }else{
-      final lastDecimals = (minTime - minTime.floor()).toStringAsFixed(3).replaceFirst("0.","");
-      strMinTime = ( (minTime / 60).floor() % 3600 ).toString().padLeft(2,"0") + ":" + (minTime.floor() % 60).toString().padLeft(2,"0") + " " + lastDecimals;
+      markerOutOfRange = 2;
+      thresholdMarkerTop[c] = tempMarkerTop;
+      // listIndexAudio[c] = listChannelAudio.indexOf(prevVal).toDouble();
+      // channelGains[c] = prevVal;
+    } else {
+      excessiveTopGain = 0;
+      excessiveBottomGain = 0;
+      markerOutOfRange = 0;
+      thresholdMarkerTop[c] = tempMarkerTop;
+      // listIndexAudio[c] = listChannelAudio.indexOf(prevVal).toDouble();
+      // channelGains[c] = prevVal;
     }
-    // print("minTime");
-    // print(strMinTime);
-    return strMinTime;
+    double heightFactor = (channelGains[c] / signalMultiplier);
+    // thresholdValue[0] = ((thresholdMarkerTop[0] +
+    //                 12 -
+    //                 // (MediaQuery.of(context).size.height / 2))
+    //                 levelMedian[0] == -1 ? initialLevelMedian[0] : levelMedian[0])
+    //                 // )
+    //             .floor() *
+    //         heightFactor)
+    //     .floor();
+    // thresholdValue[0] = ((thresholdMarkerTop[0] +
+    //                 12 -
+    //                 (levelMedian[0] == -1
+    //                     ? initialLevelMedian[0]
+    //                     : levelMedian[0]))
+    //             .floor() *
+    //         heightFactor)
+    //     .floor();
 
+    print(thresholdMarkerTop[c].toString() +
+        "  _  " +
+        (levelMedian[0] == -1 ? initialLevelMedian[0] : levelMedian[0])
+            .toString() +
+        "  _  " +
+        heightFactor.toString());
   }
 
-  getLoadingWidget(BuildContext context) {
-    return Container(
-      color: const Color(0x77CCCCFF),
-      width: MediaQuery.of(context).size.width,
-      height: MediaQuery.of(context).size.height,
-      alignment: Alignment.center,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const CircularProgressIndicator(),
-          SizedBox(height:10),
-          Text("Loading file..."),
-        ],
-      ),
-    );
+  Widget createDottedCenterLine() {
+    return Positioned(
+        top: MediaQuery.of(context).size.height * 0.25,
+        left: MediaQuery.of(context).size.width / 2,
+        child: Container(
+          width: 1,
+          // color:Colors.red,
+          height: MediaQuery.of(context).size.height * 0.5,
+          child: DottedLine(
+            direction: Axis.vertical,
+            lineLength: double.infinity,
+            lineThickness: 1.0,
+            dashLength: 4.0,
+            dashColor: Colors.cyan,
+            dashRadius: 0.0,
+            dashGapLength: 4.0,
+            dashGapColor: Colors.transparent,
+            dashGapRadius: 0.0,
+          ),
+        ));
   }
 
+  void initLevelMedian(int channelsLength) {
+    for (int c = 0; c < channelsLength; c++) {
+      double heightFactor = (channelGains[c] / signalMultiplier);
+      // final halfMaxIntValue = 32767 / 8 / heightFactor;
 
+      // thresholdMarkerTop[0] = (MediaQuery.of(context).size.height / 2) - 12;
+      double calculatedMedian =
+          (c * MediaQuery.of(context).size.height / channelsLength) +
+              MediaQuery.of(context).size.height / channelsLength / 2;
+
+      final halfMaxIntValue =
+          MediaQuery.of(context).size.height / channelsLength / 8;
+      thresholdMarkerTop[c] = calculatedMedian - halfMaxIntValue - 12;
+      thresholdValue[c] = ((thresholdMarkerTop[c] +
+                      12 -
+                      // (MediaQuery.of(context).size.height / 2))
+                      calculatedMedian)
+                  .floor() *
+              heightFactor)
+          .floor();
+      listMedianDistance[c] = thresholdMarkerTop[c] + 12 - calculatedMedian;
+      print('calculatedMedian');
+      print(calculatedMedian);
+      print(halfMaxIntValue);
+      print(thresholdMarkerTop[c]);
+      print(thresholdValue[c]);
+      print(listMedianDistance[c]);
+    }
+    print('calculatedMedian result : ');
+    print(thresholdMarkerTop);
+    print(thresholdValue);
+  }
 }
 
+class ItemModel {
+  int idx;
+  String title;
 
-/// Private calss for storing the chart series data points.
-class _ChartData {
-  _ChartData(this.country, this.sales);
-  final int country;
-  final num sales;
+  ItemModel(this.idx, this.title);
 }
