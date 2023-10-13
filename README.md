@@ -1,7 +1,7 @@
 Spike Recorder Flutter
 ========================
 
-A neural recording app that runs on Windows, Android, iOS and OSX.
+A neural recording app that runs on Chromebook, Windows, Android, iOS and OSX.
 
 
 Building instructions
