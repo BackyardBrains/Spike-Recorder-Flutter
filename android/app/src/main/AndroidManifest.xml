@@ -1,22 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="com.backyardbrains.srfluterandroid">
-    
-    <uses-permission 
-        android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
-
-    <uses-feature
-        android:name="android.hardware.usb.host"
-        android:required="false" />
-
-    <application
-        tools:replace="android:label"
-        android:label="srmobileapp"
+    package="com.example.micsound">
+   <application
+        android:label="micsound"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

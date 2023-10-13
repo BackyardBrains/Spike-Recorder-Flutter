@@ -26,10 +26,7 @@
 	<string>$(PRODUCT_COPYRIGHT)</string>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Microphone access required</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
-
 </dict>
 </plist>

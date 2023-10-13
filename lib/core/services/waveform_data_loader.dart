@@ -1,6 +1,5 @@
 import 'package:flutter/services.dart';
-
-import '../models/waveform_data_model.dart';
+import 'package:micsound/core/models/waveform_data_model.dart';
 
 Future<WaveformData> loadWaveformData(String filename) async {
   final data = await rootBundle.loadString("assets/waveforms/$filename");
