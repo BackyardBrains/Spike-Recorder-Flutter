@@ -18,7 +18,6 @@ To build Spike Recorder Flutter follow these steps.
     ```sh
      git clone https://github.com/BackyardBrains/Spike-Recorder-Flutter.git ./srapp     
      cd srapp
-     git switch dev
     ```
 - Install packages
     ```sh
@@ -36,7 +35,6 @@ To build Spike Recorder Flutter follow these steps.
     ```sh
      git clone https://github.com/BackyardBrains/Spike-Recorder-Flutter.git ./srapp  
      cd srapp
-     git switch dev
     ```
 - Install packages
     ```sh
