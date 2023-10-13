@@ -146,7 +146,7 @@ class SequentialSharedBufferWorkerNode // eslint-disable-line no-unused-vars
       ? options.worker
       : {ringBufferLength: 3072, channelCount: 1};
 
-    this._worker = new Worker('build/web/ProcessThread.js');
+    this._worker = new Worker('ProcessThread.js');
 
     this._worker.onmessage = this._onWorkerInitialized.bind(this);
     if ( this._workerOptions.strDevice !== undefined ){
@@ -157,8 +157,8 @@ class SequentialSharedBufferWorkerNode // eslint-disable-line no-unused-vars
     // console.log("this._workerOptions.deviceType : ", this._workerOptions.deviceType);
     if (this._workerOptions.deviceType === "serial" && this._workerOptions.directAction === undefined){
       this.processorSab = new SharedArrayBuffer(Object.keys(PROCESSOR_STATE).length * Int32Array.BYTES_PER_ELEMENT);    
-      // this._processorWorker = new Worker('build/web/sequential-shared-buffer-worker-processor.js');
-      this._processorWorker = new Worker('build/web/SerialDeviceThread.js');
+      // this._processorWorker = new Worker('sequential-shared-buffer-worker-processor.js');
+      this._processorWorker = new Worker('SerialDeviceThread.js');
   
       console.log("this._workerOptions");
       console.log(this._workerOptions);

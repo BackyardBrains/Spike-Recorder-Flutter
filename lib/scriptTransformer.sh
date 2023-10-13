@@ -2,7 +2,7 @@
 #/Users/macbook/Documents/BYB/github/srmobileapp/lib/library.dart
 functions=("multiply" "floor" "generateArray" "envelopingSamples" "calculateLevel" "executeOneMessage" "executeContentOfMessageBuffer" "testEscapeSequence" "frameHasAllBytes" "checkIfHaveWholeFrame" "areWeAtTheEndOfFrame" "serialParsing")
 file=/Users/macbook/Documents/BYB/github/srmobileapp/lib/library.dart
-output_file=/Users/macbook/Documents/BYB/github/srmobileapp/build/web/libraries/library1.js
+output_file=/Users/macbook/Documents/BYB/github/srmobileapp/libraries/library1.js
 while read line; do  
   
 #Readind each line in sequence  

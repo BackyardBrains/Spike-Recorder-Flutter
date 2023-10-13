@@ -1,4 +1,4 @@
-// import Module from ("build/web/a.out.js"); 
+// import Module from ("a.out.js"); 
 // Module.onRuntimeInitialized = _ => {
 // }; 
 
@@ -140,7 +140,7 @@ class SharedBufferWorkletNode // eslint-disable-line no-unused-vars
     this.fileSab = [new SharedArrayBuffer(sampleRate*10*Int16Array.BYTES_PER_ELEMENT), new SharedArrayBuffer(sampleRate*10*Int16Array.BYTES_PER_ELEMENT)];
 
     // Worker backend.
-    let _worker = new Worker('build/web/ProcessThread.js');
+    let _worker = new Worker('ProcessThread.js');
 
     // This node is a messaging hub for the Worker and AWP. After the initial
     // setup, the message passing between the worker and the process are rarely

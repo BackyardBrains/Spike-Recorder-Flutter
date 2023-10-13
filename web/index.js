@@ -73,7 +73,7 @@ const importObject = {
 //   maximum: 100,
 // });
 
-// WebAssembly.instantiateStreaming(fetch("build/web/a.out.wasm",{
+// WebAssembly.instantiateStreaming(fetch("a.out.wasm",{
 //   headers:{
 //     'Content-Type':'Content-Type: application/wasm'
 //   }
@@ -87,7 +87,7 @@ const importObject = {
 //   // const sum = obj.instance.exports.accumulate(0, 10);
 //   console.log(obj);
 // });
-// fetch("build/web/a.out.wasm")
+// fetch("a.out.wasm")
 //   .then((response) => response.arrayBuffer())
 //   .then((bytes) => WebAssembly.instantiate(bytes, importObject))
 //   .then((result) => {
@@ -1129,19 +1129,19 @@ async function recordAudio(text){
     // alert("123");
 
     if (signalWorker === undefined){
-      signalWorker = new Worker('build/web//SignalThread.js');
+      signalWorker = new Worker('/SignalThread.js');
     }else{
       try{ signalWorker.terminate(); signalWorker = undefined; }catch(err){console.log(err);}
-      signalWorker = new Worker('build/web/SignalThread.js');
+      signalWorker = new Worker('SignalThread.js');
     }
 
     if (fileWorker === undefined){
-      fileWorker = new Worker('build/web//FileThread.js')
+      fileWorker = new Worker('/FileThread.js')
     }else{
       try{ 
         fileWorker.terminate(); 
         fileWorker = undefined; 
-        fileWorker = new Worker('build/web/FileThread.js');
+        fileWorker = new Worker('FileThread.js');
       }catch(err){console.log(err);}
     }
     
@@ -1175,7 +1175,7 @@ async function recordAudio(text){
     source = new MediaStreamAudioSourceNode(ac, { mediaStream });
   
     const {default: SharedBufferWorkletNode} = await import('./SharedWorkletNode.js');
-    await ac.audioWorklet.addModule('build/web/shared-buffer-worklet-processor.js');
+    await ac.audioWorklet.addModule('shared-buffer-worklet-processor.js');
     sampleRate = ac.sampleRate;
     if (window.SharedArrayBuffer){
       incSkip = 0;
@@ -1406,8 +1406,8 @@ async function recordSerial(text){
     try{ sequentialSignalWorker.terminate(); sequentialSignalWorker = undefined; }catch(err){console.log(err);}
     try{ sequentialFileWorker.terminate(); sequentialFileWorker = undefined; }catch(err){console.log(err);}
 
-    sequentialSignalWorker = new Worker('build/web/SignalThread.js')
-    sequentialFileWorker = new Worker('build/web/FileThread.js')
+    sequentialSignalWorker = new Worker('SignalThread.js')
+    sequentialFileWorker = new Worker('FileThread.js')
     
     try{ sbwNode.closeProcessor(); }catch(err){console.log(err);}
     try{ sbwNode.terminateAll(); }catch(err){console.log(err);}
@@ -1680,7 +1680,7 @@ async function recordHid(text){
     try{ fileWorker.terminate(); fileWorker = undefined; }catch(err){console.log(err);}
     
     if (sequentialSignalWorker === undefined){
-      // sequentialSignalWorker = new Worker('build/web/SignalThread.js')
+      // sequentialSignalWorker = new Worker('SignalThread.js')
     }else {
       try{ sequentialSignalWorker.terminate(); sequentialSignalWorker = undefined; }catch(err){console.log(err);}
     }
@@ -1688,8 +1688,8 @@ async function recordHid(text){
 
     try{ sequentialFileWorker.terminate(); sequentialFileWorker = undefined; }catch(err){console.log(err);}
 
-    sequentialSignalWorker = new Worker('build/web/SignalThread.js')
-    sequentialFileWorker = new Worker('build/web/FileThread.js');
+    sequentialSignalWorker = new Worker('SignalThread.js')
+    sequentialFileWorker = new Worker('FileThread.js');
 
     
     try{ sbwNode.closeProcessor(); }catch(err){console.log(err);}
@@ -2256,7 +2256,7 @@ window.playData = async function(isPlaying){
 async function processWav(startTime = -1, endTime = -1, loadBuffer = true, autoplay=false, timeScale = 10000){
   // sumInitialPlaybackTime = 0;
   if (fileWorker === undefined){
-    fileWorker = new Worker('build/web/file.worker.js')
+    fileWorker = new Worker('file.worker.js')
   }else{
     try{ fileWorker.terminate(); fileWorker = undefined; }catch(err){console.log(err);}
   }
@@ -2366,19 +2366,19 @@ async function processWav(startTime = -1, endTime = -1, loadBuffer = true, autop
   window.changeTimeBarStatus([true]);
 
   if (deviceType == 'audio'){
-    // await audioReplayCtx.audioWorklet.addModule('build/web/playback-shared-buffer-worklet-processor.js');
-    await audioReplayCtx.audioWorklet.addModule('build/web/shared-buffer-worklet-processor.js');
+    // await audioReplayCtx.audioWorklet.addModule('playback-shared-buffer-worklet-processor.js');
+    await audioReplayCtx.audioWorklet.addModule('shared-buffer-worklet-processor.js');
     // const {default: SharedBufferWorkletNode} = await import('./shared-buffer-worklet-node.js');
     const {default: SharedBufferWorkletNode} = await import('./SharedWorkletNode.js');
 
     if (signalWorker === undefined){
-      // signalWorker = new Worker('build/web/playback.signal.worker.js');
-      signalWorker = new Worker('build/web/SignalThread.js');
+      // signalWorker = new Worker('playback.signal.worker.js');
+      signalWorker = new Worker('SignalThread.js');
     }else{
       try{ 
         signalWorker.terminate(); signalWorker = undefined; 
-        // signalWorker = new Worker('build/web/playback.signal.worker.js');
-        signalWorker = new Worker('build/web/SignalThread.js');
+        // signalWorker = new Worker('playback.signal.worker.js');
+        signalWorker = new Worker('SignalThread.js');
       }catch(err){console.log(err);}
     }
 
@@ -2695,8 +2695,8 @@ async function processWav(startTime = -1, endTime = -1, loadBuffer = true, autop
     };
 
   }else{
-    // await audioReplayCtx.audioWorklet.addModule('build/web/playback-sequential-shared-buffer-worklet-processor.js');
-    await audioReplayCtx.audioWorklet.addModule('build/web/playback-sequential-shared-buffer-worklet-processor.js');
+    // await audioReplayCtx.audioWorklet.addModule('playback-sequential-shared-buffer-worklet-processor.js');
+    await audioReplayCtx.audioWorklet.addModule('playback-sequential-shared-buffer-worklet-processor.js');
     // const {default: SequentialSharedBufferWorkletNode} = await import('./SerialSharedWorkletNode.js');
     const {default: SequentialSharedBufferWorkletNode} = await import('./SerialSharedWorkletNode.js');
 
@@ -2708,17 +2708,17 @@ async function processWav(startTime = -1, endTime = -1, loadBuffer = true, autop
     }
 
     if (sequentialSignalWorker === undefined){
-      sequentialSignalWorker = new Worker('build/web/playback.sequential.signal.worker.js')
-      // sequentialSignalWorker = new Worker('build/web/SignalThread.js')
+      sequentialSignalWorker = new Worker('playback.sequential.signal.worker.js')
+      // sequentialSignalWorker = new Worker('SignalThread.js')
     }else{
       try{ 
         sequentialSignalWorker.terminate(); sequentialSignalWorker = undefined; 
-        sequentialSignalWorker = new Worker('build/web/playback.sequential.signal.worker.js')
-        // sequentialSignalWorker = new Worker('build/web/SignalThread.js')
+        sequentialSignalWorker = new Worker('playback.sequential.signal.worker.js')
+        // sequentialSignalWorker = new Worker('SignalThread.js')
 
       }catch(err){console.log(err);}
     }    
-    sequentialFileWorker = new Worker('build/web/sequential.file.worker.js')
+    sequentialFileWorker = new Worker('sequential.file.worker.js')
 
     if (window.SharedArrayBuffer){
       console.log("3");
@@ -2971,13 +2971,13 @@ async function processWav(startTime = -1, endTime = -1, loadBuffer = true, autop
               }
 
               // playback serial with removed resamples data
-              // await audioReplayCtx.audioWorklet.addModule('build/web/playback-shared-buffer-worklet-processor.js');
-              await audioReplayCtx.audioWorklet.addModule('build/web/shared-buffer-worklet-processor.js');
+              // await audioReplayCtx.audioWorklet.addModule('playback-shared-buffer-worklet-processor.js');
+              await audioReplayCtx.audioWorklet.addModule('shared-buffer-worklet-processor.js');
 
             }else{
               // playback serial with full samples
-              // await audioReplayCtx.audioWorklet.addModule('build/web/playback-shared-buffer-worklet-processor.js');
-              await audioReplayCtx.audioWorklet.addModule('build/web/shared-buffer-worklet-processor.js');
+              // await audioReplayCtx.audioWorklet.addModule('playback-shared-buffer-worklet-processor.js');
+              await audioReplayCtx.audioWorklet.addModule('shared-buffer-worklet-processor.js');
 
             }
             (new Int32Array(sabDraw.draw_states[0])) [DRAW_STATE.DIRECT_LOAD_FILE] = 0;
@@ -3188,13 +3188,13 @@ async function processWav(startTime = -1, endTime = -1, loadBuffer = true, autop
             
               // });              
               // playback serial with removed resamples data
-              // await audioReplayCtx.audioWorklet.addModule('build/web/playback-shared-buffer-worklet-processor.js');
-              await audioReplayCtx.audioWorklet.addModule('build/web/shared-buffer-worklet-processor.js');
+              // await audioReplayCtx.audioWorklet.addModule('playback-shared-buffer-worklet-processor.js');
+              await audioReplayCtx.audioWorklet.addModule('shared-buffer-worklet-processor.js');
 
             }else{
               // playback serial with full samples
-              // await audioReplayCtx.audioWorklet.addModule('build/web/playback-shared-buffer-worklet-processor.js');
-              await audioReplayCtx.audioWorklet.addModule('build/web/shared-buffer-worklet-processor.js');
+              // await audioReplayCtx.audioWorklet.addModule('playback-shared-buffer-worklet-processor.js');
+              await audioReplayCtx.audioWorklet.addModule('shared-buffer-worklet-processor.js');
 
             }
 
@@ -3364,7 +3364,7 @@ window.openReadWavFile = async function(){
     console.log("TERMINATE");
   }
 
-  wavFileReaderWorker = new Worker('build/web/readwavfile.worker.js');
+  wavFileReaderWorker = new Worker('readwavfile.worker.js');
   let openReadChannel = new MessageChannel();
 
   wavFileReaderWorker.postMessage({
