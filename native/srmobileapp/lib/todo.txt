@@ -1,0 +1,9 @@
+1. delete : import 'dart:convert';
+2. update :
+When Script Transformer is being run change utf8.decode to String.fromCharCode 
+//   const str = String.fromCharCode(...message);
+String str = utf8.decode(message);
+3. add export function keyword
+4. .floor() change
+comment //return val.floor();
+uncomment // return Math.floor();

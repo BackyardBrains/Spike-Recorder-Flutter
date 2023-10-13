@@ -1,0 +1,938 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:isolate';
+import 'dart:math';
+import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
+
+import 'package:async/async.dart';
+import 'package:awesome_dialog/awesome_dialog.dart';
+import 'package:circular_buffer/circular_buffer.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_audio_waveforms/flutter_audio_waveforms.dart';
+import 'package:isolated_worker/js_isolated_worker.dart';
+import 'package:srmobileapp/workers/interface.dart';
+// import 'package:isolated_worker/js_isolated_worker.dart';
+// import 'package:flutter_wasm/flutter_wasm.dart';
+// import 'package:flutter_libserialport/flutter_libserialport.dart';
+// import 'package:serial_port_flutter/serial_port_flutter.dart';
+
+// WEB
+// import 'package:quick_usb/quick_usb.dart';
+// import 'package:mic_stream/mic_stream.dart';
+
+final _data = Uint8List.fromList([
+  0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60, //
+  0x01, 0x7e, 0x01, 0x7e, 0x03, 0x02, 0x01, 0x00, 0x04, 0x05, 0x01, 0x70,
+  0x01, 0x01, 0x01, 0x05, 0x03, 0x01, 0x00, 0x02, 0x06, 0x08, 0x01, 0x7f,
+  0x01, 0x41, 0x80, 0x88, 0x04, 0x0b, 0x07, 0x13, 0x02, 0x06, 0x6d, 0x65,
+  0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x06, 0x73, 0x71, 0x75, 0x61, 0x72,
+  0x65, 0x00, 0x00, 0x0a, 0x09, 0x01, 0x07, 0x00, 0x20, 0x00, 0x20, 0x00,
+  0x7e, 0x0b,
+]);
+const data = "ASDASDASDASD";
+// final mod = WasmModule(data);
+// print(mod.describe());
+// final inst = mod.builder().build();
+// final square = inst.lookupFunction('square');
+
+// Future<dynamic> readFileAsync() async {
+//   ByteData data = await rootBundle.load("wasm/fib.wasm");
+//   final dataList = data.buffer.asUint8List(0);
+//   print("dataList");
+//   print(dataList);
+//   final _inst = WasmModule(dataList).builder().build();
+//   final _wasmSquare = _inst.lookupFunction('fib');
+
+//   print("_wasmSquare(12)");
+//   print(_wasmSquare(10));  
+//   return _wasmSquare(10);
+// }
+
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const MyApp());
+  // final data = File('fib.wasm').readAsBytesSync();
+
+  // readFileAsync();
+}
+
+void sampleBufferingEntryPoint(List<dynamic> values) {
+  final iReceivePort = ReceivePort();
+  SendPort sendPort = values[0];
+  sendPort.send(iReceivePort.sendPort);
+
+  // enveloping
+  // filter
+
+  // String data = values[1];
+  iReceivePort.listen((Object? message) async {
+    sendPort.send(message);
+  });
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({Key? key}) : super(key: key);
+
+  // This widget is the root of your application.
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Flutter Demo',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+    );
+  }
+}
+
+class MyHomePage extends StatefulWidget {
+  const MyHomePage({Key? key, required this.title}) : super(key: key);
+
+  final String title;
+
+  @override
+  State<MyHomePage> createState() => _MyHomePageState();
+}
+
+class _MyHomePageState extends State<MyHomePage> {
+  int _counter = 0;
+  final ReceivePort _receivePort = ReceivePort();
+  late final SendPort iSendPort;
+  late var _isolate;
+  late final StreamQueue _receiveQueue = StreamQueue(_receivePort);
+  // CircularBuffer cBuff = CircularBuffer(2);
+  List<double> cBuff = [];
+  List<double> cBuffDouble = [];
+  int cBuffIdx = 0;
+
+  StreamController<List<double>> simulateDataController =
+      new StreamController<List<double>>();
+  late StreamSubscription subscriptionSimulateData;
+
+  static Int16List dataToSamples(Uint8List data) {
+    final buffer = data.buffer.asByteData(data.offsetInBytes);
+
+    final samples = Int16List(data.length >> 1);
+    var offset = 0;
+    var idx = 0;
+    while (offset < buffer.lengthInBytes) {
+      samples[idx++] = buffer.getInt16(offset, Endian.little);
+      offset += 2;
+    }
+
+    return samples;
+  }
+
+// NATIVE
+/*
+  void _standardDisplay() async {
+    Stream<List<int>>? stream = await MicStream.microphone(sampleRate: 44100);
+    StreamSubscription<List<int>>? listener =
+        stream?.listen((samples) => print(dataToSamples(samples as Uint8List)));
+  }
+
+  List<double> getRandomList(count, maxRandom) {
+    List<double> temp = [];
+    Random rng = new Random();
+    for (var i = 0; i < count; i++) {
+      temp.add(rng.nextInt(maxRandom).toDouble() * (rng.nextBool() ? -1 : 1));
+    }
+    return temp;
+  }
+
+  void getIsolateNativeData() async {
+    int surfaceSize =
+        ((44100 * 60 * 2) / MediaQuery.of(context).size.width * 2).floor();
+    // cBuff = CircularBuffer<int>(surfaceSize);
+    cBuff = List<double>.generate(surfaceSize, (i) => 0);
+
+    _isolate = await Isolate.spawn<List<dynamic>>(sampleBufferingEntryPoint, [
+      _receivePort.sendPort,
+      [197]
+    ]);
+    iSendPort = await _receiveQueue.next;
+
+    Stream<Int32List>? stream = await MicStream.nativeData();
+    StreamSubscription? listener = stream.listen((curSamples) async {
+      bool first = true;
+      List<int> visibleSamples = [];
+      for (int i = 0; i < curSamples.length; i++) {
+        visibleSamples.add(curSamples[i]);
+      }
+
+      iSendPort.send(visibleSamples);
+    });
+
+    _receiveQueue.rest.listen((curSamples) {
+      for (int i = 0; i < curSamples.length; i++) {
+        cBuff[cBuffIdx] = curSamples[i].toDouble();
+        cBuffIdx++;
+        if (cBuffIdx >= surfaceSize) {
+          cBuffIdx = 0;
+        }
+      }
+      cBuffDouble = cBuff.map((i) => i.toDouble()).toList().cast<double>();
+      setState(() {});
+    });
+
+    setState(() {
+      _counter++;
+    });
+  }
+
+  void getNativeData() async {
+    int surfaceSize =
+        ((44100 * 60 * 2) / MediaQuery.of(context).size.width * 2).floor();
+    cBuffDouble = List<double>.generate(surfaceSize, (i) => 0);
+    cBuff = List<double>.generate(surfaceSize, (i) => 0);
+    print("getNativeData");
+
+    Stream<Int32List>? stream = await MicStream.nativeData();
+    cBuffIdx = 0;
+    stream.listen((Int32List curSamples) {
+      for (int i = 0; i < curSamples.length; i++) {
+        // cBuff[cBuffIdx] = int.parse(curSamples[i].toString()).toDouble();
+        cBuff[cBuffIdx] = curSamples[i].toDouble();
+        cBuffIdx++;
+        // print(curSamples[i].toDouble());
+        if (cBuffIdx >= surfaceSize) {
+          cBuffIdx = 0;
+        }
+        // print("cBuff[cBuffIdx]");
+      }
+      cBuffDouble = cBuff.map((i) => i.toDouble()).toList().cast<double>();
+      // print(cBuffDouble);
+      setState(() {});
+    });
+  }
+
+  void getStandardMicrophoneData() async {
+    double? sampleRate = await MicStream.sampleRate;
+    int? bitDepth = await MicStream.bitDepth;
+    int? bufferSize = await MicStream.bufferSize;
+    Stream<List<int>>? stream = await MicStream.microphone(
+        audioSource: AudioSource.DEFAULT,
+        sampleRate: 44100,
+        channelConfig: ChannelConfig.CHANNEL_IN_MONO,
+        audioFormat: AudioFormat.ENCODING_PCM_16BIT);
+
+    // Start listening to the stream
+    int surfaceSize =
+        ((44100 * 60 * 2) / MediaQuery.of(context).size.width * 2).floor();
+    // cBuff = CircularBuffer<int>(surfaceSize);
+    cBuffDouble = List<double>.generate(surfaceSize, (i) => 0);
+    cBuff = List<double>.generate(surfaceSize, (i) => 0);
+
+    StreamSubscription? listener = stream?.listen((samples) async {
+      bool first = true;
+      List<int> visibleSamples = [];
+
+      int tmp = 0;
+      for (int sample in samples) {
+        if (sample > 128) sample -= 255;
+        if (first) {
+          tmp = sample * 128;
+        } else {
+          tmp += sample;
+          visibleSamples.add(tmp);
+
+          tmp = 0;
+        }
+        first = !first;
+      }
+      // print(visibleSamples);
+      int len = visibleSamples.length;
+      for (int i = 0; i < len; i++) {
+        cBuff[cBuffIdx] = visibleSamples[i].toDouble();
+        cBuffIdx++;
+        if (cBuffIdx >= surfaceSize) {
+          cBuffIdx = 0;
+        }
+      }
+      cBuffDouble = List<double>.from(cBuff);
+
+      setState(() {});
+    });
+
+    setState(() {
+      _counter++;
+    });
+  }
+
+  void getMicrophoneData() async {
+    double? sampleRate = await MicStream.sampleRate;
+    int? bitDepth = await MicStream.bitDepth;
+    int? bufferSize = await MicStream.bufferSize;
+    // int SIZE = sampleRate!.toInt() * 60 * 2;
+    // int SIZE = 44100 * 60 * 2;
+    // cBuff = CircularBuffer<int>(SIZE);
+    int surfaceSize =
+        ((44100 * 60 * 2) / MediaQuery.of(context).size.width * 2).floor();
+    // cBuff = CircularBuffer<int>(surfaceSize);
+    cBuff = List<double>.generate(surfaceSize, (i) => 0);
+
+    _isolate = await Isolate.spawn<List<dynamic>>(sampleBufferingEntryPoint, [
+      _receivePort.sendPort,
+      [197]
+    ]);
+    iSendPort = await _receiveQueue.next;
+    // Init a new Stream
+    Stream<List<int>>? stream = await MicStream.microphone(
+        audioSource: AudioSource.DEFAULT,
+        sampleRate: 44100,
+        channelConfig: ChannelConfig.CHANNEL_IN_MONO,
+        audioFormat: AudioFormat.ENCODING_PCM_16BIT);
+
+    // Start listening to the stream
+    StreamSubscription? listener = stream?.listen((samples) async {
+      bool first = true;
+      List<int> visibleSamples = [];
+      int tmp = 0;
+      for (int sample in samples) {
+        if (sample > 128) sample -= 255;
+        if (first) {
+          tmp = sample * 128;
+        } else {
+          tmp += sample;
+          visibleSamples.add(tmp);
+
+          // localMax ??= visibleSamples.last;
+          // localMin ??= visibleSamples.last;
+          // localMax = max(localMax!, visibleSamples.last);
+          // localMin = min(localMin!, visibleSamples.last);
+
+          tmp = 0;
+        }
+        first = !first;
+      }
+
+      iSendPort.send(visibleSamples);
+      // print(visibleSamples);
+      // return await _receiveQueue.next;
+    });
+
+    _receiveQueue.rest.listen((curSamples) {
+      // final curSamples = dataToSamples(samples as Uint8List);
+
+      // cBuff.addAll(curSamples);
+      for (int i = 0; i < curSamples.length; i++) {
+        cBuff[cBuffIdx] = curSamples[i].toDouble();
+        cBuffIdx++;
+        if (cBuffIdx >= surfaceSize) {
+          cBuffIdx = 0;
+        }
+      }
+      // cBuffDouble = cBuff.map((i) => i.toDouble()).toList().cast<double>();
+      cBuffDouble = cBuff.map((i) => i.toDouble()).toList().cast<double>();
+      // cBuffDouble = cBuff.toList().cast<double>();
+      setState(() {});
+      // print(curSamples.length);
+    });
+
+    // _receivePort.asBroadcastStream().listen((Object? samples){
+    //   print(dataToSamples(samples as Uint8List));
+    // });
+
+    setState(() {
+      _counter++;
+    });
+  }
+
+
+*/
+// NATIVE
+  void getSimulateData() async {
+    int surfaceSize =
+        ((44100 * 60 * 2) / MediaQuery.of(context).size.width * 2).floor();
+    cBuffDouble = List<double>.generate(surfaceSize, (i) => 0);
+    cBuff = List<double>.generate(surfaceSize, (i) => 0);
+
+    subscriptionSimulateData =
+        simulateDataController.stream.listen((List<double> curSamples) {
+      for (int i = 0; i < curSamples.length; i++) {
+        cBuff[cBuffIdx] = curSamples[i].toDouble();
+        cBuffIdx++;
+        if (cBuffIdx >= surfaceSize) {
+          cBuffIdx = 0;
+        }
+      }
+      cBuffDouble = cBuff.map((i) => i.toDouble()).toList().cast<double>();
+      setState(() {});
+    });
+  }
+
+  getFirstTab(){
+    return Center(
+            child: Stack(
+              children: [
+                Positioned(
+                    left: 0,
+                    top: 0,
+                    child: cBuff.length == 2
+                        ? Container()
+                        : PolygonWaveform(
+                            inactiveColor: Colors.green,
+                            activeColor: Colors.transparent,
+                            maxDuration: const Duration(days: 1),
+                            elapsedDuration: const Duration(hours: 0),
+                            samples:
+                                (cBuffDouble), //list.map((i) => i.toDouble()).toList();
+                            channelIdx: 0,
+                            channelActive: 1,
+                            // channelTop: top,
+                            height: MediaQuery.of(context).size.height / 2,
+                            width: MediaQuery.of(context).size.width,
+                            gain: 100000,
+                            levelMedian: 300,
+                            strokeWidth: 1,
+                            eventMarkersNumber: [],
+                            eventMarkersPosition: [],
+                          )),
+
+                Positioned(
+                  right: 0,
+                  top:0,
+                  child: ElevatedButton(
+                    onPressed: (){
+
+                    },
+                    child: Text("Responsiveness"),
+                  ),
+                ),
+
+                Positioned(
+                  left: 0,
+                  top:0,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      // final worker = BackgroundWorker();
+                      // worker.spawn(
+                      //   "importScripts(self.location.origin + '/Timeless2.js');",
+                      //   (Map<String,dynamic> map){
+                      //     // while(true){
+                      //     //   print("first");
+                      //     // }
+                      //   },
+                      //   name: 'thread1',
+                      //   onInitialized: (){
+                      //     print("callback webworker1 initialized");
+                      //     worker.sendTo("thread1", "initialize");
+                      //   },
+                      //   onFromWorker: (Map<String,dynamic> map){
+                      //     // worker.sendTo("thread1", "initialize");
+                      //   },
+                      // );
+                      // final worker2 = BackgroundWorker();
+                      // worker2.spawn(
+                      //   "importScripts(self.location.origin + '/Timeless.js');",
+                      //   (Map<String,dynamic> map){
+                      //     // while(true){
+                      //     //   print("second");
+                      //     // }
+                      //   },
+                      //   name: 'thread2',
+                      //   onInitialized: (){
+                      //     print("callback webworker2 initialized");
+                      //     worker2.sendTo("thread2", "initialize");                          
+                      //   },
+                      //   onFromWorker: (Map<String,dynamic> map){
+                      //   },
+                      // );
+
+                      final bool loaded = await JsIsolatedWorker().importScripts(['EndlessLoop.js']);
+                        // web worker is available
+                        if(loaded) {
+                            print(await JsIsolatedWorker().run(
+                                functionName: 'myEndless',
+                                arguments: 'Hello from Dart :)',
+                            ));
+                        }else{
+                            print('Web worker is not available :(');
+                        }                      
+
+                      final bool loaded2 = await JsIsolatedWorker().importScripts(['Forever.js']);
+                        // web worker is available
+                        if(loaded) {
+                            print(await JsIsolatedWorker().run(
+                                functionName: 'myForever',
+                                arguments: 'Hello from Dart :)',
+                            ));
+                        }else{
+                            print('Web worker is not available :(');
+                        }                      
+
+                    },
+                    child: Text("Web Worker"),
+                  ),
+                ),
+                // NATIVE
+                // Positioned(
+                //     left: 0,
+                //     bottom: 50,
+                //     child: ElevatedButton(
+                //       onPressed: () {
+                //         getMicrophoneData();
+                //       },
+                //       child: Text("Continuous Isolate"),
+                //     )),
+                // Positioned(
+                //     right: 0,
+                //     bottom: 50,
+                //     child: ElevatedButton(
+                //       onPressed: () {
+                //         getStandardMicrophoneData();
+                //       },
+                //       child: Text("Standard Stream Listener"),
+                //     )),
+                // Positioned(
+                //     left: 0,
+                //     bottom: 100,
+                //     child: ElevatedButton(
+                //       onPressed: () {
+                //         getIsolateNativeData();
+                //       },
+                //       child: Text("Sim. Isolate Native data"),
+                //     )),
+                // Positioned(
+                //     left: 0,
+                //     bottom: 150,
+                //     child: ElevatedButton(
+                //       onPressed: () {
+                //         getNativeData();
+                //       },
+                //       child: Text("Simulate Native data"),
+                //     )),
+                // Positioned(
+                //     right: 0,
+                //     bottom: 150,
+                //     child: ElevatedButton(
+                //       onPressed: () {
+                //         getSimulateData();
+                //         Timer timer = Timer.periodic(
+                //             new Duration(milliseconds: 200), (Timer timer) {
+                //           List<double> randoms = getRandomList(600, 32768);
+                //           // print("randoms");
+                //           // print(randoms);
+                //           simulateDataController.sink.add(randoms);
+                //         });
+                //       },
+                //       child: Text("Simulate data"),
+                //     )),
+                // NATIVE
+
+              ],
+            ),
+
+            // child: Column(
+
+            //   mainAxisAlignment: MainAxisAlignment.center,
+            //   children: <Widget>[
+            //     const Text(
+            //       'You have pushed the button this many times:',
+            //     ),
+            //     Text(
+            //       '$_counter',
+            //       style: Theme.of(context).textTheme.headline4,
+            //     ),
+            //   ],
+            // ),
+          );
+  }
+
+  // Future<List<Device>> findDevices() async {
+  //   return await FlutterSerialPort.listDevices();
+  // }
+  @override
+  Widget build(BuildContext context) {
+    return 
+      DefaultTabController(
+        // length: 2,
+        length: 1,
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text(widget.title),
+            bottom: const TabBar(
+              tabs: [
+                Tab(icon: Icon(Icons.directions_car)),
+                // Tab(icon: Icon(Icons.directions_transit)),
+              ],
+            ),            
+          ),
+          body:  TabBarView(
+            children: [
+              getFirstTab(),
+              // _buildColumn(),
+              // getSerialTab(),
+            ],
+          ),
+          
+        ),
+
+      // floatingActionButton: FloatingActionButton(
+      //   onPressed: _incrementCounter,
+      //   tooltip: 'Increment',
+      //   child: const Icon(Icons.add),
+      // ), // This trailing comma makes auto-formatting nicer for build methods.
+    );
+  }
+  
+  // var availablePorts = [];
+// NATIVE
+/*
+
+ Widget _buildColumn() {
+    return Column(
+      children: [
+        _init_exit(),
+        _getDeviceList(),
+        _getDevicesWithDescription(),
+        _getDeviceDescription(),
+        if (Platform.isLinux) _setAutoDetachKernelDriver(),
+        _has_request(),
+        _open_close(),
+        _get_set_configuration(),
+        _claim_release_interface(),
+        _bulk_transfer(),
+      ],
+    );
+  }
+  Widget _init_exit() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        ElevatedButton(
+          child: const Text('init'),
+          onPressed: () async {
+            var init = await QuickUsb.init();
+            AwesomeDialog(
+              context: context,
+              dialogType: DialogType.info,
+              animType: AnimType.rightSlide,
+              title: 'Init',
+              desc: init == null? "null" : init.toString(),
+              btnCancelOnPress: () {},
+              btnOkOnPress: () {},
+            )..show();            
+            //log('init $init');
+          },
+        ),
+        ElevatedButton(
+          child: const Text('exit'),
+          onPressed: () async {
+            await QuickUsb.exit();
+            //log('exit');
+          },
+        ),
+      ],
+    );
+  }
+
+  List<UsbDevice>? _deviceList;
+
+  Widget _getDeviceList() {
+    return ElevatedButton(
+      child: const Text('getDeviceList'),
+      onPressed: () async {
+            AwesomeDialog(
+              context: context,
+              dialogType: DialogType.info,
+              animType: AnimType.rightSlide,
+              title: 'Device List 2',
+              desc: _deviceList == null? "null" : _deviceList.toString(),
+              btnCancelOnPress: () {},
+              btnOkOnPress: () {},
+            )..show();
+
+        _deviceList = await QuickUsb.getDeviceList();
+            AwesomeDialog(
+              context: context,
+              dialogType: DialogType.info,
+              animType: AnimType.rightSlide,
+              title: 'Device List',
+              desc: _deviceList == null? "null" : _deviceList.toString(),
+              btnCancelOnPress: () {},
+              btnOkOnPress: () {},
+            )..show();
+
+        print('deviceList $_deviceList');
+      },
+    );
+  }
+
+  Widget _has_request() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        ElevatedButton(
+          child: const Text('hasPermission'),
+          onPressed: () async {
+            var hasPermission = await QuickUsb.hasPermission(_deviceList!.first);
+            //log('hasPermission $hasPermission');
+          },
+        ),
+        ElevatedButton(
+          child: const Text('requestPermission'),
+          onPressed: () async {
+            await QuickUsb.requestPermission(_deviceList!.first);
+            //log('requestPermission');
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _open_close() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        ElevatedButton(
+          child: const Text('openDevice'),
+          onPressed: () async {
+            var openDevice = await QuickUsb.openDevice(_deviceList!.first);
+            //log('openDevice $openDevice');
+          },
+        ),
+        ElevatedButton(
+          child: const Text('closeDevice'),
+          onPressed: () async {
+            await QuickUsb.closeDevice();
+            //log('closeDevice');
+          },
+        ),
+      ],
+    );
+  }
+
+  UsbConfiguration? _configuration;
+
+  Widget _get_set_configuration() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        ElevatedButton(
+          child: const Text('getConfiguration'),
+          onPressed: () async {
+            _configuration = await QuickUsb.getConfiguration(0);
+            AwesomeDialog(
+              context: context,
+              dialogType: DialogType.info,
+              animType: AnimType.rightSlide,
+              title: 'Device Configuration',
+              desc: _configuration == null? "null" : _configuration.toString(),
+              btnCancelOnPress: () {},
+              btnOkOnPress: () {},
+            )..show();            
+            //log('getConfiguration $_configuration');
+          },
+        ),
+        ElevatedButton(
+          child: const Text('setConfiguration'),
+          onPressed: () async {
+            var setConfiguration =
+                await QuickUsb.setConfiguration(_configuration!);
+            //log('setConfiguration $setConfiguration');
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _claim_release_interface() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        ElevatedButton(
+          child: const Text('claimInterface'),
+          onPressed: () async {
+            var claimInterface =
+                await QuickUsb.claimInterface(_configuration!.interfaces[0]);
+            //log('claimInterface $claimInterface');
+          },
+        ),
+        ElevatedButton(
+          child: const Text('releaseInterface'),
+          onPressed: () async {
+            var releaseInterface =
+                await QuickUsb.releaseInterface(_configuration!.interfaces[0]);
+            //log('releaseInterface $releaseInterface');
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _bulk_transfer() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        ElevatedButton(
+          child: const Text('bulkTransferIn'),
+          onPressed: () async {
+            var endpoint = _configuration!.interfaces[0].endpoints
+                .firstWhere((e) => e.direction == UsbEndpoint.DIRECTION_IN);
+            var bulkTransferIn = await QuickUsb.bulkTransferIn(endpoint, 1024);
+            //log('bulkTransferIn ${hex.encode(bulkTransferIn)}');
+          },
+        ),
+        ElevatedButton(
+          child: const Text('bulkTransferOut'),
+          onPressed: () async {
+            var data = Uint8List.fromList(utf8.encode(''));
+            var endpoint = _configuration!.interfaces[0].endpoints
+                .firstWhere((e) => e.direction == UsbEndpoint.DIRECTION_OUT);
+            var bulkTransferOut =
+                await QuickUsb.bulkTransferOut(endpoint, data);
+            //log('bulkTransferOut $bulkTransferOut');
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _getDevicesWithDescription() {
+    return ElevatedButton(
+      child: const Text('getDevicesWithDescription'),
+      onPressed: () async {
+        var descriptions = await QuickUsb.getDevicesWithDescription();
+        _deviceList = descriptions.map((e) => e.device).toList();
+        //log('descriptions $descriptions');
+      },
+    );
+  }
+
+  Widget _getDeviceDescription() {
+    return ElevatedButton(
+      child: const Text('getDeviceDescription'),
+      onPressed: () async {
+        var description =
+            await QuickUsb.getDeviceDescription(_deviceList!.first);
+        //log('description ${description.toMap()}');
+      },
+    );
+  }
+
+  bool _autoDetachEnabled = false;
+  Widget _setAutoDetachKernelDriver() {
+    return ElevatedButton(
+      child: const Text('setAutoDetachKernelDriver'),
+      onPressed: () async {
+        await QuickUsb.setAutoDetachKernelDriver(!_autoDetachEnabled);
+        _autoDetachEnabled = !_autoDetachEnabled;
+        //log('setAutoDetachKernelDriver: $_autoDetachEnabled');
+      },
+    );
+  }  
+*/
+// NATIVE
+
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   initPorts();
+  // }
+
+  // void initPorts() {
+  //   setState(() => availablePorts = SerialPort.availablePorts);
+  // }
+
+  // getSerialTab() {
+  //   return Center(
+  //     child: Stack(
+  //       children: [
+  //         ListView(
+  //           children: [
+  //             for (final address in availablePorts)
+  //               Builder(builder: (context) {
+  //                 final port = SerialPort(address);
+  //                 return GestureDetector(
+  //                   onTap: (){
+  //                     final device = SerialPort(port.name!);
+  //                     if (!device.openReadWrite()) {
+  //                       print(SerialPort.lastError);
+  //                       exit(-1);
+  //                     }
+
+  //                     // port.write(/* ... */);
+
+  //                     final reader = SerialPortReader(device);
+  //                     reader.stream.listen((data) {
+  //                       print('received: $data');
+  //                     });                      
+  //                   },
+  //                   child: ExpansionTile(
+  //                     title: Text(address),
+  //                     children: [
+  //                       CardListTile('Description', port.description),
+  //                       CardListTile('Transport', port.transport.toTransport()),
+  //                       CardListTile('USB Bus', port.busNumber?.toPadded()),
+  //                       CardListTile('USB Device', port.deviceNumber?.toPadded()),
+  //                       CardListTile('Vendor ID', port.vendorId?.toHex()),
+  //                       CardListTile('Product ID', port.productId?.toHex()),
+  //                       CardListTile('Manufacturer', port.manufacturer),
+  //                       CardListTile('Product Name', port.productName),
+  //                       CardListTile('Serial Number', port.serialNumber),
+  //                       CardListTile('MAC Address', port.macAddress),
+  //                     ],
+  //                   ),
+  //                 );
+  //               }),
+  //           ],
+  //         ),
+
+  //         Positioned(
+  //           left : 0,
+  //           bottom: 0,
+  //           child: ElevatedButton(
+  //             onPressed: (){
+
+  //             },
+  //             child: Text("Get Serial Devices"),
+  //           )
+  //         )
+  //       ],
+  //     ),
+  //   );
+  // }
+}
+
+
+// extension IntToString on int {
+//   String toHex() => '0x${toRadixString(16)}';
+//   String toPadded([int width = 3]) => toString().padLeft(width, '0');
+//   String toTransport() {
+//     switch (this) {
+//       case SerialPortTransport.usb:
+//         return 'USB';
+//       case SerialPortTransport.bluetooth:
+//         return 'Bluetooth';
+//       case SerialPortTransport.native:
+//         return 'Native';
+//       default:
+//         return 'Unknown';
+//     }
+//   }
+// }
+
+
+
+// class CardListTile extends StatelessWidget {
+//   final String name;
+//   final String? value;
+
+//   CardListTile(this.name, this.value);
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return Card(
+//       child: ListTile(
+//         title: Text(value ?? 'N/A'),
+//         subtitle: Text(name),
+//       ),
+//     );
+//   }
+// }
