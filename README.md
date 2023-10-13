@@ -1,7 +1,7 @@
 Spike Recorder Flutter
 ========================
 
-A neural recording app that runs on Windows, Android, iOS and OSX.
+A neural recording app that runs on Chromebook, Windows, Android, iOS and OSX.
 
 
 Building instructions
@@ -78,8 +78,9 @@ To build Spike Recorder Flutter follow these steps.
   ```sh
      flutter build web
   ```
+- Open the build/web folder in a new Visual Studio Code window
 - Run the live server extension by clicking the Go Live button at the bottom right of the Visual Studio Code window
-- To deploy the app please user ```index.js``` in folder server.
+- To deploy the web app please use ```index.js``` in folder "server".
 
 
 Requirements
