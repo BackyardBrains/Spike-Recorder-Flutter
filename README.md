@@ -81,7 +81,7 @@ To build Spike Recorder Flutter follow these steps.
 - Open the build/web folder in a new Visual Studio Code window
 - Run the live server extension by clicking the Go Live button at the bottom right of the Visual Studio Code window
 - To deploy the web app please use ```index.js``` in folder "server".
-
+- To download the Firebase config please follow this [link](https://support.google.com/firebase/answer/7015592?hl=en#zippy=%2Cin-this-article)
 
 Requirements
 ------------------------
