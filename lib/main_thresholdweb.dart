@@ -5585,7 +5585,6 @@ class _MyHomePageState extends State<MyHomePage> {
                   // backgroundColor: getColor(Colors.blueGrey, Colors.blueGrey),
                   // overlayColor: getColor(Colors.white60, Colors.white70)
                 ),
-
                 child: isPlaying == 1
                     ? Icon(Icons.pause, color: Color(0xFF800000))
                     : Icon(
