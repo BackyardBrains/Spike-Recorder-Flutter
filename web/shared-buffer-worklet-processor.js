@@ -33,6 +33,55 @@ const STATE = {
   'REQUEST_SIGNAL_REFORM': 9,
 };
 
+const DRAW_STATE = {
+  'LEVEL': 0,
+  'DIVIDER': 1,
+  'SKIP_COUNTS':2,
+  'SURFACE_WIDTH':3,
+  'TIME_SCALE':4,
+  'SAMPLE_RATE':5,
+  'HEAD_IDX':6,
+  'TAIL_IDX':7,
+  'CHANNEL_COUNTS':8,
+  'CURRENT_HEAD' : 9,
+  'CURRENT_START' : 10,
+  'IS_FULL' : 11,
+  'IS_LOG' : 12,
+  'EXTRA_CHANNELS' : 13,
+  'MAX_SAMPLING_RATE' : 14,
+  'MIN_CHANNELS' : 15,
+  'MAX_CHANNELS' : 16,
+  'SAMPLING_RATE_1' : 17,
+  'SAMPLING_RATE_2' : 18,
+  'SAMPLING_RATE_3' : 19,
+  'SAMPLING_RATE_4' : 20,
+  'SAMPLING_RATE_5' : 21,
+  'SAMPLING_RATE_6' : 22,
+
+  'EVENT_FLAG' : 25,
+  'EVENT_NUMBER' : 26,
+  'EVENT_POSITION' : 27,
+  'EVENT_COUNTER' : 28,
+  //to filter array of events
+  'EVENT_HEAD' : 29,
+  'EVENT_TAIL' : 30,
+
+  'DIRECT_LOAD_FILE' : 40,
+  'HORIZONTAL_DRAG' : 41,
+  'HORIZONTAL_SCROLL_VALUE' : 42,
+
+  'WRITING_FILE_STATUS' : 50,
+  'IS_LOW_PASS_FILTER' : 51,
+  'IS_HIGH_PASS_FILTER' : 52,
+  'LOW_PASS_FILTER' : 53,
+  'HIGH_PASS_FILTER' : 54,
+  'IS_THRESHOLDING' : 55,
+  'AVERAGE_SNAPSHOT_THRESHOLDING' : 56,
+  'VALUE_THRESHOLDING' : 57,
+  'SELECTED_CHANNEL_THRESHOLDING' : 58,
+
+};
+
 /**
  * @class SharedBufferWorkletProcessor
  * @extends AudioWorkletProcessor
@@ -57,7 +106,37 @@ class SharedBufferWorkletProcessor extends AudioWorkletProcessor {
    */
   _initializeOnEvent(eventFromWorker) {
     const rawSharedBuffers = eventFromWorker.data.sabcs;
-    const n = rawSharedBuffers.length;
+    this.sabDrawInt = new Int32Array(eventFromWorker.data.sabDraw.draw_states[0]);
+
+    //serial
+    this.isSerial = false;
+    if (eventFromWorker.data.deviceType === undefined || eventFromWorker.data.deviceType == 'audio'){
+    } else {
+      this.isSerial = true;
+    }
+    /*
+    const curSampleRate = eventFromWorker.data.curSampleRate;
+    this.interpolated = false;
+    console.log("curSampleRate, sampleRate : ", curSampleRate, sampleRate);
+    if (curSampleRate != sampleRate){
+      this.interpolated = true;
+    }
+    const n = this.sabDrawInt[DRAW_STATE.CHANNEL_COUNTS];
+
+    */
+
+
+    let n = rawSharedBuffers.length;
+    if (this.isSerial){
+      const curSampleRate = eventFromWorker.data.curSampleRate;
+      this.interpolated = false;
+      console.log("curSampleRate, sampleRate : ", curSampleRate, sampleRate);
+      if (curSampleRate != sampleRate){
+        this.interpolated = true;
+      }
+      n = this.sabDrawInt[DRAW_STATE.CHANNEL_COUNTS];
+    }
+
     console.log("PROCESSOR SHARED BUFFER : ",n);
 
     let i = 0;
@@ -68,8 +147,14 @@ class SharedBufferWorkletProcessor extends AudioWorkletProcessor {
     for (;i<n;i++) {
       // Get the states buffer.
       const sharedBuffers = rawSharedBuffers[i];
-      let _states = new Int32Array(sharedBuffers.states);
-      this._states.push(_states);
+      let _states
+      try{
+        _states = new Int32Array(sharedBuffers.states);
+        this._states.push(_states);
+  
+      }catch(err){
+        console.log("err : ",i , n, err,sharedBuffers);
+      }
 
       // Worker's input/output buffers. This example only handles mono channel
       // for both.
@@ -117,6 +202,7 @@ class SharedBufferWorkletProcessor extends AudioWorkletProcessor {
 
     // Update the number of available frames in the input ring buffer.
     this._states[channelIdx][STATE.IB_FRAMES_AVAILABLE] += inputChannelData.length;
+    // console.log("[channelIdx][STATE.IB_FRAMES_AVAILABLE] : ", channelIdx, this._states[channelIdx][STATE.IB_FRAMES_AVAILABLE]);
   }
 
   /**
@@ -155,9 +241,17 @@ class SharedBufferWorkletProcessor extends AudioWorkletProcessor {
       return true;
     }
 
-    const len = this._inputRingBuffer.length;
+    let len = this._inputRingBuffer.length;
     // This example only handles mono channel.
     let c = 0;
+    const inputLen = inputs[0].length;
+    // console.log("inputs ", inputs[0][0]);
+    // console.log("input Len ", inputLen, inputs);
+    if (len > inputLen){
+      len = inputLen;
+    }
+    this.isDirect = this.sabDrawInt[DRAW_STATE.DIRECT_LOAD_FILE] == 1? true:false;
+
     for (; c < len; c++){
       const channel = inputs[0][c];
       // const outputChannelData = outputs[0][0];
@@ -168,21 +262,62 @@ class SharedBufferWorkletProcessor extends AudioWorkletProcessor {
       let max = Math.max;
       let min = Math.min;
       //turn into Int16 bit
+      this.interpolated = false;
       //https://stackoverflow.com/questions/35234551/javascript-converting-from-int16-to-float32
-      for (;i>=0;i--){
-        s = max(-1, min(1, channel[i]));
-        samples[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-      }
+      if (!this.interpolated){
+
+        for (;i>=0;i--){
+          s = max(-1, min(1, channel[i]));
+          samples[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        }
       // if (c == 0){
       //   processorSamples += n;
-      //   console.log("processorSamples : " , processorSamples);
+        // console.log("processorSamples : " , samples);
       // }
-  
-      this._pushInputChannelData(c,samples);
+        
+        this._pushInputChannelData(c,samples);
+      }else{
+        const resamplesLength = Math.floor(channel.length/2);
+        let resamples = new Int16Array(resamplesLength);
+        let resamplesIdx = 0;
+        // for (let i = 0; i< resamples.length; i++){
+        // console.log("INTERPOLATED true ",channel.length, n.length, this.sampledIdx);
+        for (let j = 0; j< channel.length; j++){
+          this.sampledIdx=this.sampledIdx+1;
+          // console.log("SampledIdx ", this.sampledIdx);
+          if (this.sampledIdx % 2 == 1){
+            s = max(-1, min(1, channel[j]));
+            resamples[resamplesIdx++] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+          }
+        }
+        // console.log("resamples : ", this.sampledIdx);
+
+        this._pushInputChannelData(c,resamples);
+
+      }
+
+      if (this.isDirect == false){
+        const outputChannelData = outputs[0][c];
+        outputChannelData.set(channel,0);  
+      }
+
       // console.log("SAMPLES ",c, samples);
       // this._pullOutputChannelData(outputChannelDataInt);
   
     }
+
+    // if (this.isDirect == false){
+    //   if (this._states[0][STATE.IB_FRAMES_AVAILABLE] >= this._kernelLength[0]) {
+    //     // Now we have enough frames to process. Wake up the worker.
+    //     // if (len > 1){
+    //     // }  
+    //     Atomics.notify(this._states[1], STATE.REQUEST_RENDER, 1);
+    //     Atomics.notify(this._states[0], STATE.REQUEST_RENDER, 1);
+    //   }  
+    // }
+    // console.log("this.isDirect : ", this.isDirect, this.interpolated, inputs[0][0]);
+    // else
+    // console.log("this._kernelLength[0] : ",this._kernelLength[0]);
 
     if (this._states[0][STATE.IB_FRAMES_AVAILABLE] >= this._kernelLength[0]) {
       // Now we have enough frames to process. Wake up the worker.
